@@ -1,5 +1,5 @@
 [package]
-name = "mc_protocol"
+name = "mc_networking"
 version = "0.1.0"
 authors = ["Heavenstone <malolegendrelemaire@gmail.com>"]
 edition = "2018"

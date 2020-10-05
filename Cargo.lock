@@ -103,7 +103,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc_protocol"
+name = "mc_networking"
 version = "0.1.0"
 dependencies = [
  "anyhow 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
