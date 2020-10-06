@@ -1,5 +1,4 @@
-use crate::packets::{encoder, RawPacket};
-
+use crate::packets::RawPacket;
 pub trait ClientBoundPacket: Into<RawPacket> {
     fn packet_id() -> i32;
 }

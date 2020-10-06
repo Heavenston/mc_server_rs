@@ -80,7 +80,7 @@ impl<T: 'static + ClientListener> Client<T> {
 async fn listen_client_packets<T: ClientListener>(
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
-    sender: mpsc::Sender<ClientMessage>,
+    _sender: mpsc::Sender<ClientMessage>,
     listener: Arc<Mutex<Option<T>>>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
