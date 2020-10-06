@@ -5,8 +5,8 @@ pub trait ClientBoundPacket: Into<RawPacket> {
 }
 
 mod status {
-    use crate::packets::{encoder, RawPacket};
     use super::ClientBoundPacket;
+    use crate::packets::{encoder, RawPacket};
 
     #[derive(Clone, Debug)]
     pub struct ResponsePacket {
@@ -57,9 +57,9 @@ mod status {
 pub use status::*;
 
 mod login {
-    use uuid::Uuid;
-    use crate::packets::{encoder, RawPacket};
     use super::ClientBoundPacket;
+    use crate::packets::{encoder, RawPacket};
+    use uuid::Uuid;
 
     #[derive(Clone, Debug)]
     pub struct LoginDisconnectPacket {
@@ -114,10 +114,7 @@ mod login {
             data.append(&mut encoder::varint::encode(self.verify_token.len() as i32));
             data.append(&mut self.verify_token);
 
-            RawPacket::new(
-                Self::packet_id(),
-                data.into_boxed_slice(),
-            )
+            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
     }
 
@@ -128,10 +125,7 @@ mod login {
     }
     impl LoginSuccessPacket {
         pub fn new(uuid: Uuid, username: String) -> Self {
-            Self {
-                uuid,
-                username
-            }
+            Self { uuid, username }
         }
     }
     impl ClientBoundPacket for LoginSuccessPacket {
@@ -146,10 +140,7 @@ mod login {
             data.append(&mut self.uuid.as_bytes().to_vec());
             data.append(&mut encoder::string::encode_string(&self.username));
 
-            RawPacket::new(
-                Self::packet_id(),
-                data.into_boxed_slice(),
-            )
+            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
     }
 
@@ -185,7 +176,9 @@ mod login {
     impl LoginPluginRequest {
         pub fn new(message_id: i32, channel: String, data: Vec<u8>) -> Self {
             Self {
-                message_id, channel, data
+                message_id,
+                channel,
+                data,
             }
         }
     }
@@ -202,10 +195,7 @@ mod login {
             data.append(&mut encoder::string::encode_string(&self.channel));
             data.append(&mut self.data);
 
-            RawPacket::new(
-                Self::packet_id(),
-                data.into_boxed_slice()
-            )
+            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
     }
 }

@@ -45,7 +45,11 @@ async fn main() -> Result<()> {
     loop {
         let (socket, _) = listener.accept().await?;
         let client = Arc::new(RwLock::new(Client::new(socket)));
-        client.write().await.set_listener(MyClientListener::new(Arc::clone(&client))).await;
+        client
+            .write()
+            .await
+            .set_listener(MyClientListener::new(Arc::clone(&client)))
+            .await;
         clients.push(client);
     }
 }

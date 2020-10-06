@@ -24,7 +24,7 @@ pub struct Client<T: ClientListener> {
     write: Arc<Mutex<OwnedWriteHalf>>,
     receiver: mpsc::Receiver<ClientMessage>,
     state: Arc<RwLock<ClientState>>,
-    listener: Arc<Mutex<Option<T>>>
+    listener: Arc<Mutex<Option<T>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -74,8 +74,6 @@ impl<T: 'static + ClientListener> Client<T> {
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
     }
-
-        
 }
 
 async fn listen_client_packets<T: ClientListener>(

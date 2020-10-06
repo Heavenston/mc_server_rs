@@ -1,12 +1,12 @@
 use mc_networking::client::listener::ClientListener;
 
-use serde_json::Value;
-use log::*;
 use async_trait::async_trait;
+use log::*;
+use mc_networking::client::Client;
 use serde_json::json;
+use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use mc_networking::client::Client;
 
 pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
 impl MyClientListener {
