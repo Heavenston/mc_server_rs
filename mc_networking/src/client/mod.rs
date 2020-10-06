@@ -68,14 +68,14 @@ impl<T: 'static + ClientListener> Client<T> {
             listener,
         }
     }
-
     pub async fn set_listener(&mut self, listener: T) {
         *(self.listener.lock().await) = Some(listener);
     }
-
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
     }
+
+        
 }
 
 async fn listen_client_packets<T: ClientListener>(

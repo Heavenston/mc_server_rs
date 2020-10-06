@@ -1,17 +1,13 @@
-use mc_networking::client::listener::ClientListener;
-use mc_networking::client::Client;
+mod my_client_listener;
 
-use anyhow::{Error, Result};
+use mc_networking::client::Client;
+use my_client_listener::MyClientListener;
+
+use anyhow::Result;
 use fern::colors::{Color, ColoredLevelConfig};
-use log::*;
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::prelude::*;
-use tokio::task;
-use tokio::sync::Mutex;
-use async_trait::async_trait;
+use tokio::sync::RwLock;
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()
@@ -40,25 +36,6 @@ fn setup_logger() {
         .unwrap();
 }
 
-struct MyClientListener;
-#[async_trait]
-impl ClientListener for MyClientListener {
-    async fn on_slp(&self) -> Value {
-        json!({
-            "version": {
-                "name": "1.16.3",
-                "protocol": 753
-            },
-            "players": {
-                "max": 10,
-                "online": 0,
-                "sample": []
-            },
-            "description": "Hi"
-        })
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logger();
@@ -67,10 +44,8 @@ async fn main() -> Result<()> {
 
     loop {
         let (socket, _) = listener.accept().await?;
-        let mut client = Client::new(socket);
-        client.set_listener(MyClientListener).await;
+        let client = Arc::new(RwLock::new(Client::new(socket)));
+        client.write().await.set_listener(MyClientListener::new(Arc::clone(&client))).await;
         clients.push(client);
     }
-
-    Ok(())
 }
