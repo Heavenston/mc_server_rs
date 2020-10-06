@@ -100,8 +100,8 @@ mod login {
     use crate::packets::{encoder, RawPacket};
 
     use anyhow::Error;
-    use byteorder::{BigEndian, ReadBytesExt};
-    use std::convert::{TryFrom, TryInto};
+    use byteorder::ReadBytesExt;
+    use std::convert::TryFrom;
     use std::io::{Cursor, Read};
 
     #[derive(Clone, Debug)]
