@@ -4,6 +4,7 @@ pub trait ClientBoundPacket: Into<RawPacket> {
     fn packet_id() -> i32;
 }
 
+#[derive(Clone, Debug)]
 pub struct ResponsePacket {
     pub json_response: serde_json::Value,
 }
@@ -28,6 +29,7 @@ impl Into<RawPacket> for ResponsePacket {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct PongPacket {
     pub payload: i64,
 }

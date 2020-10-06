@@ -8,6 +8,7 @@ pub trait ServerBoundPacket: TryFrom<RawPacket> {
     fn packet_id() -> i32;
 }
 
+#[derive(Clone, Debug)]
 pub struct HandshakePacket {
     pub protocol_version: i32,
     pub server_addr: String,
@@ -41,6 +42,7 @@ impl TryFrom<RawPacket> for HandshakePacket {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct RequestPacket;
 impl ServerBoundPacket for RequestPacket {
     fn packet_id() -> i32 {
@@ -62,6 +64,7 @@ impl TryFrom<RawPacket> for RequestPacket {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct PingPacket {
     pub payload: i64,
 }

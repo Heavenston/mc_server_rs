@@ -9,3 +9,10 @@ edition = "2018"
 [dependencies]
 mc_networking = { path = "../mc_networking" }
 tokio = { version = "0.2", features = ["full"] }
+byteorder = "1.3.4"
+anyhow = "1.0.32"
+serde = "1.0"
+serde_json = "1.0"
+log = "0.4"
+fern = { version = "0.5", features = ["colored"] }
+chrono = "0.4"

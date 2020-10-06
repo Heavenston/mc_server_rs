@@ -13,6 +13,7 @@ use std::convert::{TryInto, TryFrom};
 use std::sync::Arc;
 use tokio::prelude::io::AsyncWriteExt;
 use std::net::Shutdown;
+use log::*;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -42,13 +43,21 @@ impl Client {
         let (sender, receiver) = mpsc::channel(10);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
 
-        tokio::spawn(listen_client_packets(
-            read, 
-            Arc::clone(&write), 
-            sender, 
-            listener, 
-            Arc::clone(&state)
-        ));
+        tokio::spawn({
+            let write = Arc::clone(&write);
+            let state = Arc::clone(&state);
+            async move {
+                if let Err(e) = listen_client_packets(
+                    read,
+                    Arc::clone(&write),
+                    sender,
+                    listener,
+                    state,
+                ).await {
+                    error!("Error while handling {:?} packet: {:#?}", write.lock().await.as_ref().peer_addr().unwrap(), e);
+                };
+            }
+        });
 
         Client {
             write,
@@ -74,16 +83,29 @@ async fn listen_client_packets<T: ClientListener>(
         if let ClientState::Disconnected = state.read().await.clone() {
             break;
         }
-        let raw_packet = RawPacket::decode_async(&mut read).await?;
 
-        match state.read().await.clone() {
+        debug!(
+            "Reading packet, State({:?})",
+            state.read().await.clone()
+        );
+        let raw_packet = RawPacket::decode_async(&mut read).await?;
+        debug!(
+            "Received packet {} with data of length {}",
+            raw_packet.packet_id,
+            raw_packet.data.len()
+        );
+
+        let current_state = state.read().await.clone();
+        match current_state {
             ClientState::Handshaking => {
                 let handshake: HandshakePacket = raw_packet.try_into()?;
+                debug!("Received Handshake: {:?}", handshake);
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
                     2 => ClientState::Login,
                     _ => return Err(Error::msg("Invalid handshake packet"))
-                }
+                };
+                debug!("New state: {:?}", state.read().await.clone());
             }
 
             ClientState::Status => {
@@ -107,7 +129,7 @@ async fn listen_client_packets<T: ClientListener>(
             ClientState::Disconnected => {
                 break;
             }
-            _ => unimplemented!()
+            s => return Err(Error::msg(format!("Unimplemented client state: {:?}", s)))
         }
     }
     Ok(())
