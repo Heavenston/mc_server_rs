@@ -35,7 +35,7 @@ impl ClientListener for MyClientListener {
     async fn on_login_start(&self, username: String) -> LoginStartResult {
         info!("Login request from {}", username);
         LoginStartResult::Disconnect {
-            reason: "This server isn't ready yet".into()
+            reason: "This server isn't ready yet".into(),
         }
     }
 }
