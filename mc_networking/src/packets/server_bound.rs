@@ -7,8 +7,8 @@ pub trait ServerBoundPacket: TryFrom<RawPacket> {
 }
 
 mod status {
-    use crate::packets::{encoder, RawPacket};
     use super::ServerBoundPacket;
+    use crate::packets::{encoder, RawPacket};
 
     use anyhow::Error;
     use byteorder::{BigEndian, ReadBytesExt};
@@ -96,8 +96,8 @@ mod status {
 pub use status::*;
 
 mod login {
-    use crate::packets::{encoder, RawPacket};
     use super::ServerBoundPacket;
+    use crate::packets::{encoder, RawPacket};
 
     use anyhow::Error;
     use byteorder::{BigEndian, ReadBytesExt};
@@ -119,10 +119,9 @@ mod login {
         fn try_from(packet: RawPacket) -> Result<Self, Self::Error> {
             if packet.packet_id != Self::packet_id() {
                 return Err(Error::msg("Invalid packet id"));
-            }
-            ;
+            };
             Ok(Self {
-                name: encoder::string::decode_string_sync(&mut Cursor::new(packet.data.as_ref()))?
+                name: encoder::string::decode_string_sync(&mut Cursor::new(packet.data.as_ref()))?,
             })
         }
     }
@@ -198,7 +197,7 @@ mod login {
             Ok(Self {
                 message_id,
                 successful,
-                data: resp_data
+                data: resp_data,
             })
         }
     }
