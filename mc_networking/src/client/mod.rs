@@ -1,12 +1,13 @@
 pub mod listener;
 
 use crate::packets::client_bound::*;
-use crate::packets::server_bound::{HandshakePacket, PingPacket, RequestPacket, ServerBoundPacket};
+use crate::packets::server_bound::*;
 use crate::packets::RawPacket;
-use listener::ClientListener;
+use listener::*;
 
 use anyhow::{Error, Result};
 use log::*;
+use serde_json::json;
 use std::convert::{TryFrom, TryInto};
 use std::net::Shutdown;
 use std::sync::Arc;
@@ -128,9 +129,45 @@ async fn listen_client_packets<T: ClientListener>(
                     let pong: RawPacket = PongPacket::new(packet.payload).into();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
+                    *(state.write().await) = ClientState::Disconnected;
                     break;
                 } else {
                     return Err(Error::msg("Invalid packet_id"));
+                }
+            }
+
+            ClientState::Login => {
+                if raw_packet.packet_id == LoginStartPacket::packet_id() {
+                    let login_state = LoginStartPacket::try_from(raw_packet)?;
+                    let listener = listener.lock().await;
+                    if listener.is_none() {
+                        return Err(Error::msg("No listener registered"));
+                    }
+                    let listener = listener.as_ref().unwrap();
+                    match listener.on_login_start(login_state.name).await {
+                        LoginStartResult::Accept { uuid, username } => {
+                            let login_success: RawPacket =
+                                LoginSuccessPacket::new(uuid, username).into();
+                            write
+                                .lock()
+                                .await
+                                .write_all(login_success.encode().as_ref())
+                                .await?;
+                            *(state.write().await) = ClientState::Play;
+                        }
+                        LoginStartResult::Disconnect { reason } => {
+                            let disconnect: RawPacket =
+                                LoginDisconnectPacket::new(json!({ "text": reason })).into();
+                            write
+                                .lock()
+                                .await
+                                .write_all(disconnect.encode().as_ref())
+                                .await?;
+                            read.as_ref().shutdown(Shutdown::Both)?;
+                            *(state.write().await) = ClientState::Disconnected;
+                            break;
+                        }
+                    };
                 }
             }
 

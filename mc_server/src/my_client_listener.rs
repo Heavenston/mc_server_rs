@@ -1,12 +1,14 @@
-use mc_networking::client::listener::ClientListener;
+use mc_networking::client::listener::{ClientListener, LoginStartResult};
 
 use async_trait::async_trait;
 use log::*;
 use mc_networking::client::Client;
+use mc_networking::client::ClientState::Login;
 use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
 impl MyClientListener {
@@ -30,5 +32,12 @@ impl ClientListener for MyClientListener {
             },
             "description": "Hi"
         })
+    }
+
+    async fn on_login_start(&self, username: String) -> LoginStartResult {
+        info!("Login request from {}", username);
+        LoginStartResult::Disconnect {
+            reason: "This server isn't ready yet".into()
+        }
     }
 }
