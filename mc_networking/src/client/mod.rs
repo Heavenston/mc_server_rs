@@ -1,19 +1,19 @@
 pub mod listener;
 
-use crate::packets::RawPacket;
-use crate::packets::server_bound::{ServerBoundPacket, HandshakePacket, RequestPacket, PingPacket};
 use crate::packets::client_bound::*;
+use crate::packets::server_bound::{HandshakePacket, PingPacket, RequestPacket, ServerBoundPacket};
+use crate::packets::RawPacket;
 use listener::ClientListener;
 
-use tokio::sync::{mpsc, RwLock, Mutex};
-use tokio::net::TcpStream;
-use tokio::net::tcp::{OwnedWriteHalf, OwnedReadHalf};
-use anyhow::{Result, Error};
-use std::convert::{TryInto, TryFrom};
-use std::sync::Arc;
-use tokio::prelude::io::AsyncWriteExt;
-use std::net::Shutdown;
+use anyhow::{Error, Result};
 use log::*;
+use std::convert::{TryFrom, TryInto};
+use std::net::Shutdown;
+use std::sync::Arc;
+use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::TcpStream;
+use tokio::prelude::io::AsyncWriteExt;
+use tokio::sync::{mpsc, Mutex, RwLock};
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -36,8 +36,7 @@ pub enum ClientState {
 }
 
 impl Client {
-
-    pub fn new<T: 'static +  ClientListener>(socket: TcpStream, listener: Arc<T>) -> Self {
+    pub fn new<T: 'static + ClientListener>(socket: TcpStream, listener: Arc<T>) -> Self {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
         let (sender, receiver) = mpsc::channel(10);
@@ -47,14 +46,14 @@ impl Client {
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
             async move {
-                if let Err(e) = listen_client_packets(
-                    read,
-                    Arc::clone(&write),
-                    sender,
-                    listener,
-                    state,
-                ).await {
-                    error!("Error while handling {:?} packet: {:#?}", write.lock().await.as_ref().peer_addr().unwrap(), e);
+                if let Err(e) =
+                    listen_client_packets(read, Arc::clone(&write), sender, listener, state).await
+                {
+                    error!(
+                        "Error while handling {:?} packet: {:#?}",
+                        write.lock().await.as_ref().peer_addr().unwrap(),
+                        e
+                    );
                 };
             }
         });
@@ -69,7 +68,6 @@ impl Client {
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
     }
-
 }
 
 async fn listen_client_packets<T: ClientListener>(
@@ -77,17 +75,14 @@ async fn listen_client_packets<T: ClientListener>(
     write: Arc<Mutex<OwnedWriteHalf>>,
     sender: mpsc::Sender<ClientMessage>,
     listener: Arc<T>,
-    state: Arc<RwLock<ClientState>>
+    state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
     loop {
         if let ClientState::Disconnected = state.read().await.clone() {
             break;
         }
 
-        debug!(
-            "Reading packet, State({:?})",
-            state.read().await.clone()
-        );
+        debug!("Reading packet, State({:?})", state.read().await.clone());
         let raw_packet = RawPacket::decode_async(&mut read).await?;
         debug!(
             "Received packet {} with data of length {}",
@@ -103,7 +98,7 @@ async fn listen_client_packets<T: ClientListener>(
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
                     2 => ClientState::Login,
-                    _ => return Err(Error::msg("Invalid handshake packet"))
+                    _ => return Err(Error::msg("Invalid handshake packet")),
                 };
                 debug!("New state: {:?}", state.read().await.clone());
             }
@@ -112,24 +107,26 @@ async fn listen_client_packets<T: ClientListener>(
                 if raw_packet.packet_id == RequestPacket::packet_id() {
                     RequestPacket::try_from(raw_packet)?;
                     let response: RawPacket = ResponsePacket::new(listener.on_slp()).into();
-                    write.lock().await.write_all(response.encode().as_ref()).await?;
-                }
-                else if raw_packet.packet_id == PingPacket::packet_id() {
+                    write
+                        .lock()
+                        .await
+                        .write_all(response.encode().as_ref())
+                        .await?;
+                } else if raw_packet.packet_id == PingPacket::packet_id() {
                     let packet: PingPacket = raw_packet.try_into()?;
                     let pong: RawPacket = PongPacket::new(packet.payload).into();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     break;
-                }
-                else {
-                    return Err(Error::msg("Invalid packet_id"))
+                } else {
+                    return Err(Error::msg("Invalid packet_id"));
                 }
             }
 
             ClientState::Disconnected => {
                 break;
             }
-            s => return Err(Error::msg(format!("Unimplemented client state: {:?}", s)))
+            s => return Err(Error::msg(format!("Unimplemented client state: {:?}", s))),
         }
     }
     Ok(())

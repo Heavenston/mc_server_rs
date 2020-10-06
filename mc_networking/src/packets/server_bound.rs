@@ -1,8 +1,9 @@
-use crate::packets::{RawPacket, encoder};
-use std::convert::{TryFrom, TryInto};
+use crate::packets::{encoder, RawPacket};
+
 use anyhow::Error;
+use byteorder::{BigEndian, ReadBytesExt};
+use std::convert::{TryFrom, TryInto};
 use std::io::Cursor;
-use byteorder::{ReadBytesExt, BigEndian};
 
 pub trait ServerBoundPacket: TryFrom<RawPacket> {
     fn packet_id() -> i32;
@@ -25,7 +26,7 @@ impl TryFrom<RawPacket> for HandshakePacket {
 
     fn try_from(raw_packet: RawPacket) -> Result<Self, Self::Error> {
         if Self::packet_id() != raw_packet.packet_id {
-            return Err(Error::msg("Invalid packet id"))
+            return Err(Error::msg("Invalid packet id"));
         };
         let mut data = Cursor::new(&raw_packet.data);
         let protocol_version = encoder::varint::decode_sync(&mut data)?;
@@ -37,7 +38,7 @@ impl TryFrom<RawPacket> for HandshakePacket {
             protocol_version,
             server_addr,
             server_port,
-            next_state
+            next_state,
         })
     }
 }
@@ -68,7 +69,7 @@ impl TryFrom<RawPacket> for RequestPacket {
 pub struct PingPacket {
     pub payload: i64,
 }
-impl ServerBoundPacket for  PingPacket {
+impl ServerBoundPacket for PingPacket {
     fn packet_id() -> i32 {
         1
     }

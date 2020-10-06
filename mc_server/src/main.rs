@@ -1,16 +1,15 @@
-
+use mc_networking::client::listener::ClientListener;
 use mc_networking::client::Client;
 
 use anyhow::{Error, Result};
-use tokio::prelude::*;
-use tokio::task;
-use tokio::net::TcpListener;
-use mc_networking::client::listener::ClientListener;
-use serde_json::{Value, json};
-use std::sync::Arc;
-use std::collections::{HashMap, HashSet};
 use fern::colors::{Color, ColoredLevelConfig};
 use log::*;
+use serde_json::{json, Value};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tokio::prelude::*;
+use tokio::task;
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()
@@ -35,7 +34,8 @@ fn setup_logger() {
         })
         .level(log::LevelFilter::Debug)
         .chain(std::io::stdout())
-        .apply().unwrap();
+        .apply()
+        .unwrap();
 }
 
 struct MyClientListener;

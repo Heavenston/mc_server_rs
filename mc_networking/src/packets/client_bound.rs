@@ -1,4 +1,4 @@
-use crate::packets::{RawPacket, encoder};
+use crate::packets::{encoder, RawPacket};
 
 pub trait ClientBoundPacket: Into<RawPacket> {
     fn packet_id() -> i32;
@@ -22,9 +22,7 @@ impl Into<RawPacket> for ResponsePacket {
     fn into(self) -> RawPacket {
         RawPacket::new(
             Self::packet_id(),
-            encoder::string::encode_string(
-                &self.json_response.to_string()
-            ).into_boxed_slice()
+            encoder::string::encode_string(&self.json_response.to_string()).into_boxed_slice(),
         )
     }
 }
@@ -45,6 +43,9 @@ impl ClientBoundPacket for PongPacket {
 }
 impl Into<RawPacket> for PongPacket {
     fn into(self) -> RawPacket {
-        RawPacket::new(Self::packet_id(), Box::new(self.payload.to_be_bytes()) as Box<[u8]>)
+        RawPacket::new(
+            Self::packet_id(),
+            Box::new(self.payload.to_be_bytes()) as Box<[u8]>,
+        )
     }
 }

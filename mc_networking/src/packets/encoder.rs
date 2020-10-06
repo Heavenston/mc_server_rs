@@ -1,4 +1,3 @@
-
 pub mod varint {
     use anyhow::{Error, Result};
     use byteorder::ReadBytesExt;
@@ -66,12 +65,13 @@ pub mod varint {
 }
 
 pub mod string {
+    use super::varint;
+
     use anyhow::Result;
+    use byteorder::ReadBytesExt;
+    use std::io::Read;
     use tokio::prelude::io::AsyncReadExt;
     use tokio::prelude::AsyncRead;
-    use byteorder::ReadBytesExt;
-    use super::varint;
-    use std::io::Read;
 
     pub fn encode_string(string: &str) -> Vec<u8> {
         let mut data = vec![];

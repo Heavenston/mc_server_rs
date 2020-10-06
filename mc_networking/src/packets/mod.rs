@@ -1,13 +1,14 @@
 pub mod client_bound;
-pub mod server_bound;
 mod encoder;
+pub mod server_bound;
+
+use encoder::varint;
 
 use anyhow::Result;
-use encoder::varint;
 use byteorder::ReadBytesExt;
-use tokio::prelude::AsyncRead;
-use tokio::prelude::io::AsyncReadExt;
 use std::io::Read;
+use tokio::prelude::io::AsyncReadExt;
+use tokio::prelude::AsyncRead;
 
 pub struct RawPacket {
     pub packet_id: i32,
@@ -15,10 +16,7 @@ pub struct RawPacket {
 }
 impl RawPacket {
     pub fn new(packet_id: i32, data: Box<[u8]>) -> Self {
-        Self {
-            packet_id,
-            data,
-        }
+        Self { packet_id, data }
     }
 
     pub fn encode(&self) -> Box<[u8]> {
