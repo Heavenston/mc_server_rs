@@ -10,6 +10,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::task;
+use tokio::sync::Mutex;
+use async_trait::async_trait;
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()
@@ -39,8 +41,9 @@ fn setup_logger() {
 }
 
 struct MyClientListener;
+#[async_trait]
 impl ClientListener for MyClientListener {
-    fn on_slp(&self) -> Value {
+    async fn on_slp(&self) -> Value {
         json!({
             "version": {
                 "name": "1.16.3",
@@ -63,8 +66,9 @@ async fn main() -> Result<()> {
     let mut clients = Vec::new();
 
     loop {
-        let (mut socket, _) = listener.accept().await?;
-        let client = Client::new(socket, Arc::new(MyClientListener));
+        let (socket, _) = listener.accept().await?;
+        let mut client = Client::new(socket);
+        client.set_listener(MyClientListener).await;
         clients.push(client);
     }
 

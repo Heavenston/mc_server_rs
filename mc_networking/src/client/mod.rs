@@ -20,10 +20,11 @@ enum ClientMessage {
     Init,
 }
 
-pub struct Client {
+pub struct Client<T: ClientListener> {
     write: Arc<Mutex<OwnedWriteHalf>>,
     receiver: mpsc::Receiver<ClientMessage>,
     state: Arc<RwLock<ClientState>>,
+    listener: Arc<Mutex<Option<T>>>
 }
 
 #[derive(Clone, Debug)]
@@ -35,16 +36,18 @@ pub enum ClientState {
     Disconnected,
 }
 
-impl Client {
-    pub fn new<T: 'static + ClientListener>(socket: TcpStream, listener: Arc<T>) -> Self {
+impl<T: 'static + ClientListener> Client<T> {
+    pub fn new(socket: TcpStream) -> Self {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
         let (sender, receiver) = mpsc::channel(10);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
+        let listener = Arc::new(Mutex::new(None));
 
         tokio::spawn({
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
+            let listener = Arc::clone(&listener);
             async move {
                 if let Err(e) =
                     listen_client_packets(read, Arc::clone(&write), sender, listener, state).await
@@ -62,7 +65,12 @@ impl Client {
             write,
             receiver,
             state,
+            listener,
         }
+    }
+
+    pub async fn set_listener(&mut self, listener: T) {
+        *(self.listener.lock().await) = Some(listener);
     }
 
     pub async fn get_state(&self) -> ClientState {
@@ -74,7 +82,7 @@ async fn listen_client_packets<T: ClientListener>(
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
     sender: mpsc::Sender<ClientMessage>,
-    listener: Arc<T>,
+    listener: Arc<Mutex<Option<T>>>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
     loop {
@@ -106,7 +114,12 @@ async fn listen_client_packets<T: ClientListener>(
             ClientState::Status => {
                 if raw_packet.packet_id == RequestPacket::packet_id() {
                     RequestPacket::try_from(raw_packet)?;
-                    let response: RawPacket = ResponsePacket::new(listener.on_slp()).into();
+                    let listener = listener.lock().await;
+                    if listener.is_none() {
+                        return Err(Error::msg("No listener registered"));
+                    }
+                    let listener = listener.as_ref().unwrap();
+                    let response: RawPacket = ResponsePacket::new(listener.on_slp().await).into();
                     write
                         .lock()
                         .await
