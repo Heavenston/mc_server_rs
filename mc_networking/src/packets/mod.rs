@@ -1,8 +1,7 @@
 pub mod client_bound;
-mod encoder;
 pub mod server_bound;
 
-use encoder::varint;
+use crate::data_types::encoder::varint;
 
 use anyhow::Result;
 use byteorder::ReadBytesExt;

@@ -7,6 +7,8 @@ use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::task;
+use uuid::Uuid;
 
 pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
 impl MyClientListener {
@@ -34,8 +36,13 @@ impl ClientListener for MyClientListener {
 
     async fn on_login_start(&self, username: String) -> LoginStartResult {
         info!("Login request from {}", username);
-        LoginStartResult::Disconnect {
-            reason: "This server isn't ready yet".into(),
+        LoginStartResult::Accept {
+            uuid: Uuid::new_v4(),
+            username,
         }
+    }
+
+    async fn on_ready(&self) {
+        println!("Hi");
     }
 }

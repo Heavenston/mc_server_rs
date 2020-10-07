@@ -10,4 +10,5 @@ pub enum LoginStartResult {
 pub trait ClientListener: Send + Sync {
     async fn on_slp(&self) -> serde_json::Value;
     async fn on_login_start(&self, username: String) -> LoginStartResult;
+    async fn on_ready(&self);
 }

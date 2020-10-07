@@ -5,7 +5,8 @@ pub trait ClientBoundPacket: Into<RawPacket> {
 
 mod status {
     use super::ClientBoundPacket;
-    use crate::packets::{encoder, RawPacket};
+    use crate::data_types::encoder;
+    use crate::packets::RawPacket;
 
     #[derive(Clone, Debug)]
     pub struct ResponsePacket {
@@ -57,7 +58,8 @@ pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
-    use crate::packets::{encoder, RawPacket};
+    use crate::data_types::encoder;
+    use crate::packets::RawPacket;
     use uuid::Uuid;
 
     #[derive(Clone, Debug)]
@@ -199,3 +201,88 @@ mod login {
     }
 }
 pub use login::*;
+
+mod play {
+    use super::ClientBoundPacket;
+    use crate::data_types::encoder;
+    use crate::packets::RawPacket;
+
+    #[derive(Clone, Debug)]
+    pub struct JoinGamePacket {
+        pub entity_id: i32,
+        pub is_hardcore: bool,
+        pub gamemode: u8,
+        pub previous_gamemode: u8,
+        pub world_names: Vec<String>,
+        pub dimension_codec: nbt::Value,
+        pub dimension: nbt::Value,
+        pub world_name: String,
+        pub hashed_seed: u64,
+        pub max_players: i32,
+        pub view_distance: i32,
+        pub reduced_debug_info: bool,
+        pub enable_respawn_screen: bool,
+        pub is_debug: bool,
+        pub is_flat: bool,
+    }
+    impl JoinGamePacket {
+        pub fn new(
+            entity_id: i32,
+            is_hardcore: bool,
+            gamemode: u8,
+            previous_gamemode: u8,
+            world_names: Vec<String>,
+            dimension_codec: nbt::Value,
+            dimension: nbt::Value,
+            world_name: String,
+            hashed_seed: u64,
+            max_players: i32,
+            view_distance: i32,
+            reduced_debug_info: bool,
+            enable_respawn_screen: bool,
+            is_debug: bool,
+            is_flat: bool,
+        ) -> Self {
+            Self {
+                entity_id,
+                is_hardcore,
+                gamemode,
+                previous_gamemode,
+                world_names,
+                dimension_codec,
+                dimension,
+                world_name,
+                hashed_seed,
+                max_players,
+                view_distance,
+                reduced_debug_info,
+                enable_respawn_screen,
+                is_debug,
+                is_flat,
+            }
+        }
+    }
+    impl ClientBoundPacket for JoinGamePacket {
+        fn packet_id() -> i32 {
+            0x24
+        }
+    }
+    impl Into<RawPacket> for JoinGamePacket {
+        fn into(self) -> RawPacket {
+            let mut data = vec![];
+
+            data.extend_from_slice(&self.entity_id.to_be_bytes());
+            data.push(if self.is_hardcore { 1 } else { 0 });
+            data.push(self.gamemode);
+            data.push(self.previous_gamemode);
+            data.append(&mut encoder::varint::encode(self.world_names.len() as i32));
+            for world_name in self.world_names.iter() {
+                data.append(&mut encoder::string::encode_string(world_name));
+            }
+            self.dimension_codec.to_writer(&mut data).unwrap();
+
+            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        }
+    }
+}
+pub use play::*;

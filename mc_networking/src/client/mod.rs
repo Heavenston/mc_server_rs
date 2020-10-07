@@ -21,13 +21,6 @@ enum ClientMessage {
     Init,
 }
 
-pub struct Client<T: ClientListener> {
-    write: Arc<Mutex<OwnedWriteHalf>>,
-    receiver: mpsc::Receiver<ClientMessage>,
-    state: Arc<RwLock<ClientState>>,
-    listener: Arc<Mutex<Option<T>>>,
-}
-
 #[derive(Clone, Debug)]
 pub enum ClientState {
     Handshaking,
@@ -35,6 +28,13 @@ pub enum ClientState {
     Login,
     Play,
     Disconnected,
+}
+
+pub struct Client<T: ClientListener> {
+    write: Arc<Mutex<OwnedWriteHalf>>,
+    receiver: mpsc::Receiver<ClientMessage>,
+    state: Arc<RwLock<ClientState>>,
+    listener: Arc<Mutex<Option<T>>>,
 }
 
 impl<T: 'static + ClientListener> Client<T> {
@@ -74,6 +74,51 @@ impl<T: 'static + ClientListener> Client<T> {
     }
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
+    }
+
+    pub async fn join_game(
+        &self,
+        entity_id: i32,
+        is_hardcore: bool,
+        gamemode: u8,
+        world_names: Vec<String>,
+        dimension_codec: nbt::Value,
+        dimension: nbt::Value,
+        world_name: String,
+        hashed_seed: u64,
+        view_distance: u8,
+        reduced_debug_info: bool,
+        enable_respawn_screen: bool,
+        is_debug: bool,
+        is_flat: bool,
+    ) -> Result<()> {
+        if !((2..=32).contains(&view_distance)) {
+            return Err(Error::msg("Invalid render distance"));
+        }
+        let join_game_packet: RawPacket = JoinGamePacket::new(
+            entity_id,
+            is_hardcore,
+            gamemode,
+            gamemode,
+            world_names,
+            dimension_codec,
+            dimension,
+            world_name,
+            hashed_seed,
+            0,
+            view_distance as i32,
+            reduced_debug_info,
+            enable_respawn_screen,
+            is_debug,
+            is_flat,
+        )
+        .into();
+        self.write
+            .lock()
+            .await
+            .write_all(&join_game_packet.encode())
+            .await?;
+        Ok(())
     }
 }
 
@@ -168,6 +213,7 @@ async fn listen_client_packets<T: ClientListener>(
                             break;
                         }
                     };
+                    listener.on_ready().await;
                 }
             }
 

@@ -8,7 +8,8 @@ pub trait ServerBoundPacket: TryFrom<RawPacket> {
 
 mod handshake {
     use super::ServerBoundPacket;
-    use crate::packets::{encoder, RawPacket};
+    use crate::data_types::encoder;
+    use crate::packets::RawPacket;
 
     use anyhow::Error;
     use byteorder::{BigEndian, ReadBytesExt};
@@ -106,7 +107,8 @@ pub use status::*;
 
 mod login {
     use super::ServerBoundPacket;
-    use crate::packets::{encoder, RawPacket};
+    use crate::data_types::encoder;
+    use crate::packets::RawPacket;
 
     use anyhow::Error;
     use byteorder::ReadBytesExt;
