@@ -18,7 +18,7 @@ mod status {
     }
     impl ClientBoundPacket for ResponsePacket {
         fn packet_id() -> i32 {
-            0
+            0x00
         }
     }
     impl Into<RawPacket> for ResponsePacket {
@@ -41,7 +41,7 @@ mod status {
     }
     impl ClientBoundPacket for PongPacket {
         fn packet_id() -> i32 {
-            1
+            0x01
         }
     }
     impl Into<RawPacket> for PongPacket {

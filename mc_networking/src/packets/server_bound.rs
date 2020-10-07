@@ -6,13 +6,13 @@ pub trait ServerBoundPacket: TryFrom<RawPacket> {
     fn packet_id() -> i32;
 }
 
-mod status {
+mod handshake {
     use super::ServerBoundPacket;
     use crate::packets::{encoder, RawPacket};
 
     use anyhow::Error;
     use byteorder::{BigEndian, ReadBytesExt};
-    use std::convert::{TryFrom, TryInto};
+    use std::convert::TryFrom;
     use std::io::Cursor;
 
     #[derive(Clone, Debug)]
@@ -24,7 +24,7 @@ mod status {
     }
     impl ServerBoundPacket for HandshakePacket {
         fn packet_id() -> i32 {
-            0
+            0x00
         }
     }
     impl TryFrom<RawPacket> for HandshakePacket {
@@ -48,12 +48,21 @@ mod status {
             })
         }
     }
+}
+pub use handshake::*;
+
+mod status {
+    use super::ServerBoundPacket;
+    use crate::packets::RawPacket;
+
+    use anyhow::Error;
+    use std::convert::{TryFrom, TryInto};
 
     #[derive(Clone, Debug)]
     pub struct RequestPacket;
     impl ServerBoundPacket for RequestPacket {
         fn packet_id() -> i32 {
-            0
+            0x00
         }
     }
     impl TryFrom<RawPacket> for RequestPacket {
@@ -77,7 +86,7 @@ mod status {
     }
     impl ServerBoundPacket for PingPacket {
         fn packet_id() -> i32 {
-            1
+            0x01
         }
     }
     impl TryFrom<RawPacket> for PingPacket {
