@@ -280,6 +280,15 @@ mod play {
                 data.append(&mut encoder::string::encode_string(world_name));
             }
             self.dimension_codec.to_writer(&mut data).unwrap();
+            self.dimension.to_writer(&mut data).unwrap();
+            data.append(&mut encoder::string::encode_string(&self.world_name));
+            data.extend_from_slice(&self.hashed_seed.to_be_bytes());
+            data.append(&mut encoder::varint::encode(self.max_players));
+            data.append(&mut encoder::varint::encode(self.view_distance));
+            data.push(self.reduced_debug_info as u8);
+            data.push(self.enable_respawn_screen as u8);
+            data.push(self.is_debug as u8);
+            data.push(self.is_flat as u8);
 
             RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
