@@ -164,8 +164,9 @@ async fn listen_client_packets<T: ClientListener>(
                     }
                     let listener = listener.as_ref().unwrap();
                     let response: RawPacket = ResponsePacket {
-                        json_response: listener.on_slp().await
-                    }.into();
+                        json_response: listener.on_slp().await,
+                    }
+                    .into();
                     write
                         .lock()
                         .await
@@ -174,8 +175,9 @@ async fn listen_client_packets<T: ClientListener>(
                 } else if raw_packet.packet_id == PingPacket::packet_id() {
                     let packet: PingPacket = raw_packet.try_into()?;
                     let pong: RawPacket = PongPacket {
-                        payload: packet.payload
-                    }.into();
+                        payload: packet.payload,
+                    }
+                    .into();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
@@ -196,9 +198,7 @@ async fn listen_client_packets<T: ClientListener>(
                     match listener.on_login_start(login_state.name).await {
                         LoginStartResult::Accept { uuid, username } => {
                             let login_success: RawPacket =
-                                LoginSuccessPacket{
-                                    uuid, username
-                                }.into();
+                                LoginSuccessPacket { uuid, username }.into();
                             write
                                 .lock()
                                 .await
@@ -207,10 +207,10 @@ async fn listen_client_packets<T: ClientListener>(
                             *(state.write().await) = ClientState::Play;
                         }
                         LoginStartResult::Disconnect { reason } => {
-                            let disconnect: RawPacket =
-                                LoginDisconnectPacket{
-                                    reason: json!({ "text": reason })
-                                }.into();
+                            let disconnect: RawPacket = LoginDisconnectPacket {
+                                reason: json!({ "text": reason }),
+                            }
+                            .into();
                             write
                                 .lock()
                                 .await

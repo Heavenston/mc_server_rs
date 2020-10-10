@@ -1,7 +1,10 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{JoinGamePacketDimensionCodec, JoinGamePacketDimensionElement, JoinGamePacketBiomeElement, JoinGamePacketBiomeEffects, JoinGamePacketBiomeEffectsMoodSound};
+use mc_networking::packets::client_bound::{
+    JoinGamePacketBiomeEffects, JoinGamePacketBiomeEffectsMoodSound, JoinGamePacketBiomeElement,
+    JoinGamePacketDimensionCodec, JoinGamePacketDimensionElement,
+};
 
 use async_trait::async_trait;
 use log::*;
@@ -61,7 +64,7 @@ impl ClientListener for MyClientListener {
             piglin_safe: 0,
             coordinate_scale: 1.0,
             logical_height: 256,
-            infiniburn: "".to_string()
+            infiniburn: "".to_string(),
         };
         let test_biome = JoinGamePacketBiomeElement {
             depth: 0.1,
@@ -79,32 +82,35 @@ impl ClientListener for MyClientListener {
                     tick_delay: 6000,
                     offset: 2.0,
                     sound: "minecraft:ambient.cave".to_string(),
-                    block_search_extent: 8
-                }
-            }
+                    block_search_extent: 8,
+                },
+            },
         };
 
-        client.join_game(
-            0,
-            false,
-            1,
-            vec!["minecraft:test".into()],
-            JoinGamePacketDimensionCodec {
-                dimensions: map!(
-                    "minecraft:testdim".into() => test_dimension.clone()
-                ),
-                biomes: map!(
-                    "minecraft:testbiome".into() => test_biome.clone()
-                )
-            },
-            test_dimension.clone(),
-            "minecraft:testdim".into(),
-            0,
-            10,
-            false,
-            true,
-            false,
-            true
-        ).await.unwrap();
+        client
+            .join_game(
+                0,
+                false,
+                1,
+                vec!["minecraft:test".into()],
+                JoinGamePacketDimensionCodec {
+                    dimensions: map!(
+                        "minecraft:testdim".into() => test_dimension.clone()
+                    ),
+                    biomes: map!(
+                        "minecraft:testbiome".into() => test_biome.clone()
+                    ),
+                },
+                test_dimension.clone(),
+                "minecraft:testdim".into(),
+                0,
+                10,
+                false,
+                true,
+                false,
+                true,
+            )
+            .await
+            .unwrap();
     }
 }

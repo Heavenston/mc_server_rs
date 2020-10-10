@@ -162,11 +162,11 @@ pub use login::*;
 mod play {
     use super::ClientBoundPacket;
     use crate::data_types::encoder;
-    use crate::packets::RawPacket;
     use crate::nbt_map::NBTMap;
+    use crate::packets::RawPacket;
 
-    use anyhow::{Result};
-    use serde::{Serialize};
+    use anyhow::Result;
+    use serde::Serialize;
     use std::collections::HashMap;
 
     #[derive(Clone, Debug, Serialize)]
@@ -324,6 +324,5 @@ mod play {
             RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
     }
-
 }
 pub use play::*;
