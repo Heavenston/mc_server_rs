@@ -1,7 +1,5 @@
 use anyhow::{Error, Result};
-use byteorder::ReadBytesExt;
 use std::io::{Cursor, Read};
-use std::ops::{Deref, DerefMut};
 use tokio::prelude::io::AsyncReadExt;
 use tokio::prelude::AsyncRead;
 use uuid::Uuid;
