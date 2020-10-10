@@ -73,7 +73,7 @@ pub mod string {
     use tokio::prelude::io::AsyncReadExt;
     use tokio::prelude::AsyncRead;
 
-    pub fn encode_string(string: &str) -> Vec<u8> {
+    pub fn encode(string: &str) -> Vec<u8> {
         let mut data = vec![];
         let text = string.as_bytes();
         data.append(&mut varint::encode(text.len() as i32));
@@ -81,7 +81,7 @@ pub mod string {
         data
     }
 
-    pub async fn decode_string_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<String> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<String> {
         let size = varint::decode_async(stream).await?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 
@@ -91,7 +91,7 @@ pub mod string {
 
         return Ok(String::from_utf8_lossy(&data).into());
     }
-    pub fn decode_string_sync<T: Read + Unpin>(stream: &mut T) -> Result<String> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<String> {
         let size = varint::decode_sync(stream)?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 

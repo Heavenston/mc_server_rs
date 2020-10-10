@@ -37,7 +37,7 @@ mod handshake {
             };
             let mut data = Cursor::new(&raw_packet.data);
             let protocol_version = encoder::varint::decode_sync(&mut data)?;
-            let server_addr = encoder::string::decode_string_sync(&mut data)?;
+            let server_addr = encoder::string::decode_sync(&mut data)?;
             let server_port = data.read_u16::<BigEndian>()?;
             let next_state = encoder::varint::decode_sync(&mut data)?;
 
@@ -132,7 +132,7 @@ mod login {
                 return Err(Error::msg("Invalid packet id"));
             };
             Ok(Self {
-                name: encoder::string::decode_string_sync(&mut Cursor::new(packet.data.as_ref()))?,
+                name: encoder::string::decode_sync(&mut Cursor::new(packet.data.as_ref()))?,
             })
         }
     }

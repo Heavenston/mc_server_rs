@@ -21,7 +21,7 @@ mod status {
         fn into(self) -> RawPacket {
             RawPacket::new(
                 Self::packet_id(),
-                encoder::string::encode_string(&self.json_response.to_string()).into_boxed_slice(),
+                encoder::string::encode(&self.json_response.to_string()).into_boxed_slice(),
             )
         }
     }
@@ -65,7 +65,7 @@ mod login {
         fn into(self) -> RawPacket {
             RawPacket::new(
                 Self::packet_id(),
-                encoder::string::encode_string(&self.reason.to_string()).into_boxed_slice(),
+                encoder::string::encode(&self.reason.to_string()).into_boxed_slice(),
             )
         }
     }
@@ -85,7 +85,7 @@ mod login {
         fn into(mut self) -> RawPacket {
             let mut data = vec![];
 
-            data.append(&mut encoder::string::encode_string(&self.server_id));
+            data.append(&mut encoder::string::encode(&self.server_id));
             data.append(&mut encoder::varint::encode(self.public_key.len() as i32));
             data.append(&mut self.public_key);
             data.append(&mut encoder::varint::encode(self.verify_token.len() as i32));
@@ -110,7 +110,7 @@ mod login {
             let mut data = vec![];
 
             data.append(&mut self.uuid.as_bytes().to_vec());
-            data.append(&mut encoder::string::encode_string(&self.username));
+            data.append(&mut encoder::string::encode(&self.username));
 
             RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
@@ -150,7 +150,7 @@ mod login {
             let mut data = vec![];
 
             data.append(&mut encoder::varint::encode(self.message_id));
-            data.append(&mut encoder::string::encode_string(&self.channel));
+            data.append(&mut encoder::string::encode(&self.channel));
             data.append(&mut self.data);
 
             RawPacket::new(Self::packet_id(), data.into_boxed_slice())
@@ -161,7 +161,7 @@ pub use login::*;
 
 mod play {
     use super::ClientBoundPacket;
-    use crate::data_types::encoder;
+    use crate::data_types::{encoder, MetadataValue};
     use crate::nbt_map::NBTMap;
     use crate::packets::RawPacket;
 
@@ -280,11 +280,11 @@ mod play {
             data.push(self.previous_gamemode);
             data.append(&mut encoder::varint::encode(self.world_names.len() as i32));
             for world_name in self.world_names.iter() {
-                data.append(&mut encoder::string::encode_string(world_name));
+                data.append(&mut encoder::string::encode(world_name));
             }
             self.dimension_codec.encode(&mut data).unwrap();
             nbt::ser::to_writer(&mut data, &self.dimension, None).unwrap();
-            data.append(&mut encoder::string::encode_string(&self.world_name));
+            data.append(&mut encoder::string::encode(&self.world_name));
             data.extend_from_slice(&self.hashed_seed.to_be_bytes());
             data.append(&mut encoder::varint::encode(self.max_players));
             data.append(&mut encoder::varint::encode(self.view_distance));
@@ -321,6 +321,28 @@ mod play {
             data.extend_from_slice(&self.pitch.to_be_bytes());
             data.push(self.flags);
             data.append(&mut encoder::varint::encode(self.teleport_id));
+            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        }
+    }
+
+    pub struct EntityMetadataPacket {
+        entity_id: i32,
+        metadata: HashMap<u8, MetadataValue>,
+    }
+    impl ClientBoundPacket for EntityMetadataPacket {
+        fn packet_id() -> i32 {
+            0x44
+        }
+    }
+    impl Into<RawPacket> for EntityMetadataPacket {
+        fn into(self) -> RawPacket {
+            let mut data = vec![];
+            data.append(&mut encoder::varint::encode(self.entity_id));
+            for (key, value) in self.metadata.into_iter() {
+                data.push(key);
+                data.append(&mut value.encode());
+            }
+            data.push(0xFF);
             RawPacket::new(Self::packet_id(), data.into_boxed_slice())
         }
     }
