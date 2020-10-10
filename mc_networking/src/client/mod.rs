@@ -95,23 +95,23 @@ impl<T: 'static + ClientListener> Client<T> {
         if !((2..=32).contains(&view_distance)) {
             return Err(Error::msg("Invalid render distance"));
         }
-        let join_game_packet: RawPacket = JoinGamePacket::new(
+        let join_game_packet: RawPacket = JoinGamePacket {
             entity_id,
             is_hardcore,
             gamemode,
-            gamemode,
+            previous_gamemode: gamemode,
             world_names,
             dimension_codec,
             dimension,
             world_name,
             hashed_seed,
-            0,
-            view_distance as i32,
+            max_players: 0,
+            view_distance: view_distance as i32,
             reduced_debug_info,
             enable_respawn_screen,
             is_debug,
             is_flat,
-        )
+        }
         .into();
         self.write
             .lock()
@@ -163,7 +163,9 @@ async fn listen_client_packets<T: ClientListener>(
                         return Err(Error::msg("No listener registered"));
                     }
                     let listener = listener.as_ref().unwrap();
-                    let response: RawPacket = ResponsePacket::new(listener.on_slp().await).into();
+                    let response: RawPacket = ResponsePacket {
+                        json_response: listener.on_slp().await
+                    }.into();
                     write
                         .lock()
                         .await
@@ -171,7 +173,9 @@ async fn listen_client_packets<T: ClientListener>(
                         .await?;
                 } else if raw_packet.packet_id == PingPacket::packet_id() {
                     let packet: PingPacket = raw_packet.try_into()?;
-                    let pong: RawPacket = PongPacket::new(packet.payload).into();
+                    let pong: RawPacket = PongPacket {
+                        payload: packet.payload
+                    }.into();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
@@ -192,7 +196,9 @@ async fn listen_client_packets<T: ClientListener>(
                     match listener.on_login_start(login_state.name).await {
                         LoginStartResult::Accept { uuid, username } => {
                             let login_success: RawPacket =
-                                LoginSuccessPacket::new(uuid, username).into();
+                                LoginSuccessPacket{
+                                    uuid, username
+                                }.into();
                             write
                                 .lock()
                                 .await
@@ -202,7 +208,9 @@ async fn listen_client_packets<T: ClientListener>(
                         }
                         LoginStartResult::Disconnect { reason } => {
                             let disconnect: RawPacket =
-                                LoginDisconnectPacket::new(json!({ "text": reason })).into();
+                                LoginDisconnectPacket{
+                                    reason: json!({ "text": reason })
+                                }.into();
                             write
                                 .lock()
                                 .await
