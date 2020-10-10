@@ -1,13 +1,14 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
+use mc_networking::client::Client;
+use mc_networking::map;
+use mc_networking::packets::client_bound::{JoinGamePacketDimensionCodec, JoinGamePacketDimensionElement, JoinGamePacketBiomeElement, JoinGamePacketBiomeEffects, JoinGamePacketBiomeEffectsMoodSound};
 
 use async_trait::async_trait;
 use log::*;
-use mc_networking::client::Client;
 use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::task;
 use uuid::Uuid;
 
 pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
@@ -43,6 +44,67 @@ impl ClientListener for MyClientListener {
     }
 
     async fn on_ready(&self) {
-        println!("Hi");
+        info!("A player is ready !");
+        let client = self.0.read().await;
+
+        let test_dimension = JoinGamePacketDimensionElement {
+            natural: 1,
+            ambient_light: 0.0,
+            has_ceiling: 0,
+            has_skylight: 1,
+            fixed_time: 0,
+            shrunk: 0,
+            ultrawarm: 0,
+            has_raids: 0,
+            respawn_anchor_works: 0,
+            bed_works: 1,
+            piglin_safe: 0,
+            coordinate_scale: 1.0,
+            logical_height: 256,
+            infiniburn: "".to_string()
+        };
+        let test_biome = JoinGamePacketBiomeElement {
+            depth: 0.1,
+            temperature: 0.5,
+            downfall: 0.5,
+            precipitation: "none".to_string(),
+            category: "none".to_string(),
+            scale: 0.2,
+            effects: JoinGamePacketBiomeEffects {
+                sky_color: 0x7BA4FF,
+                water_fog_color: 0x050533,
+                fog_color: 0xC0D8FF,
+                water_color: 0x3F76E4,
+                mood_sound: JoinGamePacketBiomeEffectsMoodSound {
+                    tick_delay: 6000,
+                    offset: 2.0,
+                    sound: "minecraft:ambient.cave".to_string(),
+                    block_search_extent: 8
+                }
+            }
+        };
+
+        client.join_game(
+            0,
+            false,
+            1,
+            vec!["minecraft:test".into()],
+            JoinGamePacketDimensionCodec {
+                dimensions: map!(
+                    "minecraft:testdim".into() => test_dimension.clone()
+                ),
+                biomes: map!(
+                    "minecraft:testbiome".into() => test_biome.clone()
+                )
+            },
+            test_dimension.clone(),
+            "minecraft:testdim".into(),
+            0,
+            10,
+            false,
+            true,
+            false,
+            true
+        ).await.unwrap();
     }
 }

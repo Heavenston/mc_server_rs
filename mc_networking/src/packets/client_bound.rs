@@ -206,6 +206,90 @@ mod play {
     use super::ClientBoundPacket;
     use crate::data_types::encoder;
     use crate::packets::RawPacket;
+    use crate::nbt_map::NBTMap;
+
+    use anyhow::{Result};
+    use serde::{Serialize};
+    use std::collections::HashMap;
+
+    #[derive(Clone, Debug, Serialize)]
+    pub struct JoinGamePacketDimensionElement {
+        pub natural: i8,
+        pub ambient_light: f32,
+        pub has_ceiling: i8,
+        pub has_skylight: i8,
+        pub fixed_time: i64,
+        pub shrunk: i8,
+        pub ultrawarm: i8,
+        pub has_raids: i8,
+        pub respawn_anchor_works: i8,
+        pub bed_works: i8,
+        pub piglin_safe: i8,
+        pub coordinate_scale: f32,
+        pub logical_height: i32,
+        pub infiniburn: String,
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    pub struct JoinGamePacketBiomeEffectsMoodSound {
+        pub tick_delay: i32,
+        pub offset: f32,
+        pub sound: String,
+        pub block_search_extent: i32,
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    pub struct JoinGamePacketBiomeEffects {
+        pub sky_color: i32,
+        pub water_fog_color: i32,
+        pub fog_color: i32,
+        pub water_color: i32,
+        pub mood_sound: JoinGamePacketBiomeEffectsMoodSound,
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    pub struct JoinGamePacketBiomeElement {
+        pub depth: f32,
+        pub temperature: f32,
+        pub downfall: f32,
+        pub precipitation: String,
+        pub category: String,
+        pub scale: f32,
+        pub effects: JoinGamePacketBiomeEffects,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct JoinGamePacketDimensionCodec {
+        pub dimensions: HashMap<String, JoinGamePacketDimensionElement>,
+        pub biomes: HashMap<String, JoinGamePacketBiomeElement>,
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    struct JoinGamePacketDimensionCodecInner {
+        #[serde(rename = "minecraft:dimension_type")]
+        pub dimensions: NBTMap<JoinGamePacketDimensionElement>,
+        #[serde(rename = "minecraft:worldgen/biome")]
+        pub biomes: NBTMap<JoinGamePacketBiomeElement>,
+    }
+
+    impl JoinGamePacketDimensionCodec {
+        fn encode(self, buf: &mut Vec<u8>) -> Result<()> {
+            let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
+            for (name, element) in self.dimensions {
+                dimension_map.push_element(name, element);
+            }
+            let mut biome_map = NBTMap::new("minecraft:worldgen/biome".into());
+            for (name, element) in self.biomes {
+                biome_map.push_element(name, element);
+            }
+            let codec = JoinGamePacketDimensionCodecInner {
+                dimensions: dimension_map,
+                biomes: biome_map,
+            };
+            nbt::ser::to_writer(buf, &codec, None)?;
+            Ok(())
+        }
+    }
 
     #[derive(Clone, Debug)]
     pub struct JoinGamePacket {
@@ -214,8 +298,8 @@ mod play {
         pub gamemode: u8,
         pub previous_gamemode: u8,
         pub world_names: Vec<String>,
-        pub dimension_codec: nbt::Value,
-        pub dimension: nbt::Value,
+        pub dimension_codec: JoinGamePacketDimensionCodec,
+        pub dimension: JoinGamePacketDimensionElement,
         pub world_name: String,
         pub hashed_seed: u64,
         pub max_players: i32,
@@ -232,8 +316,8 @@ mod play {
             gamemode: u8,
             previous_gamemode: u8,
             world_names: Vec<String>,
-            dimension_codec: nbt::Value,
-            dimension: nbt::Value,
+            dimension_codec: JoinGamePacketDimensionCodec,
+            dimension: JoinGamePacketDimensionElement,
             world_name: String,
             hashed_seed: u64,
             max_players: i32,
@@ -279,8 +363,8 @@ mod play {
             for world_name in self.world_names.iter() {
                 data.append(&mut encoder::string::encode_string(world_name));
             }
-            self.dimension_codec.to_writer(&mut data).unwrap();
-            self.dimension.to_writer(&mut data).unwrap();
+            self.dimension_codec.encode(&mut data).unwrap();
+            nbt::ser::to_writer(&mut data, &self.dimension, None).unwrap();
             data.append(&mut encoder::string::encode_string(&self.world_name));
             data.extend_from_slice(&self.hashed_seed.to_be_bytes());
             data.append(&mut encoder::varint::encode(self.max_players));
