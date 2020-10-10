@@ -1,7 +1,7 @@
-use std::ops::{Deref, DerefMut};
 use anyhow::{Error, Result};
 use byteorder::ReadBytesExt;
 use std::io::{Cursor, Read};
+use std::ops::{Deref, DerefMut};
 use tokio::prelude::io::AsyncReadExt;
 use tokio::prelude::AsyncRead;
 use uuid::Uuid;
@@ -14,7 +14,7 @@ pub enum Slot {
         item_id: i32,
         item_count: u8,
         nbt: nbt::Value,
-    }
+    },
 }
 impl Slot {
     pub fn encode(&self) -> Vec<u8> {
@@ -22,7 +22,9 @@ impl Slot {
         match self {
             Slot::NotPresent => data.push(0),
             Slot::Present {
-                item_id, item_count, nbt
+                item_id,
+                item_count,
+                nbt,
             } => {
                 data.append(&mut encoder::varint::encode(*item_id));
                 data.push(*item_count);
@@ -73,13 +75,13 @@ impl Particle {
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
         Ok(Self {
             id: encoder::varint::decode_async(stream).await?,
-            data: encoder::varint::decode_async(stream).await?
+            data: encoder::varint::decode_async(stream).await?,
         })
     }
     pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
         Ok(Self {
             id: encoder::varint::decode_sync(stream)?,
-            data: encoder::varint::decode_sync(stream)?
+            data: encoder::varint::decode_sync(stream)?,
         })
     }
     pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<Self> {
@@ -103,8 +105,10 @@ impl Pose {
         *self as u8
     }
     pub fn decode(data: u8) -> Self {
-        if data > 6 {panic!("Invalid enum")}
-        unsafe{std::mem::transmute::<u8, Self>(data)}
+        if data > 6 {
+            panic!("Invalid enum")
+        }
+        unsafe { std::mem::transmute::<u8, Self>(data) }
     }
 }
 
@@ -128,9 +132,9 @@ pub enum MetadataValue {
     OptVarInt(Option<i32>), // VarInt
     Pose(Pose),
     VillagerData {
-        kind: i32, // VarInt
+        kind: i32,       // VarInt
         profession: i32, // VarInt
-        level: i32, // VarInt
+        level: i32,      // VarInt
     },
 }
 impl MetadataValue {
@@ -140,35 +144,35 @@ impl MetadataValue {
             MetadataValue::Byte(b) => {
                 data.push(0);
                 data.push(*b);
-            },
+            }
             MetadataValue::VarInt(v) => {
                 data.push(1);
                 data.append(&mut encoder::varint::encode(*v));
-            },
+            }
             MetadataValue::Float(v) => {
                 data.push(2);
                 data.extend_from_slice(&v.to_be_bytes());
-            },
+            }
             MetadataValue::String(v) => {
                 data.push(3);
                 data.append(&mut encoder::string::encode(v));
-            },
+            }
             MetadataValue::Chat(v) => {
                 data.push(4);
                 data.append(&mut encoder::string::encode(&v.to_string()));
-            },
+            }
             MetadataValue::OptChat(v) => {
                 data.push(5);
                 match v {
                     Some(v) => {
                         data.push(1); // true
                         data.append(&mut encoder::string::encode(&v.to_string()));
-                    },
+                    }
                     None => {
                         data.push(0); // false
                     }
                 }
-            },
+            }
             MetadataValue::Slot(s) => {
                 data.push(6);
                 data.append(&mut s.encode());
@@ -193,7 +197,7 @@ impl MetadataValue {
                     Some(pos) => {
                         data.push(1); // true
                         data.extend_from_slice(&pos.encode().to_be_bytes());
-                    },
+                    }
                     None => {
                         data.push(0); // false
                     }
@@ -209,7 +213,7 @@ impl MetadataValue {
                     Some(uuid) => {
                         data.push(1); // true
                         data.extend_from_slice(uuid.as_bytes());
-                    },
+                    }
                     None => {
                         data.push(0); // false
                     }
@@ -221,7 +225,7 @@ impl MetadataValue {
                     Some(id) => {
                         data.push(1); // true
                         data.append(&mut encoder::varint::encode(*id));
-                    },
+                    }
                     None => {
                         data.push(0); // false
                     }
@@ -236,7 +240,9 @@ impl MetadataValue {
                 data.append(&mut particle.encode());
             }
             MetadataValue::VillagerData {
-                kind, level, profession
+                kind,
+                level,
+                profession,
             } => {
                 data.push(16);
                 data.append(&mut encoder::varint::encode(*kind));
@@ -249,7 +255,7 @@ impl MetadataValue {
                     Some(varint) => {
                         data.push(1); // true
                         data.append(&mut encoder::varint::encode(*varint));
-                    },
+                    }
                     None => {
                         data.push(0); // false
                     }
@@ -287,9 +293,8 @@ impl MetadataValue {
             // 16 Villager Data
             // 17 OptVarInt
             // 18 Pose
-
             0..=18 => unimplemented!(), // TODO: Implement everything
-            _ => Err(Error::msg("Invalid type"))
+            _ => Err(Error::msg("Invalid type")),
         }
     }
 }
