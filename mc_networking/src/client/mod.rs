@@ -5,7 +5,6 @@ use crate::packets::server_bound::*;
 use crate::packets::RawPacket;
 use listener::*;
 
-use crate::data_types::Angle;
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
@@ -16,7 +15,6 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
-use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
