@@ -502,7 +502,7 @@ mod play {
     }
     impl ClientBoundPacket for C2BEntityRotation {
         fn packet_id() -> i32 {
-            0x2A
+            0x2B
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
