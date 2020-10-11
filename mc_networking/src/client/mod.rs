@@ -202,7 +202,7 @@ async fn listen_client_packets<T: ClientListener>(
                         return Err(Error::msg("No listener registered"));
                     }
                     let listener = listener.as_ref().unwrap();
-                    let response = ResponsePacket {
+                    let response = C00Response {
                         json_response: listener.on_slp().await,
                     }
                     .to_rawpacket();
@@ -213,7 +213,7 @@ async fn listen_client_packets<T: ClientListener>(
                         .await?;
                 } else if raw_packet.packet_id == S01Ping::packet_id() {
                     let packet: S01Ping = raw_packet.try_into()?;
-                    let pong = PongPacket {
+                    let pong = C01Pong {
                         payload: packet.payload,
                     }
                     .to_rawpacket();
@@ -237,7 +237,7 @@ async fn listen_client_packets<T: ClientListener>(
                     match listener.on_login_start(login_state.name).await {
                         LoginStartResult::Accept { uuid, username } => {
                             let login_success =
-                                LoginSuccessPacket { uuid, username }.to_rawpacket();
+                                C02LoginSuccess { uuid, username }.to_rawpacket();
                             write
                                 .lock()
                                 .await
@@ -246,7 +246,7 @@ async fn listen_client_packets<T: ClientListener>(
                             *(state.write().await) = ClientState::Play;
                         }
                         LoginStartResult::Disconnect { reason } => {
-                            let disconnect = LoginDisconnectPacket {
+                            let disconnect = C00LoginDisconnect {
                                 reason: json!({ "text": reason }),
                             }
                             .to_rawpacket();

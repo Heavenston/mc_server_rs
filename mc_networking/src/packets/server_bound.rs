@@ -16,6 +16,9 @@ mod handshake {
     use std::convert::TryFrom;
     use std::io::Cursor;
 
+    /// This causes the server to switch into the target state.
+    ///
+    /// https://wiki.vg/Protocol#Handshake
     #[derive(Clone, Debug)]
     pub struct S00Handshake {
         pub protocol_version: i32,
@@ -59,6 +62,9 @@ mod status {
     use anyhow::Error;
     use std::convert::{TryFrom, TryInto};
 
+    /// Initiate SLP and should be responded with C00Response
+    ///
+    /// https://wiki.vg/Protocol#Request
     #[derive(Clone, Debug)]
     pub struct S00Request;
     impl ServerBoundPacket for S00Request {
@@ -81,6 +87,9 @@ mod status {
         }
     }
 
+    /// Should be responses with C01Pong with provided payload
+    ///
+    /// https://wiki.vg/Protocol#Ping
     #[derive(Clone, Debug)]
     pub struct S01Ping {
         pub payload: i64,
@@ -115,6 +124,9 @@ mod login {
     use std::convert::TryFrom;
     use std::io::{Cursor, Read};
 
+    /// Initiate login state
+    ///
+    /// https://wiki.vg/Protocol#Login_Start
     #[derive(Clone, Debug)]
     pub struct S00LoginStart {
         pub name: String,
@@ -137,6 +149,9 @@ mod login {
         }
     }
 
+    /// Will succeed C01EncryptionRequest
+    ///
+    /// https://wiki.vg/Protocol#Encryption_Response
     #[derive(Clone, Debug)]
     pub struct S01EncryptionResponse {
         pub shared_secret: Vec<u8>,
@@ -175,6 +190,9 @@ mod login {
         }
     }
 
+    /// Will succeed C02LoginPluginRequest
+    ///
+    /// https://wiki.vg/Protocol#Login_Plugin_Response
     #[derive(Clone, Debug)]
     pub struct S02LoginPluginResponse {
         pub message_id: i32,

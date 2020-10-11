@@ -19,11 +19,14 @@ mod status {
     use super::ClientBoundPacket;
     use crate::data_types::encoder::PacketEncoder;
 
+    /// Response to S00Request with server ping infos
+    ///
+    /// https://wiki.vg/Protocol#Response
     #[derive(Clone, Debug)]
-    pub struct ResponsePacket {
+    pub struct C00Response {
         pub json_response: serde_json::Value,
     }
-    impl ClientBoundPacket for ResponsePacket {
+    impl ClientBoundPacket for C00Response {
         fn packet_id() -> i32 {
             0x00
         }
@@ -32,11 +35,14 @@ mod status {
         }
     }
 
+    /// Response to S01Ping with provided payload
+    ///
+    /// https://wiki.vg/Protocol#Pong
     #[derive(Clone, Debug)]
-    pub struct PongPacket {
+    pub struct C01Pong {
         pub payload: i64,
     }
-    impl ClientBoundPacket for PongPacket {
+    impl ClientBoundPacket for C01Pong {
         fn packet_id() -> i32 {
             0x01
         }
@@ -53,11 +59,14 @@ mod login {
     use crate::data_types::VarInt;
     use uuid::Uuid;
 
+    /// Disconnect the player with the specified message
+    ///
+    /// https://wiki.vg/Protocol#Disconnect_.28login.29
     #[derive(Clone, Debug)]
-    pub struct LoginDisconnectPacket {
+    pub struct C00LoginDisconnect {
         pub reason: serde_json::Value,
     }
-    impl ClientBoundPacket for LoginDisconnectPacket {
+    impl ClientBoundPacket for C00LoginDisconnect {
         fn packet_id() -> i32 {
             0x00
         }
@@ -66,13 +75,16 @@ mod login {
         }
     }
 
+    /// Request packet encryption
+    ///
+    /// https://wiki.vg/Protocol#Encryption_Request
     #[derive(Clone, Debug)]
-    pub struct EncryptionRequest {
+    pub struct C01EncryptionRequest {
         pub server_id: String,
         pub public_key: Vec<u8>,
         pub verify_token: Vec<u8>,
     }
-    impl ClientBoundPacket for EncryptionRequest {
+    impl ClientBoundPacket for C01EncryptionRequest {
         fn packet_id() -> i32 {
             0x01
         }
@@ -85,12 +97,15 @@ mod login {
         }
     }
 
+    /// Finishes Login stage
+    ///
+    /// https://wiki.vg/Protocol#Login_Success
     #[derive(Clone, Debug)]
-    pub struct LoginSuccessPacket {
+    pub struct C02LoginSuccess {
         pub uuid: Uuid,
         pub username: String,
     }
-    impl ClientBoundPacket for LoginSuccessPacket {
+    impl ClientBoundPacket for C02LoginSuccess {
         fn packet_id() -> i32 {
             0x02
         }
@@ -100,11 +115,14 @@ mod login {
         }
     }
 
+    /// Set packet compression
+    ///
+    /// https://wiki.vg/Protocol#Set_Compression
     #[derive(Clone, Debug)]
-    pub struct SetCompressionPacket {
+    pub struct C03SetCompression {
         pub threshold: i32,
     }
-    impl ClientBoundPacket for SetCompressionPacket {
+    impl ClientBoundPacket for C03SetCompression {
         fn packet_id() -> i32 {
             0x03
         }
@@ -113,13 +131,16 @@ mod login {
         }
     }
 
+    /// Used to implement a custom handshaking flow together with S02LoginPluginResponse.
+    ///
+    /// https://wiki.vg/Protocol#Login_Plugin_Request
     #[derive(Clone, Debug)]
-    pub struct LoginPluginRequest {
+    pub struct C04LoginPluginRequest {
         pub message_id: i32,
         pub channel: String,
         pub data: Vec<u8>,
     }
-    impl ClientBoundPacket for LoginPluginRequest {
+    impl ClientBoundPacket for C04LoginPluginRequest {
         fn packet_id() -> i32 {
             0x04
         }
@@ -143,6 +164,9 @@ mod play {
     use std::collections::HashMap;
     use uuid::Uuid;
 
+    /// Sent by the server when a vehicle or other non-living entity is created.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Entity
     #[derive(Clone, Debug)]
     pub struct C00SpawnEntity {
         pub entity_id: VarInt,
@@ -177,6 +201,9 @@ mod play {
         }
     }
 
+    /// Spawns one or more experience orbs.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Experience_Orb
     #[derive(Clone, Debug)]
     pub struct C01SpawnExperienceOrb {
         pub entity_id: VarInt,
@@ -198,6 +225,10 @@ mod play {
         }
     }
 
+    /// With this packet, the server notifies the client of thunderbolts striking within a 512 block radius around the player.
+    /// The coordinates specify where exactly the thunderbolt strikes.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Weather_Entity
     #[derive(Clone, Debug)]
     pub struct C02SpawnWeatherEntity {
         pub entity_id: VarInt,
@@ -218,6 +249,9 @@ mod play {
         }
     }
 
+    /// Sent by the server when a living entity is spawned.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Living_Entity
     #[derive(Clone, Debug)]
     pub struct C03SpawnLivingEntity {
         pub entity_id: VarInt,
@@ -253,6 +287,9 @@ mod play {
         }
     }
 
+    /// This packet shows location, name, and type of painting.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Painting
     #[derive(Clone, Debug)]
     pub struct C04SpawnPainting {
         pub entity_id: VarInt,
@@ -352,6 +389,9 @@ mod play {
         }
     }
 
+    /// Send information about the game
+    ///
+    /// https://wiki.vg/Pre-release_protocol#Join_Game
     #[derive(Clone, Debug)]
     pub struct C24JoinGame {
         pub entity_id: i32,
@@ -396,6 +436,9 @@ mod play {
         }
     }
 
+    /// Updates the player's position on the server.
+    ///
+    /// https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29
     #[derive(Clone, Debug)]
     pub struct C36PlayerPositionAndLook {
         pub x: f64,
@@ -421,6 +464,10 @@ mod play {
         }
     }
 
+    /// Updates one or more metadata properties for an existing entity.
+    /// Any properties not included in the Metadata field are left unchanged.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Metadata
     #[derive(Clone, Debug)]
     pub struct C44EntityMetadata {
         entity_id: i32,
