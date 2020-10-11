@@ -512,6 +512,22 @@ mod play {
         }
     }
 
+    /// This packet is sent by the server when an entity doesn't move
+    ///
+    /// https://wiki.vg/Protocol#Entity_Movement
+    #[derive(Clone, Debug)]
+    pub struct C2CEntityMovement {
+        pub entity_id: VarInt,
+    }
+    impl ClientBoundPacket for C2CEntityMovement {
+        fn packet_id() -> i32 {
+            0x2C
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+        }
+    }
+
     /// Send information about the game
     ///
     /// https://wiki.vg/Pre-release_protocol#Join_Game
