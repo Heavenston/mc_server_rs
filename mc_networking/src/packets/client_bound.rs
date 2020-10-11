@@ -324,6 +324,56 @@ mod play {
         }
     }
 
+    /// https://wiki.vg/Pre-release_protocol#Chunk_Data
+    #[derive(Clone, Debug)]
+    pub struct C20ChunkData {
+        /// Chunk coordinate (block coordinate divided by 16, rounded down)
+        pub chunk_x: i32,
+        /// Chunk coordinate (block coordinate divided by 16, rounded down)
+        pub chunk_z: i32,
+        /// MUST be false if biomes is None, true otherwise
+        pub full_chunk: bool,
+        /// Bitmask with bits set to 1 for every 16×16×16 chunk section whose data is included in Data.
+        /// The least significant bit represents the chunk section at the bottom of the chunk column (from y=0 to y=15).
+        pub primary_bit_mask: VarInt,
+        /// Compound containing one long array named MOTION_BLOCKING,
+        /// which is a heightmap for the highest solid block at each position in the chunk
+        /// (as a compacted long array with 256 entries at 9 bits per entry totaling 36 longs).
+        pub heightmaps: nbt::Value,
+        /// See website
+        pub biomes: Option<Vec<VarInt>>,
+        /// See website
+        pub data: Vec<u8>,
+        /// All block entities in the chunk.
+        /// Use the x, y, and z tags in the NBT to determine their positions.
+        pub block_entities: Vec<nbt::Value>,
+    }
+    impl ClientBoundPacket for C20ChunkData {
+        fn packet_id() -> i32 {
+            0x20
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i32(self.chunk_x);
+            encoder.write_i32(self.chunk_z);
+            encoder.write_bool(self.full_chunk && self.biomes.is_some());
+            encoder.write_varint(self.primary_bit_mask);
+            self.heightmaps.to_writer(encoder).unwrap();
+            if self.full_chunk && self.biomes.is_some() {
+                let biomes = self.biomes.unwrap();
+                encoder.write_varint(biomes.len() as VarInt);
+                for biome in biomes {
+                    encoder.write_varint(biome);
+                }
+            }
+            encoder.write_varint(self.data.len() as i32);
+            encoder.write_bytes(self.data.as_slice());
+            encoder.write_varint(self.block_entities.len() as i32);
+            for block_entity in self.block_entities {
+                block_entity.to_writer(encoder);
+            }
+        }
+    }
+
     #[derive(Clone, Debug, Serialize)]
     pub struct C24JoinGameDimensionElement {
         pub natural: i8,
