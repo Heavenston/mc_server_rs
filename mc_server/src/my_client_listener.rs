@@ -1,7 +1,10 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C24JoinGame};
+use mc_networking::packets::client_bound::{
+    C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound,
+    C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement,
+};
 
 use async_trait::async_trait;
 use log::*;
@@ -92,11 +95,11 @@ impl ClientListener for MyClientListener {
             world_names: vec!["minecraft:test".into()],
             dimension_codec: C24JoinGameDimensionCodec {
                 dimensions: map!(
-                        "minecraft:testdim".into() => test_dimension.clone()
-                    ),
+                    "minecraft:testdim".into() => test_dimension.clone()
+                ),
                 biomes: map!(
-                        "minecraft:testbiome".into() => test_biome.clone()
-                    ),
+                    "minecraft:testbiome".into() => test_biome.clone()
+                ),
             },
             dimension: test_dimension.clone(),
             world_name: "minecraft:testdim".into(),
@@ -106,7 +109,7 @@ impl ClientListener for MyClientListener {
             reduced_debug_info: false,
             enable_respawn_screen: true,
             is_debug: false,
-            is_flat: true
+            is_flat: true,
         };
         client.join_game(&join_game_packet).await.unwrap();
     }
