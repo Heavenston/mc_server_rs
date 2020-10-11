@@ -143,6 +143,7 @@ mod play {
     use std::collections::HashMap;
     use uuid::Uuid;
 
+    #[derive(Clone, Debug)]
     pub struct C00SpawnEntity {
         pub entity_id: VarInt,
         pub object_uuid: Uuid,
@@ -176,6 +177,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C01SpawnExperienceOrb {
         pub entity_id: VarInt,
         pub x: f64,
@@ -196,6 +198,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C02SpawnWeatherEntity {
         pub entity_id: VarInt,
         pub kind: i8,
@@ -215,6 +218,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C03SpawnLivingEntity {
         pub entity_id: VarInt,
         pub entity_uuid: Uuid,
@@ -249,6 +253,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C04SpawnPainting {
         pub entity_id: VarInt,
         pub entity_uuid: Uuid,
@@ -329,14 +334,14 @@ mod play {
         pub biomes: NBTMap<C24JoinGameBiomeElement>,
     }
     impl C24JoinGameDimensionCodec {
-        fn encode<T: std::io::Write>(self, buf: &mut T) -> Result<()> {
+        fn encode<T: std::io::Write>(&self, buf: &mut T) -> Result<()> {
             let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
-            for (name, element) in self.dimensions {
-                dimension_map.push_element(name, element);
+            for (name, element) in self.dimensions.iter() {
+                dimension_map.push_element(name.clone(), element.clone());
             }
             let mut biome_map = NBTMap::new("minecraft:worldgen/biome".into());
-            for (name, element) in self.biomes {
-                biome_map.push_element(name, element);
+            for (name, element) in self.biomes.iter() {
+                biome_map.push_element(name.clone(), element.clone());
             }
             let codec = C24JoinGameDimensionCodecInner {
                 dimensions: dimension_map,
@@ -391,6 +396,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C36PlayerPositionAndLook {
         pub x: f64,
         pub y: f64,
@@ -415,6 +421,7 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
     pub struct C44EntityMetadata {
         entity_id: i32,
         metadata: HashMap<u8, MetadataValue>,
@@ -425,8 +432,8 @@ mod play {
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
-            for (key, value) in self.metadata.into_iter() {
-                encoder.write_u8(key);
+            for (key, value) in self.metadata.iter() {
+                encoder.write_u8(*key);
                 encoder.write_bytes(value.encode().as_slice());
             }
             encoder.write_u8(0xFF);
