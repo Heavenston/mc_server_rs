@@ -120,6 +120,19 @@ impl<T: 'static + ClientListener> Client<T> {
         self.send_packet(&spawn_entity_packet).await?;
         Ok(())
     }
+    pub async fn spawn_experience_orb(&self,
+        entity_id: i32,
+        x: f64,
+        y: f64,
+        z: f64,
+        count: i16,
+    ) -> Result<()> {
+        let spawn_experience_orb = C01SpawnExperienceOrb {
+            entity_id, x ,y ,z ,count
+        };
+        self.send_packet(&spawn_experience_orb).await?;
+        Ok(())
+    }
     pub async fn join_game(
         &self,
         entity_id: i32,
