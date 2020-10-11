@@ -37,7 +37,6 @@ impl ClientListener for MyClientListener {
             "description": "Hi"
         })
     }
-
     async fn on_login_start(&self, username: String) -> LoginStartResult {
         info!("Login request from {}", username);
         LoginStartResult::Accept {
@@ -45,7 +44,6 @@ impl ClientListener for MyClientListener {
             username,
         }
     }
-
     async fn on_ready(&self) {
         info!("A player is ready !");
         let client = self.0.read().await;
@@ -114,5 +112,9 @@ impl ClientListener for MyClientListener {
             })
             .await
             .unwrap();
+    }
+
+    async fn on_perform_respawn(&self) {
+        info!("PERFORM RESPAWN");
     }
 }

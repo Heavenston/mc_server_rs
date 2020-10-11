@@ -211,10 +211,25 @@ async fn listen_client_packets<T: ClientListener>(
                 }
             }
 
+            ClientState::Play => {
+                if raw_packet.packet_id == S04ClientStatus::packet_id() {
+                    let client_status = S04ClientStatus::decode(raw_packet)?;
+                    let listener = listener.lock().await;
+                    if listener.is_none() {
+                        return Err(Error::msg("No listener registered"));
+                    }
+                    let listener = listener.as_ref().unwrap();
+                    match client_status.action_id {
+                        0 => listener.on_perform_respawn().await,
+                        1 => listener.on_request_stats().await,
+                        _ => return Err(Error::msg("Invalid client status action id")),
+                    }
+                }
+            }
+
             ClientState::Disconnected => {
                 break;
             }
-            s => return Err(Error::msg(format!("Unimplemented client state: {:?}", s))),
         }
     }
     Ok(())
