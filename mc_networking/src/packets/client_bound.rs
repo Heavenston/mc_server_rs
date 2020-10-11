@@ -311,6 +311,25 @@ mod play {
         }
     }
 
+    /// Tells the client to unload a chunk column.
+    /// It is legal to send this packet even if the given chunk is not currently loaded.
+    ///
+    /// https://wiki.vg/Protocol#Unload_Chunk
+    #[derive(Clone, Debug)]
+    pub struct C1EUnloadChunk {
+        pub chunk_x: i32,
+        pub chunk_z: i32,
+    }
+    impl ClientBoundPacket for C1EUnloadChunk {
+        fn packet_id() -> i32 {
+            0x04
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i32(self.chunk_x);
+            encoder.write_i32(self.chunk_z);
+        }
+    }
+
     #[derive(Clone, Debug, Serialize)]
     pub struct C24JoinGameDimensionElement {
         pub natural: i8,
