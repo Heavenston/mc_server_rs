@@ -488,6 +488,30 @@ mod play {
         }
     }
 
+    /// This packet is sent by the server when an entity rotates.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Rotation
+    #[derive(Clone, Debug)]
+    pub struct C2BEntityRotation {
+        pub entity_id: VarInt,
+        /// New angle, not a delta
+        pub yaw: Angle,
+        /// New angle, not a delta
+        pub pitch: Angle,
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C2BEntityRotation {
+        fn packet_id() -> i32 {
+            0x2A
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_bool(self.on_ground);
+        }
+    }
+
     /// Send information about the game
     ///
     /// https://wiki.vg/Pre-release_protocol#Join_Game
