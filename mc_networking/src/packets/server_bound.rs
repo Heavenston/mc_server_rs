@@ -1,54 +1,48 @@
+use crate::data_types::encoder::PacketDecoder;
 use crate::packets::RawPacket;
 
-use std::convert::TryFrom;
+use anyhow::{Error, Result};
 
-pub trait ServerBoundPacket: TryFrom<RawPacket> {
+pub trait ServerBoundPacket: Sized {
     fn packet_id() -> i32;
+    fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self>;
+
+    fn decode(raw_packet: RawPacket) -> Result<Self> {
+        if raw_packet.packet_id != Self::packet_id() {
+            return Err(Error::msg("Invalid packet id"));
+        }
+        Self::run_decoder(&mut PacketDecoder::new(raw_packet))
+    }
 }
 
 mod handshake {
     use super::ServerBoundPacket;
-    use crate::data_types::encoder;
-    use crate::packets::RawPacket;
+    use crate::data_types::VarInt;
 
-    use anyhow::Error;
-    use byteorder::{BigEndian, ReadBytesExt};
-    use std::convert::TryFrom;
-    use std::io::Cursor;
+    use crate::data_types::encoder::PacketDecoder;
+    use anyhow::Result;
 
     /// This causes the server to switch into the target state.
     ///
     /// https://wiki.vg/Protocol#Handshake
     #[derive(Clone, Debug)]
     pub struct S00Handshake {
-        pub protocol_version: i32,
+        pub protocol_version: VarInt,
         pub server_addr: String,
         pub server_port: u16,
-        pub next_state: i32,
+        pub next_state: VarInt,
     }
     impl ServerBoundPacket for S00Handshake {
         fn packet_id() -> i32 {
             0x00
         }
-    }
-    impl TryFrom<RawPacket> for S00Handshake {
-        type Error = Error;
 
-        fn try_from(raw_packet: RawPacket) -> Result<Self, Self::Error> {
-            if Self::packet_id() != raw_packet.packet_id {
-                return Err(Error::msg("Invalid packet id"));
-            };
-            let mut data = Cursor::new(&raw_packet.data);
-            let protocol_version = encoder::varint::decode_sync(&mut data)?;
-            let server_addr = encoder::string::decode_sync(&mut data)?;
-            let server_port = data.read_u16::<BigEndian>()?;
-            let next_state = encoder::varint::decode_sync(&mut data)?;
-
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
-                protocol_version,
-                server_addr,
-                server_port,
-                next_state,
+                protocol_version: decoder.read_varint()?,
+                server_addr: decoder.read_string()?,
+                server_port: decoder.read_u16()?,
+                next_state: decoder.read_varint()?,
             })
         }
     }
@@ -57,9 +51,10 @@ pub use handshake::*;
 
 mod status {
     use super::ServerBoundPacket;
+    use crate::data_types::encoder::PacketDecoder;
     use crate::packets::RawPacket;
 
-    use anyhow::Error;
+    use anyhow::{Error, Result};
     use std::convert::{TryFrom, TryInto};
 
     /// Initiate SLP and should be responded with C00Response
@@ -71,18 +66,8 @@ mod status {
         fn packet_id() -> i32 {
             0x00
         }
-    }
-    impl TryFrom<RawPacket> for S00Request {
-        type Error = Error;
 
-        fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
-            if value.packet_id != Self::packet_id() {
-                return Err(Error::msg("Invalid packet id"));
-            }
-            if value.data.len() != 0 {
-                return Err(Error::msg("Invalid data"));
-            }
-
+        fn run_decoder(_decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(S00Request)
         }
     }
@@ -97,6 +82,12 @@ mod status {
     impl ServerBoundPacket for S01Ping {
         fn packet_id() -> i32 {
             0x01
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+            Ok(Self {
+                payload: decoder.read_i64()?,
+            })
         }
     }
     impl TryFrom<RawPacket> for S01Ping {
@@ -116,13 +107,10 @@ pub use status::*;
 
 mod login {
     use super::ServerBoundPacket;
-    use crate::data_types::encoder;
-    use crate::packets::RawPacket;
+    use crate::data_types::encoder::PacketDecoder;
+    use crate::data_types::VarInt;
 
-    use anyhow::Error;
-    use byteorder::ReadBytesExt;
-    use std::convert::TryFrom;
-    use std::io::{Cursor, Read};
+    use anyhow::Result;
 
     /// Initiate login state
     ///
@@ -135,16 +123,10 @@ mod login {
         fn packet_id() -> i32 {
             0x00
         }
-    }
-    impl TryFrom<RawPacket> for S00LoginStart {
-        type Error = Error;
 
-        fn try_from(packet: RawPacket) -> Result<Self, Self::Error> {
-            if packet.packet_id != Self::packet_id() {
-                return Err(Error::msg("Invalid packet id"));
-            };
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
-                name: encoder::string::decode_sync(&mut Cursor::new(packet.data.as_ref()))?,
+                name: decoder.read_string()?,
             })
         }
     }
@@ -161,27 +143,13 @@ mod login {
         fn packet_id() -> i32 {
             0x01
         }
-    }
-    impl TryFrom<RawPacket> for S01EncryptionResponse {
-        type Error = Error;
 
-        fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
-            if value.packet_id != Self::packet_id() {
-                return Err(Error::msg("Invalid packet id"));
-            }
-            let mut data = Cursor::new(value.data.as_ref());
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+            let shared_secret_length = decoder.read_varint()? as usize;
+            let shared_secret = decoder.read_bytes(shared_secret_length)?;
 
-            let shared_secret_length = encoder::varint::decode_sync(&mut data)?;
-            let mut shared_secret = Vec::with_capacity(shared_secret_length as usize);
-            for _ in 0..shared_secret_length {
-                shared_secret.push(data.read_u8()?);
-            }
-
-            let verify_token_length = encoder::varint::decode_sync(&mut data)?;
-            let mut verify_token = Vec::with_capacity(verify_token_length as usize);
-            for _ in 0..verify_token_length {
-                verify_token.push(data.read_u8()?);
-            }
+            let verify_token_length = decoder.read_varint()? as usize;
+            let verify_token = decoder.read_bytes(verify_token_length)?;
 
             Ok(Self {
                 shared_secret,
@@ -195,7 +163,7 @@ mod login {
     /// https://wiki.vg/Protocol#Login_Plugin_Response
     #[derive(Clone, Debug)]
     pub struct S02LoginPluginResponse {
-        pub message_id: i32,
+        pub message_id: VarInt,
         pub successful: bool,
         pub data: Option<Vec<u8>>,
     }
@@ -203,32 +171,49 @@ mod login {
         fn packet_id() -> i32 {
             0x02
         }
-    }
-    impl TryFrom<RawPacket> for S02LoginPluginResponse {
-        type Error = Error;
 
-        fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
-            if value.packet_id != Self::packet_id() {
-                return Err(Error::msg("Invalid packet id"));
-            }
-            let mut data = Cursor::new(value.data.as_ref());
-
-            let message_id = encoder::varint::decode_sync(&mut data)?;
-            let successful = data.read_u8()? == 1;
-            let resp_data = if successful {
-                let mut resp_data = vec![];
-                data.read_to_end(&mut resp_data)?;
-                Some(resp_data)
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+            let message_id = decoder.read_varint()?;
+            let successful = decoder.read_bool()?;
+            let data = if successful {
+                Some(decoder.read_to_end()?)
             } else {
                 None
             };
-
             Ok(Self {
                 message_id,
                 successful,
-                data: resp_data,
+                data,
             })
         }
     }
 }
 pub use login::*;
+
+mod play {
+    use super::ServerBoundPacket;
+    use crate::data_types::VarInt;
+
+    use crate::data_types::encoder::PacketDecoder;
+    use anyhow::Error;
+
+    /// Sent by client as confirmation of C36PlayerPositionAndLook.
+    ///
+    /// https://wiki.vg/Protocol#Teleport_Confirm
+    #[derive(Clone, Debug)]
+    pub struct S00TeleportConfirm {
+        pub teleport_id: VarInt,
+    }
+    impl ServerBoundPacket for S00TeleportConfirm {
+        fn packet_id() -> i32 {
+            0x01
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                teleport_id: decoder.read_varint()?,
+            })
+        }
+    }
+}
+pub use play::*;

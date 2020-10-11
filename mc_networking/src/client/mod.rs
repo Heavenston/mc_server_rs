@@ -8,7 +8,7 @@ use listener::*;
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryInto;
 use std::net::Shutdown;
 use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -132,7 +132,7 @@ async fn listen_client_packets<T: ClientListener>(
         let current_state = state.read().await.clone();
         match current_state {
             ClientState::Handshaking => {
-                let handshake: S00Handshake = raw_packet.try_into()?;
+                let handshake = S00Handshake::decode(raw_packet)?;
                 debug!("Received Handshake: {:?}", handshake);
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
@@ -144,7 +144,7 @@ async fn listen_client_packets<T: ClientListener>(
 
             ClientState::Status => {
                 if raw_packet.packet_id == S00Request::packet_id() {
-                    S00Request::try_from(raw_packet)?;
+                    S00Request::decode(raw_packet)?;
                     let listener = listener.lock().await;
                     if listener.is_none() {
                         return Err(Error::msg("No listener registered"));
@@ -176,7 +176,7 @@ async fn listen_client_packets<T: ClientListener>(
 
             ClientState::Login => {
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
-                    let login_state = S00LoginStart::try_from(raw_packet)?;
+                    let login_state = S00LoginStart::decode(raw_packet)?;
                     let listener = listener.lock().await;
                     if listener.is_none() {
                         return Err(Error::msg("No listener registered"));

@@ -1,5 +1,9 @@
 use crate::data_types::VarInt;
-use std::io::Write;
+use crate::packets::RawPacket;
+
+use anyhow::Result;
+use byteorder::{ReadBytesExt, BE};
+use std::io::{Cursor, Read, Write};
 use uuid::Uuid;
 
 pub struct PacketEncoder {
@@ -68,6 +72,71 @@ impl Write for PacketEncoder {
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
+    }
+}
+
+pub struct PacketDecoder {
+    data: Cursor<Box<[u8]>>,
+}
+impl PacketDecoder {
+    pub fn new(raw_packet: RawPacket) -> Self {
+        Self {
+            data: Cursor::new(raw_packet.data),
+        }
+    }
+
+    pub fn read_u8(&mut self) -> Result<u8> {
+        Ok(self.data.read_u8()?)
+    }
+    pub fn read_i8(&mut self) -> Result<i8> {
+        Ok(self.data.read_i8()?)
+    }
+    pub fn read_u16(&mut self) -> Result<u16> {
+        Ok(self.data.read_u16::<BE>()?)
+    }
+    pub fn read_i16(&mut self) -> Result<i16> {
+        Ok(self.data.read_i16::<BE>()?)
+    }
+    pub fn read_u32(&mut self) -> Result<u32> {
+        Ok(self.data.read_u32::<BE>()?)
+    }
+    pub fn read_i32(&mut self) -> Result<i32> {
+        Ok(self.data.read_i32::<BE>()?)
+    }
+    pub fn read_u64(&mut self) -> Result<u64> {
+        Ok(self.data.read_u64::<BE>()?)
+    }
+    pub fn read_i64(&mut self) -> Result<i64> {
+        Ok(self.data.read_i64::<BE>()?)
+    }
+    pub fn read_f32(&mut self) -> Result<f32> {
+        Ok(self.data.read_f32::<BE>()?)
+    }
+    pub fn read_f64(&mut self) -> Result<f64> {
+        Ok(self.data.read_f64::<BE>()?)
+    }
+
+    pub fn read_bool(&mut self) -> Result<bool> {
+        Ok(self.read_u8()? == 1)
+    }
+    pub fn read_varint(&mut self) -> Result<VarInt> {
+        Ok(varint::decode_sync(&mut self.data)?)
+    }
+    pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>> {
+        let mut bytes = vec![0; amount];
+        self.data.read_exact(bytes.as_mut_slice())?;
+        Ok(bytes)
+    }
+    pub fn read_to_end(&mut self) -> Result<Vec<u8>> {
+        let mut bytes = vec![];
+        self.data.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+    pub fn read_string(&mut self) -> Result<String> {
+        Ok(string::decode_sync(&mut self.data)?)
+    }
+    pub fn read_uuid(&mut self) -> Result<Uuid> {
+        Ok(Uuid::from_slice(self.read_bytes(16)?.as_slice())?)
     }
 }
 
