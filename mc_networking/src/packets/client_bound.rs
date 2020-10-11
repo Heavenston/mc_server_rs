@@ -225,35 +225,11 @@ mod play {
         }
     }
 
-    /// With this packet, the server notifies the client of thunderbolts striking within a 512 block radius around the player.
-    /// The coordinates specify where exactly the thunderbolt strikes.
-    ///
-    /// https://wiki.vg/Protocol#Spawn_Weather_Entity
-    #[derive(Clone, Debug)]
-    pub struct C02SpawnWeatherEntity {
-        pub entity_id: VarInt,
-        pub kind: i8,
-        pub x: f64,
-        pub y: f64,
-        pub z: f64,
-    }
-    impl ClientBoundPacket for C02SpawnWeatherEntity {
-        fn packet_id() -> i32 {
-            0x02
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.entity_id);
-            encoder.write_f64(self.x);
-            encoder.write_f64(self.y);
-            encoder.write_f64(self.z);
-        }
-    }
-
     /// Sent by the server when a living entity is spawned.
     ///
     /// https://wiki.vg/Protocol#Spawn_Living_Entity
     #[derive(Clone, Debug)]
-    pub struct C03SpawnLivingEntity {
+    pub struct C02SpawnLivingEntity {
         pub entity_id: VarInt,
         pub entity_uuid: Uuid,
         pub kind: VarInt,
@@ -267,9 +243,9 @@ mod play {
         pub velocity_y: i16,
         pub velocity_z: i16,
     }
-    impl ClientBoundPacket for C03SpawnLivingEntity {
+    impl ClientBoundPacket for C02SpawnLivingEntity {
         fn packet_id() -> i32 {
-            0x03
+            0x02
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -291,16 +267,16 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Spawn_Painting
     #[derive(Clone, Debug)]
-    pub struct C04SpawnPainting {
+    pub struct C03SpawnPainting {
         pub entity_id: VarInt,
         pub entity_uuid: Uuid,
         pub motive: VarInt,
         pub location: Position,
         pub direction: u8,
     }
-    impl ClientBoundPacket for C04SpawnPainting {
+    impl ClientBoundPacket for C03SpawnPainting {
         fn packet_id() -> i32 {
-            0x04
+            0x03
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -316,13 +292,13 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Unload_Chunk
     #[derive(Clone, Debug)]
-    pub struct C1EUnloadChunk {
+    pub struct C1CUnloadChunk {
         pub chunk_x: i32,
         pub chunk_z: i32,
     }
-    impl ClientBoundPacket for C1EUnloadChunk {
+    impl ClientBoundPacket for C1CUnloadChunk {
         fn packet_id() -> i32 {
-            0x1E
+            0x1C
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i32(self.chunk_x);
@@ -334,13 +310,13 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Change_Game_State
     #[derive(Clone, Debug)]
-    pub struct C1FChangeGameState {
+    pub struct C1DChangeGameState {
         pub reason: u8,
         pub value: f32,
     }
-    impl ClientBoundPacket for C1FChangeGameState {
+    impl ClientBoundPacket for C1DChangeGameState {
         fn packet_id() -> i32 {
-            0x1F
+            0x1D
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_u8(self.reason);
@@ -426,108 +402,6 @@ mod play {
         }
     }
 
-    /// This packet is sent by the server when an entity moves less then 8 blocks;
-    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
-    ///
-    /// https://wiki.vg/Protocol#Entity_Position
-    #[derive(Clone, Debug)]
-    pub struct C29EntityPosition {
-        pub entity_id: VarInt,
-        /// Change in X position as `(currentX * 32 - prevX * 32) * 128`
-        pub delta_x: i16,
-        /// Change in Y position as `(currentY * 32 - prevY * 32) * 128`
-        pub delta_y: i16,
-        /// Change in Z position as `(currentZ * 32 - prevZ * 32) * 128`
-        pub delta_z: i16,
-        pub on_ground: bool,
-    }
-    impl ClientBoundPacket for C29EntityPosition {
-        fn packet_id() -> i32 {
-            0x29
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.entity_id);
-            encoder.write_i16(self.delta_x);
-            encoder.write_i16(self.delta_y);
-            encoder.write_i16(self.delta_z);
-            encoder.write_bool(self.on_ground);
-        }
-    }
-
-    /// This packet is sent by the server when an entity moves less then 8 blocks;
-    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
-    ///
-    /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
-    #[derive(Clone, Debug)]
-    pub struct C2AEntityPositionAndRotation {
-        pub entity_id: VarInt,
-        /// Change in X position as `(currentX * 32 - prevX * 32) * 128`
-        pub delta_x: i16,
-        /// Change in Y position as `(currentY * 32 - prevY * 32) * 128`
-        pub delta_y: i16,
-        /// Change in Z position as `(currentZ * 32 - prevZ * 32) * 128`
-        pub delta_z: i16,
-        /// New angle, not a delta
-        pub yaw: Angle,
-        /// New angle, not a delta
-        pub pitch: Angle,
-        pub on_ground: bool,
-    }
-    impl ClientBoundPacket for C2AEntityPositionAndRotation {
-        fn packet_id() -> i32 {
-            0x2A
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.entity_id);
-            encoder.write_i16(self.delta_x);
-            encoder.write_i16(self.delta_y);
-            encoder.write_i16(self.delta_z);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
-            encoder.write_bool(self.on_ground);
-        }
-    }
-
-    /// This packet is sent by the server when an entity rotates.
-    ///
-    /// https://wiki.vg/Protocol#Entity_Rotation
-    #[derive(Clone, Debug)]
-    pub struct C2BEntityRotation {
-        pub entity_id: VarInt,
-        /// New angle, not a delta
-        pub yaw: Angle,
-        /// New angle, not a delta
-        pub pitch: Angle,
-        pub on_ground: bool,
-    }
-    impl ClientBoundPacket for C2BEntityRotation {
-        fn packet_id() -> i32 {
-            0x2B
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.entity_id);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
-            encoder.write_bool(self.on_ground);
-        }
-    }
-
-    /// This packet is sent by the server when an entity doesn't move
-    ///
-    /// https://wiki.vg/Protocol#Entity_Movement
-    #[derive(Clone, Debug)]
-    pub struct C2CEntityMovement {
-        pub entity_id: VarInt,
-    }
-    impl ClientBoundPacket for C2CEntityMovement {
-        fn packet_id() -> i32 {
-            0x2C
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.entity_id);
-        }
-    }
-
     /// Send information about the game
     ///
     /// https://wiki.vg/Pre-release_protocol#Join_Game
@@ -575,11 +449,113 @@ mod play {
         }
     }
 
+    /// This packet is sent by the server when an entity moves less then 8 blocks;
+    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Position
+    #[derive(Clone, Debug)]
+    pub struct C27EntityPosition {
+        pub entity_id: VarInt,
+        /// Change in X position as `(currentX * 32 - prevX * 32) * 128`
+        pub delta_x: i16,
+        /// Change in Y position as `(currentY * 32 - prevY * 32) * 128`
+        pub delta_y: i16,
+        /// Change in Z position as `(currentZ * 32 - prevZ * 32) * 128`
+        pub delta_z: i16,
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C27EntityPosition {
+        fn packet_id() -> i32 {
+            0x27
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i16(self.delta_x);
+            encoder.write_i16(self.delta_y);
+            encoder.write_i16(self.delta_z);
+            encoder.write_bool(self.on_ground);
+        }
+    }
+
+    /// This packet is sent by the server when an entity moves less then 8 blocks;
+    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
+    #[derive(Clone, Debug)]
+    pub struct C28EntityPositionAndRotation {
+        pub entity_id: VarInt,
+        /// Change in X position as `(currentX * 32 - prevX * 32) * 128`
+        pub delta_x: i16,
+        /// Change in Y position as `(currentY * 32 - prevY * 32) * 128`
+        pub delta_y: i16,
+        /// Change in Z position as `(currentZ * 32 - prevZ * 32) * 128`
+        pub delta_z: i16,
+        /// New angle, not a delta
+        pub yaw: Angle,
+        /// New angle, not a delta
+        pub pitch: Angle,
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C28EntityPositionAndRotation {
+        fn packet_id() -> i32 {
+            0x28
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i16(self.delta_x);
+            encoder.write_i16(self.delta_y);
+            encoder.write_i16(self.delta_z);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_bool(self.on_ground);
+        }
+    }
+
+    /// This packet is sent by the server when an entity rotates.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Rotation
+    #[derive(Clone, Debug)]
+    pub struct C29EntityRotation {
+        pub entity_id: VarInt,
+        /// New angle, not a delta
+        pub yaw: Angle,
+        /// New angle, not a delta
+        pub pitch: Angle,
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C29EntityRotation {
+        fn packet_id() -> i32 {
+            0x29
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_bool(self.on_ground);
+        }
+    }
+
+    /// This packet is sent by the server when an entity doesn't move
+    ///
+    /// https://wiki.vg/Protocol#Entity_Movement
+    #[derive(Clone, Debug)]
+    pub struct C2AEntityMovement {
+        pub entity_id: VarInt,
+    }
+    impl ClientBoundPacket for C2AEntityMovement {
+        fn packet_id() -> i32 {
+            0x2A
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+        }
+    }
+
     /// Updates the player's position on the server.
     ///
     /// https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29
     #[derive(Clone, Debug)]
-    pub struct C36PlayerPositionAndLook {
+    pub struct C34PlayerPositionAndLook {
         pub x: f64,
         pub y: f64,
         pub z: f64,
@@ -588,9 +564,9 @@ mod play {
         pub flags: u8,
         pub teleport_id: i32,
     }
-    impl ClientBoundPacket for C36PlayerPositionAndLook {
+    impl ClientBoundPacket for C34PlayerPositionAndLook {
         fn packet_id() -> i32 {
-            0x36
+            0x34
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_f64(self.x);
@@ -609,17 +585,35 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Update_View_Position
     #[derive(Clone, Debug)]
-    pub struct C41UpdateViewPosition {
+    pub struct C40UpdateViewPosition {
         pub chunk_x: i32,
         pub chunk_z: i32,
     }
-    impl ClientBoundPacket for C41UpdateViewPosition {
+    impl ClientBoundPacket for C40UpdateViewPosition {
         fn packet_id() -> i32 {
-            0x41
+            0x40
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.chunk_z);
             encoder.write_varint(self.chunk_x);
+        }
+    }
+
+    /// Sent by the server after login to specify the coordinates of the spawn point
+    /// (the point at which players spawn at, and which the compass points to).
+    /// It can be sent at any time to update the point compasses point at.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Position
+    #[derive(Clone, Debug)]
+    pub struct C42SpawnPosition {
+        pub location: Position,
+    }
+    impl ClientBoundPacket for C42SpawnPosition {
+        fn packet_id() -> i32 {
+            0x42
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64(self.location.encode());
         }
     }
 
@@ -646,29 +640,11 @@ mod play {
         }
     }
 
-    /// Sent by the server after login to specify the coordinates of the spawn point
-    /// (the point at which players spawn at, and which the compass points to).
-    /// It can be sent at any time to update the point compasses point at.
-    ///
-    /// https://wiki.vg/Protocol#Spawn_Position
-    #[derive(Clone, Debug)]
-    pub struct C4ESpawnPosition {
-        pub location: Position,
-    }
-    impl ClientBoundPacket for C4ESpawnPosition {
-        fn packet_id() -> i32 {
-            0x4E
-        }
-        fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_u64(self.location.encode());
-        }
-    }
-
     /// This packet is sent by the server when an entity moves more than 8 blocks.
     ///
     /// https://wiki.vg/Protocol#Entity_Teleport
     #[derive(Clone, Debug)]
-    pub struct C57EntityTeleport {
+    pub struct C56EntityTeleport {
         pub entity_id: VarInt,
         pub x: f64,
         pub y: f64,
@@ -677,9 +653,9 @@ mod play {
         pub pitch: Angle, // New angle, not a delta
         pub on_ground: bool,
     }
-    impl ClientBoundPacket for C57EntityTeleport {
+    impl ClientBoundPacket for C56EntityTeleport {
         fn packet_id() -> i32 {
-            0x57
+            0x56
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
