@@ -379,5 +379,25 @@ mod play {
             })
         }
     }
+
+    /// Sent when the player's arm swings.
+    ///
+    /// https://wiki.vg/Protocol#Animation_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S2AAnimation {
+        /// Hand used for the animation. 0: main hand, 1: off hand.
+        pub hand: VarInt,
+    }
+    impl ServerBoundPacket for S2AAnimation {
+        fn packet_id() -> i32 {
+            0x2A
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                hand: decoder.read_varint()?,
+            })
+        }
+    }
 }
 pub use play::*;
