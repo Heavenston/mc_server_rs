@@ -1,10 +1,7 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{
-    C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement,
-    C24JoinGameDimensionCodec, C24JoinGameDimensionElement,
-};
+use mc_networking::packets::client_bound::{C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C24JoinGame};
 
 use async_trait::async_trait;
 use log::*;
@@ -87,30 +84,30 @@ impl ClientListener for MyClientListener {
             },
         };
 
-        client
-            .join_game(
-                0,
-                false,
-                1,
-                vec!["minecraft:test".into()],
-                C24JoinGameDimensionCodec {
-                    dimensions: map!(
+        let join_game_packet = C24JoinGame {
+            entity_id: 0,
+            is_hardcore: false,
+            gamemode: 1,
+            previous_gamemode: 1,
+            world_names: vec!["minecraft:test".into()],
+            dimension_codec: C24JoinGameDimensionCodec {
+                dimensions: map!(
                         "minecraft:testdim".into() => test_dimension.clone()
                     ),
-                    biomes: map!(
+                biomes: map!(
                         "minecraft:testbiome".into() => test_biome.clone()
                     ),
-                },
-                test_dimension.clone(),
-                "minecraft:testdim".into(),
-                0,
-                10,
-                false,
-                true,
-                false,
-                true,
-            )
-            .await
-            .unwrap();
+            },
+            dimension: test_dimension.clone(),
+            world_name: "minecraft:testdim".into(),
+            hashed_seed: 0,
+            max_players: 10,
+            view_distance: 10,
+            reduced_debug_info: false,
+            enable_respawn_screen: true,
+            is_debug: false,
+            is_flat: true
+        };
+        client.join_game(&join_game_packet).await.unwrap();
     }
 }

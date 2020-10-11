@@ -87,6 +87,26 @@ impl<T: 'static + ClientListener> Client<T> {
             .await?;
         Ok(())
     }
+
+    pub async fn spawn_entity(&self, packet: &C00SpawnEntity) -> Result<()> {
+        self.send_packet(packet).await?;
+        Ok(())
+    }
+    pub async fn spawn_experience_orb(&self, packet: &C01SpawnExperienceOrb) -> Result<()> {
+        self.send_packet(packet).await?;
+        Ok(())
+    }
+    pub async fn spawn_weather_entity(&self, packet: &C02SpawnWeatherEntity) -> Result<()> {
+        self.send_packet(packet).await?;
+        Ok(())
+    }
+    pub async fn join_game( &self, packet: &C24JoinGame) -> Result<()> {
+        if !((2..=32).contains(&packet.view_distance)) {
+            return Err(Error::msg("Invalid render distance"));
+        }
+        self.send_packet(packet).await?;
+        Ok(())
+    }
 }
 
 async fn listen_client_packets<T: ClientListener>(
@@ -164,8 +184,7 @@ async fn listen_client_packets<T: ClientListener>(
                     let listener = listener.as_ref().unwrap();
                     match listener.on_login_start(login_state.name).await {
                         LoginStartResult::Accept { uuid, username } => {
-                            let login_success =
-                                C02LoginSuccess { uuid, username }.to_rawpacket();
+                            let login_success = C02LoginSuccess { uuid, username }.to_rawpacket();
                             write
                                 .lock()
                                 .await
