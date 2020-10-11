@@ -275,7 +275,7 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Player_Position
     #[derive(Clone, Debug)]
-    pub struct S11PlayerPosition {
+    pub struct S12PlayerPosition {
         /// Absolute position
         pub x: f64,
         /// Absolute feet position, normally Head Y - 1.62
@@ -285,9 +285,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S11PlayerPosition {
+    impl ServerBoundPacket for S12PlayerPosition {
         fn packet_id() -> i32 {
-            0x11
+            0x12
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
@@ -304,7 +304,7 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Player_Position_And_Rotation_.28serverbound.29
     #[derive(Clone, Debug)]
-    pub struct S12PlayerPositionAndRotation {
+    pub struct S13PlayerPositionAndRotation {
         /// Absolute position
         pub x: f64,
         /// Absolute feet position, normally Head Y - 1.62
@@ -318,9 +318,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S12PlayerPositionAndRotation {
+    impl ServerBoundPacket for S13PlayerPositionAndRotation {
         fn packet_id() -> i32 {
-            0x12
+            0x13
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
@@ -339,7 +339,7 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Player_Rotation
     #[derive(Clone, Debug)]
-    pub struct S13PlayerRotation {
+    pub struct S14PlayerRotation {
         /// Absolute rotation on the X Axis, in degrees
         pub yaw: f32,
         /// Absolute rotation on the Y Axis, in degrees
@@ -347,9 +347,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S13PlayerRotation {
+    impl ServerBoundPacket for S14PlayerRotation {
         fn packet_id() -> i32 {
-            0x13
+            0x14
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
@@ -365,12 +365,12 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Player_Movement
     #[derive(Clone, Debug)]
-    pub struct S14PlayerMovement {
+    pub struct S15PlayerMovement {
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S14PlayerMovement {
+    impl ServerBoundPacket for S15PlayerMovement {
         fn packet_id() -> i32 {
-            0x14
+            0x15
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
@@ -384,13 +384,13 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Animation_.28serverbound.29
     #[derive(Clone, Debug)]
-    pub struct S2AAnimation {
+    pub struct S2CAnimation {
         /// Hand used for the animation. 0: main hand, 1: off hand.
         pub hand: VarInt,
     }
-    impl ServerBoundPacket for S2AAnimation {
+    impl ServerBoundPacket for S2CAnimation {
         fn packet_id() -> i32 {
-            0x2A
+            0x2C
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
