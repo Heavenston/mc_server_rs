@@ -359,17 +359,17 @@ mod play {
             encoder.write_varint(self.primary_bit_mask);
             self.heightmaps.to_writer(encoder).unwrap();
             if self.full_chunk && self.biomes.is_some() {
-                let biomes = self.biomes.unwrap();
+                let biomes = self.biomes.as_ref().unwrap();
                 encoder.write_varint(biomes.len() as VarInt);
-                for biome in biomes {
-                    encoder.write_varint(biome);
+                for biome in biomes.iter() {
+                    encoder.write_varint(*biome);
                 }
             }
             encoder.write_varint(self.data.len() as i32);
             encoder.write_bytes(self.data.as_slice());
             encoder.write_varint(self.block_entities.len() as i32);
-            for block_entity in self.block_entities {
-                block_entity.to_writer(encoder);
+            for block_entity in self.block_entities.iter() {
+                block_entity.to_writer(encoder).unwrap();
             }
         }
     }
