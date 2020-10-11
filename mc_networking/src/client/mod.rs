@@ -76,7 +76,9 @@ impl<T: 'static + ClientListener> Client<T> {
         self.state.read().await.clone()
     }
 
-    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
+    /// Send a packet to the client
+    /// This is unsafe because the client may send a response packet that must be handled
+    pub async unsafe fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();
         self.write
             .lock()
@@ -87,22 +89,22 @@ impl<T: 'static + ClientListener> Client<T> {
     }
 
     pub async fn spawn_entity(&self, packet: &C00SpawnEntity) -> Result<()> {
-        self.send_packet(packet).await?;
+        unsafe{self.send_packet(packet)}.await?;
         Ok(())
     }
     pub async fn spawn_experience_orb(&self, packet: &C01SpawnExperienceOrb) -> Result<()> {
-        self.send_packet(packet).await?;
+        unsafe{self.send_packet(packet)}.await?;
         Ok(())
     }
     pub async fn spawn_weather_entity(&self, packet: &C02SpawnWeatherEntity) -> Result<()> {
-        self.send_packet(packet).await?;
+        unsafe{self.send_packet(packet)}.await?;
         Ok(())
     }
     pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
         if !((2..=32).contains(&packet.view_distance)) {
             return Err(Error::msg("Invalid render distance"));
         }
-        self.send_packet(packet).await?;
+        unsafe{self.send_packet(packet)}.await?;
         Ok(())
     }
 }
