@@ -501,6 +501,26 @@ mod play {
         }
     }
 
+    /// Updates the client's location.
+    /// This is used to determine what chunks should remain loaded and if a chunk load should be ignored;
+    /// chunks outside of the view distance may be unloaded.
+    ///
+    /// https://wiki.vg/Protocol#Update_View_Position
+    #[derive(Clone, Debug)]
+    pub struct C41UpdateViewPosition {
+        pub chunk_x: i32,
+        pub chunk_z: i32,
+    }
+    impl ClientBoundPacket for C41UpdateViewPosition {
+        fn packet_id() -> i32 {
+            0x41
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.chunk_z);
+            encoder.write_varint(self.chunk_x);
+        }
+    }
+
     /// Updates one or more metadata properties for an existing entity.
     /// Any properties not included in the Metadata field are left unchanged.
     ///
