@@ -544,6 +544,24 @@ mod play {
         }
     }
 
+    /// Sent by the server after login to specify the coordinates of the spawn point
+    /// (the point at which players spawn at, and which the compass points to).
+    /// It can be sent at any time to update the point compasses point at.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Position
+    #[derive(Clone, Debug)]
+    pub struct C4ESpawnPosition {
+        pub location: Position,
+    }
+    impl ClientBoundPacket for C4ESpawnPosition {
+        fn packet_id() -> i32 {
+            0x4E
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64(self.location.encode());
+        }
+    }
+
     /// This packet is sent by the server when an entity moves more than 8 blocks.
     ///
     /// https://wiki.vg/Protocol#Entity_Teleport
