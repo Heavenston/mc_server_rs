@@ -9,6 +9,7 @@ pub mod encoder;
 pub type VarInt = i32;
 pub type Angle = i8;
 
+#[derive(Clone, Debug)]
 pub enum Slot {
     NotPresent,
     Present {
@@ -36,6 +37,7 @@ impl Slot {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Position {
     pub x: i32,
     pub y: i32,
@@ -61,6 +63,7 @@ impl Position {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Particle {
     pub id: i32,
     pub data: i32,
@@ -91,7 +94,7 @@ impl Particle {
 }
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Pose {
     Standing = 0,
     FallFlying = 1,
@@ -113,6 +116,7 @@ impl Pose {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum MetadataValue {
     Byte(u8),
     VarInt(i32),
