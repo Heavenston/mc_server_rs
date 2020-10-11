@@ -206,12 +206,176 @@ mod play {
     }
     impl ServerBoundPacket for S00TeleportConfirm {
         fn packet_id() -> i32 {
-            0x01
+            0x00
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
                 teleport_id: decoder.read_varint()?,
+            })
+        }
+    }
+
+    /// 0: Perform Respawn | Sent when the client is ready to complete login and when the client is ready to respawn after death.
+    /// 1: Request Stats   | Sent when the client opens the Statistics menu
+    ///
+    /// https://wiki.vg/Protocol#Client_Status
+    #[derive(Clone, Debug)]
+    pub struct S04ClientStatus {
+        pub action_id: VarInt,
+    }
+    impl ServerBoundPacket for S04ClientStatus {
+        fn packet_id() -> i32 {
+            0x04
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                action_id: decoder.read_varint()?,
+            })
+        }
+    }
+
+    /// Sent when the player connects, or when settings are changed.
+    ///
+    /// https://wiki.vg/Protocol#Client_Settings
+    #[derive(Clone, Debug)]
+    pub struct S05ClientSettings {
+        /// e.g. en_GB
+        pub local: String,
+        /// Client-side render distance, in chunks
+        pub view_distance: i8,
+        /// 0: enabled, 1: commands only, 2: hidden. See processing chat for more information.
+        pub chat_mode: VarInt,
+        /// “Colors” multiplayer setting
+        pub chat_colors: bool,
+        /// Bit mask, see in https://wiki.vg/Protocol#Client_Settings
+        pub displayed_skin_parts: u8,
+        /// 0: Left, 1: Right
+        pub main_hand: VarInt,
+    }
+    impl ServerBoundPacket for S05ClientSettings {
+        fn packet_id() -> i32 {
+            0x05
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                local: decoder.read_string()?,
+                view_distance: decoder.read_i8()?,
+                chat_mode: decoder.read_varint()?,
+                chat_colors: decoder.read_bool()?,
+                displayed_skin_parts: decoder.read_u8()?,
+                main_hand: decoder.read_varint()?,
+            })
+        }
+    }
+
+    /// Updates the player's XYZ position on the server.
+    ///
+    /// https://wiki.vg/Protocol#Player_Position
+    #[derive(Clone, Debug)]
+    pub struct S11PlayerPosition {
+        /// Absolute position
+        pub x: f64,
+        /// Absolute feet position, normally Head Y - 1.62
+        pub feet_y: f64,
+        /// Absolute position
+        pub z: f64,
+        /// True if the client is on the ground, false otherwise
+        pub on_ground: bool,
+    }
+    impl ServerBoundPacket for S11PlayerPosition {
+        fn packet_id() -> i32 {
+            0x11
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                x: decoder.read_f64()?,
+                feet_y: decoder.read_f64()?,
+                z: decoder.read_f64()?,
+                on_ground: decoder.read_bool()?,
+            })
+        }
+    }
+
+    /// A combination of S13PlayerRotation and S11PlayerPosition.
+    ///
+    /// https://wiki.vg/Protocol#Player_Position_And_Rotation_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S12PlayerPositionAndRotation {
+        /// Absolute position
+        pub x: f64,
+        /// Absolute feet position, normally Head Y - 1.62
+        pub feet_y: f64,
+        /// Absolute position
+        pub z: f64,
+        /// Absolute rotation on the X Axis, in degrees
+        pub yaw: f32,
+        /// Absolute rotation on the Y Axis, in degrees
+        pub pitch: f32,
+        /// True if the client is on the ground, false otherwise
+        pub on_ground: bool,
+    }
+    impl ServerBoundPacket for S12PlayerPositionAndRotation {
+        fn packet_id() -> i32 {
+            0x12
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                x: decoder.read_f64()?,
+                feet_y: decoder.read_f64()?,
+                z: decoder.read_f64()?,
+                yaw: decoder.read_f32()?,
+                pitch: decoder.read_f32()?,
+                on_ground: decoder.read_bool()?,
+            })
+        }
+    }
+
+    /// Updates the direction the player is looking in.
+    ///
+    /// https://wiki.vg/Protocol#Player_Rotation
+    #[derive(Clone, Debug)]
+    pub struct S13PlayerRotation {
+        /// Absolute rotation on the X Axis, in degrees
+        pub yaw: f32,
+        /// Absolute rotation on the Y Axis, in degrees
+        pub pitch: f32,
+        /// True if the client is on the ground, false otherwise
+        pub on_ground: bool,
+    }
+    impl ServerBoundPacket for S13PlayerRotation {
+        fn packet_id() -> i32 {
+            0x13
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                yaw: decoder.read_f32()?,
+                pitch: decoder.read_f32()?,
+                on_ground: decoder.read_bool()?,
+            })
+        }
+    }
+
+    /// This packet is used to indicate whether the player is on ground (walking/swimming), or airborne (jumping/falling).
+    ///
+    /// https://wiki.vg/Protocol#Player_Movement
+    #[derive(Clone, Debug)]
+    pub struct S14PlayerMovement {
+        pub on_ground: bool,
+    }
+    impl ServerBoundPacket for S14PlayerMovement {
+        fn packet_id() -> i32 {
+            0x14
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                on_ground: decoder.read_bool()?,
             })
         }
     }
