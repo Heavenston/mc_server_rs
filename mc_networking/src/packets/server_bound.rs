@@ -399,5 +399,33 @@ mod play {
             })
         }
     }
+
+    /// Sent by the client to indicate that it has performed certain actions:
+    /// sneaking (crouching), sprinting, exiting a bed,
+    /// jumping with a horse, and opening a horse's inventory while riding it.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Action
+    #[derive(Clone, Debug)]
+    pub struct S1BEntityAction {
+        /// Player ID
+        pub entity_id: VarInt,
+        /// The ID of the action, see website
+        pub action_id: VarInt,
+        /// Only used by the “start jump with horse” action, in which case it ranges from 0 to 100. In all other cases it is 0.
+        pub jump_boost: VarInt,
+    }
+    impl ServerBoundPacket for S1BEntityAction {
+        fn packet_id() -> i32 {
+            0x1B
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                entity_id: decoder.read_varint()?,
+                action_id: decoder.read_varint()?,
+                jump_boost: decoder.read_varint()?,
+            })
+        }
+    }
 }
 pub use play::*;
