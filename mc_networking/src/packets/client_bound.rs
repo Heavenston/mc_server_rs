@@ -523,5 +523,33 @@ mod play {
             encoder.write_u8(0xFF);
         }
     }
+
+    /// This packet is sent by the server when an entity moves more than 8 blocks.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Teleport
+    #[derive(Clone, Debug)]
+    pub struct C57EntityTeleport {
+        pub entity_id: VarInt,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+        pub yaw: Angle,   // New angle, not a delta
+        pub pitch: Angle, // New angle, not a delta
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C57EntityTeleport {
+        fn packet_id() -> i32 {
+            0x57
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_bool(self.on_ground);
+        }
+    }
 }
 pub use play::*;
