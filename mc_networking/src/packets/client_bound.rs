@@ -322,7 +322,7 @@ mod play {
     }
     impl ClientBoundPacket for C1EUnloadChunk {
         fn packet_id() -> i32 {
-            0x04
+            0x1E
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i32(self.chunk_x);
@@ -340,7 +340,7 @@ mod play {
     }
     impl ClientBoundPacket for C1FChangeGameState {
         fn packet_id() -> i32 {
-            0x04
+            0x1F
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_u8(self.reason);
