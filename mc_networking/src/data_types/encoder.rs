@@ -1,15 +1,13 @@
 use crate::data_types::VarInt;
-use uuid::Uuid;
 use std::io::Write;
+use uuid::Uuid;
 
 pub struct PacketEncoder {
     data: Vec<u8>,
 }
 impl PacketEncoder {
     pub fn new() -> Self {
-        Self {
-            data: Vec::new()
-        }
+        Self { data: Vec::new() }
     }
     pub fn consume(self) -> Vec<u8> {
         self.data
@@ -74,12 +72,12 @@ impl Write for PacketEncoder {
 }
 
 pub mod varint {
+    use crate::data_types::VarInt;
     use anyhow::{Error, Result};
     use byteorder::ReadBytesExt;
     use std::io::{Cursor, Read};
     use tokio::prelude::io::AsyncReadExt;
     use tokio::prelude::AsyncRead;
-    use crate::data_types::VarInt;
 
     pub fn encode(int: VarInt) -> Vec<u8> {
         let mut val: u32 = int as u32;

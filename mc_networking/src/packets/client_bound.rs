@@ -1,5 +1,5 @@
-use crate::packets::RawPacket;
 use crate::data_types::encoder::PacketEncoder;
+use crate::packets::RawPacket;
 
 pub trait ClientBoundPacket {
     fn packet_id() -> i32;
@@ -8,7 +8,10 @@ pub trait ClientBoundPacket {
     fn to_rawpacket(&self) -> RawPacket {
         let mut packet_encoder = PacketEncoder::new();
         self.encode(&mut packet_encoder);
-        RawPacket::new(Self::packet_id(), packet_encoder.consume().into_boxed_slice())
+        RawPacket::new(
+            Self::packet_id(),
+            packet_encoder.consume().into_boxed_slice(),
+        )
     }
 }
 
@@ -46,9 +49,9 @@ pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
+    use crate::data_types::encoder::PacketEncoder;
     use crate::data_types::VarInt;
     use uuid::Uuid;
-    use crate::data_types::encoder::PacketEncoder;
 
     #[derive(Clone, Debug)]
     pub struct LoginDisconnectPacket {
@@ -131,14 +134,14 @@ pub use login::*;
 
 mod play {
     use super::ClientBoundPacket;
-    use crate::data_types::{MetadataValue, VarInt, Angle, Position};
+    use crate::data_types::{Angle, MetadataValue, Position, VarInt};
     use crate::nbt_map::NBTMap;
 
+    use crate::data_types::encoder::PacketEncoder;
     use anyhow::Result;
     use serde::Serialize;
     use std::collections::HashMap;
     use uuid::Uuid;
-    use crate::data_types::encoder::PacketEncoder;
 
     pub struct C00SpawnEntity {
         pub entity_id: VarInt,

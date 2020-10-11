@@ -5,6 +5,7 @@ use crate::packets::server_bound::*;
 use crate::packets::RawPacket;
 use listener::*;
 
+use crate::data_types::Angle;
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
@@ -16,7 +17,6 @@ use tokio::net::TcpStream;
 use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use uuid::Uuid;
-use crate::data_types::Angle;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -204,7 +204,8 @@ async fn listen_client_packets<T: ClientListener>(
                     let listener = listener.as_ref().unwrap();
                     let response = ResponsePacket {
                         json_response: listener.on_slp().await,
-                    }.to_rawpacket();
+                    }
+                    .to_rawpacket();
                     write
                         .lock()
                         .await
@@ -214,7 +215,8 @@ async fn listen_client_packets<T: ClientListener>(
                     let packet: S01Ping = raw_packet.try_into()?;
                     let pong = PongPacket {
                         payload: packet.payload,
-                    }.to_rawpacket();
+                    }
+                    .to_rawpacket();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
@@ -246,7 +248,8 @@ async fn listen_client_packets<T: ClientListener>(
                         LoginStartResult::Disconnect { reason } => {
                             let disconnect = LoginDisconnectPacket {
                                 reason: json!({ "text": reason }),
-                            }.to_rawpacket();
+                            }
+                            .to_rawpacket();
                             write
                                 .lock()
                                 .await
