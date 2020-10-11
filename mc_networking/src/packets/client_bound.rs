@@ -454,6 +454,40 @@ mod play {
         }
     }
 
+    /// This packet is sent by the server when an entity moves less then 8 blocks;
+    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
+    #[derive(Clone, Debug)]
+    pub struct C2AEntityPositionAndRotation {
+        pub entity_id: VarInt,
+        /// Change in X position as `(currentX * 32 - prevX * 32) * 128`
+        pub delta_x: i16,
+        /// Change in Y position as `(currentY * 32 - prevY * 32) * 128`
+        pub delta_y: i16,
+        /// Change in Z position as `(currentZ * 32 - prevZ * 32) * 128`
+        pub delta_z: i16,
+        /// New angle, not a delta
+        pub yaw: Angle,
+        /// New angle, not a delta
+        pub pitch: Angle,
+        pub on_ground: bool,
+    }
+    impl ClientBoundPacket for C2AEntityPositionAndRotation {
+        fn packet_id() -> i32 {
+            0x2A
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i16(self.delta_x);
+            encoder.write_i16(self.delta_y);
+            encoder.write_i16(self.delta_z);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_bool(self.on_ground);
+        }
+    }
+
     /// Send information about the game
     ///
     /// https://wiki.vg/Pre-release_protocol#Join_Game
