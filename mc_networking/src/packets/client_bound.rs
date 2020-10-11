@@ -1,12 +1,20 @@
 use crate::packets::RawPacket;
-pub trait ClientBoundPacket: Into<RawPacket> {
+use crate::data_types::encoder::PacketEncoder;
+
+pub trait ClientBoundPacket {
     fn packet_id() -> i32;
+    fn encode(&self, encoder: &mut PacketEncoder);
+
+    fn to_rawpacket(&self) -> RawPacket {
+        let mut packet_encoder = PacketEncoder::new();
+        self.encode(&mut packet_encoder);
+        RawPacket::new(Self::packet_id(), packet_encoder.consume().into_boxed_slice())
+    }
 }
 
 mod status {
     use super::ClientBoundPacket;
-    use crate::data_types::encoder;
-    use crate::packets::RawPacket;
+    use crate::data_types::encoder::PacketEncoder;
 
     #[derive(Clone, Debug)]
     pub struct ResponsePacket {
@@ -16,13 +24,8 @@ mod status {
         fn packet_id() -> i32 {
             0x00
         }
-    }
-    impl Into<RawPacket> for ResponsePacket {
-        fn into(self) -> RawPacket {
-            RawPacket::new(
-                Self::packet_id(),
-                encoder::string::encode(&self.json_response.to_string()).into_boxed_slice(),
-            )
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.json_response.to_string());
         }
     }
 
@@ -34,13 +37,8 @@ mod status {
         fn packet_id() -> i32 {
             0x01
         }
-    }
-    impl Into<RawPacket> for PongPacket {
-        fn into(self) -> RawPacket {
-            RawPacket::new(
-                Self::packet_id(),
-                Box::new(self.payload.to_be_bytes()) as Box<[u8]>,
-            )
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i64(self.payload);
         }
     }
 }
@@ -48,9 +46,9 @@ pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
-    use crate::data_types::encoder;
-    use crate::packets::RawPacket;
+    use crate::data_types::VarInt;
     use uuid::Uuid;
+    use crate::data_types::encoder::PacketEncoder;
 
     #[derive(Clone, Debug)]
     pub struct LoginDisconnectPacket {
@@ -60,13 +58,8 @@ mod login {
         fn packet_id() -> i32 {
             0x00
         }
-    }
-    impl Into<RawPacket> for LoginDisconnectPacket {
-        fn into(self) -> RawPacket {
-            RawPacket::new(
-                Self::packet_id(),
-                encoder::string::encode(&self.reason.to_string()).into_boxed_slice(),
-            )
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.reason.to_string());
         }
     }
 
@@ -80,18 +73,12 @@ mod login {
         fn packet_id() -> i32 {
             0x01
         }
-    }
-    impl Into<RawPacket> for EncryptionRequest {
-        fn into(mut self) -> RawPacket {
-            let mut data = vec![];
-
-            data.append(&mut encoder::string::encode(&self.server_id));
-            data.append(&mut encoder::varint::encode(self.public_key.len() as i32));
-            data.append(&mut self.public_key);
-            data.append(&mut encoder::varint::encode(self.verify_token.len() as i32));
-            data.append(&mut self.verify_token);
-
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.server_id);
+            encoder.write_varint(self.public_key.len() as VarInt);
+            encoder.write_bytes(self.public_key.as_slice());
+            encoder.write_varint(self.verify_token.len() as i32);
+            encoder.write_bytes(self.verify_token.as_slice());
         }
     }
 
@@ -104,15 +91,9 @@ mod login {
         fn packet_id() -> i32 {
             0x02
         }
-    }
-    impl Into<RawPacket> for LoginSuccessPacket {
-        fn into(self) -> RawPacket {
-            let mut data = vec![];
-
-            data.append(&mut self.uuid.as_bytes().to_vec());
-            data.append(&mut encoder::string::encode(&self.username));
-
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_uuid(&self.uuid);
+            encoder.write_string(&self.username);
         }
     }
 
@@ -124,13 +105,8 @@ mod login {
         fn packet_id() -> i32 {
             0x03
         }
-    }
-    impl Into<RawPacket> for SetCompressionPacket {
-        fn into(self) -> RawPacket {
-            RawPacket::new(
-                Self::packet_id(),
-                encoder::varint::encode(self.threshold).into(),
-            )
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.threshold);
         }
     }
 
@@ -144,16 +120,10 @@ mod login {
         fn packet_id() -> i32 {
             0x04
         }
-    }
-    impl Into<RawPacket> for LoginPluginRequest {
-        fn into(mut self) -> RawPacket {
-            let mut data = vec![];
-
-            data.append(&mut encoder::varint::encode(self.message_id));
-            data.append(&mut encoder::string::encode(&self.channel));
-            data.append(&mut self.data);
-
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.message_id);
+            encoder.write_string(&self.channel);
+            encoder.write_bytes(self.data.as_slice());
         }
     }
 }
@@ -161,16 +131,143 @@ pub use login::*;
 
 mod play {
     use super::ClientBoundPacket;
-    use crate::data_types::{encoder, MetadataValue};
+    use crate::data_types::{MetadataValue, VarInt, Angle, Position};
     use crate::nbt_map::NBTMap;
-    use crate::packets::RawPacket;
 
     use anyhow::Result;
     use serde::Serialize;
     use std::collections::HashMap;
+    use uuid::Uuid;
+    use crate::data_types::encoder::PacketEncoder;
+
+    pub struct C00SpawnEntity {
+        pub entity_id: VarInt,
+        pub object_uuid: Uuid,
+        pub kind: VarInt,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+        pub pitch: Angle,
+        pub yaw: Angle,
+        pub data: i32,
+        pub velocity_x: i16,
+        pub velocity_y: i16,
+        pub velocity_z: i16,
+    }
+    impl ClientBoundPacket for C00SpawnEntity {
+        fn packet_id() -> i32 {
+            0x00
+        }
+        fn encode(&self, packet_encoder: &mut PacketEncoder) {
+            packet_encoder.write_varint(self.entity_id);
+            packet_encoder.write_uuid(&self.object_uuid);
+            packet_encoder.write_f64(self.x);
+            packet_encoder.write_f64(self.y);
+            packet_encoder.write_f64(self.z);
+            packet_encoder.write_i8(self.pitch);
+            packet_encoder.write_i8(self.yaw);
+            packet_encoder.write_i32(self.data);
+            packet_encoder.write_i16(self.velocity_x);
+            packet_encoder.write_i16(self.velocity_y);
+            packet_encoder.write_i16(self.velocity_z);
+        }
+    }
+
+    pub struct C01SpawnExperienceOrb {
+        pub entity_id: VarInt,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+        pub count: i16,
+    }
+    impl ClientBoundPacket for C01SpawnExperienceOrb {
+        fn packet_id() -> i32 {
+            0x01
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_i16(self.count);
+        }
+    }
+
+    pub struct C02SpawnWeatherEntity {
+        pub entity_id: VarInt,
+        pub kind: i8,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+    }
+    impl ClientBoundPacket for C02SpawnWeatherEntity {
+        fn packet_id() -> i32 {
+            0x02
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+        }
+    }
+
+    pub struct C03SpawnLivingEntity {
+        pub entity_id: VarInt,
+        pub entity_uuid: Uuid,
+        pub kind: VarInt,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+        pub yaw: Angle,
+        pub pitch: Angle,
+        pub head_pitch: Angle,
+        pub velocity_x: i16,
+        pub velocity_y: i16,
+        pub velocity_z: i16,
+    }
+    impl ClientBoundPacket for C03SpawnLivingEntity {
+        fn packet_id() -> i32 {
+            0x03
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_uuid(&self.entity_uuid);
+            encoder.write_varint(self.kind);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+            encoder.write_i8(self.head_pitch);
+            encoder.write_i16(self.velocity_x);
+            encoder.write_i16(self.velocity_y);
+            encoder.write_i16(self.velocity_z);
+        }
+    }
+
+    pub struct C04SpawnPainting {
+        pub entity_id: VarInt,
+        pub entity_uuid: Uuid,
+        pub motive: VarInt,
+        pub location: Position,
+        pub direction: u8,
+    }
+    impl ClientBoundPacket for C04SpawnPainting {
+        fn packet_id() -> i32 {
+            0x04
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_uuid(&self.entity_uuid);
+            encoder.write_varint(self.motive);
+            encoder.write_u64(self.location.encode());
+            encoder.write_u8(self.direction);
+        }
+    }
 
     #[derive(Clone, Debug, Serialize)]
-    pub struct JoinGamePacketDimensionElement {
+    pub struct C24JoinGameDimensionElement {
         pub natural: i8,
         pub ambient_light: f32,
         pub has_ceiling: i8,
@@ -188,7 +285,7 @@ mod play {
     }
 
     #[derive(Clone, Debug, Serialize)]
-    pub struct JoinGamePacketBiomeEffectsMoodSound {
+    pub struct C24JoinGameBiomeEffectsMoodSound {
         pub tick_delay: i32,
         pub offset: f32,
         pub sound: String,
@@ -196,40 +293,40 @@ mod play {
     }
 
     #[derive(Clone, Debug, Serialize)]
-    pub struct JoinGamePacketBiomeEffects {
+    pub struct C24JoinGameBiomeEffects {
         pub sky_color: i32,
         pub water_fog_color: i32,
         pub fog_color: i32,
         pub water_color: i32,
-        pub mood_sound: JoinGamePacketBiomeEffectsMoodSound,
+        pub mood_sound: C24JoinGameBiomeEffectsMoodSound,
     }
 
     #[derive(Clone, Debug, Serialize)]
-    pub struct JoinGamePacketBiomeElement {
+    pub struct C24JoinGameBiomeElement {
         pub depth: f32,
         pub temperature: f32,
         pub downfall: f32,
         pub precipitation: String,
         pub category: String,
         pub scale: f32,
-        pub effects: JoinGamePacketBiomeEffects,
+        pub effects: C24JoinGameBiomeEffects,
     }
 
     #[derive(Clone, Debug)]
-    pub struct JoinGamePacketDimensionCodec {
-        pub dimensions: HashMap<String, JoinGamePacketDimensionElement>,
-        pub biomes: HashMap<String, JoinGamePacketBiomeElement>,
+    pub struct C24JoinGameDimensionCodec {
+        pub dimensions: HashMap<String, C24JoinGameDimensionElement>,
+        pub biomes: HashMap<String, C24JoinGameBiomeElement>,
     }
 
     #[derive(Clone, Debug, Serialize)]
-    struct JoinGamePacketDimensionCodecInner {
+    struct C24JoinGameDimensionCodecInner {
         #[serde(rename = "minecraft:dimension_type")]
-        pub dimensions: NBTMap<JoinGamePacketDimensionElement>,
+        pub dimensions: NBTMap<C24JoinGameDimensionElement>,
         #[serde(rename = "minecraft:worldgen/biome")]
-        pub biomes: NBTMap<JoinGamePacketBiomeElement>,
+        pub biomes: NBTMap<C24JoinGameBiomeElement>,
     }
-    impl JoinGamePacketDimensionCodec {
-        fn encode(self, buf: &mut Vec<u8>) -> Result<()> {
+    impl C24JoinGameDimensionCodec {
+        fn encode<T: std::io::Write>(self, buf: &mut T) -> Result<()> {
             let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
             for (name, element) in self.dimensions {
                 dimension_map.push_element(name, element);
@@ -238,7 +335,7 @@ mod play {
             for (name, element) in self.biomes {
                 biome_map.push_element(name, element);
             }
-            let codec = JoinGamePacketDimensionCodecInner {
+            let codec = C24JoinGameDimensionCodecInner {
                 dimensions: dimension_map,
                 biomes: biome_map,
             };
@@ -248,14 +345,14 @@ mod play {
     }
 
     #[derive(Clone, Debug)]
-    pub struct JoinGamePacket {
+    pub struct C24JoinGame {
         pub entity_id: i32,
         pub is_hardcore: bool,
         pub gamemode: u8,
         pub previous_gamemode: u8,
         pub world_names: Vec<String>,
-        pub dimension_codec: JoinGamePacketDimensionCodec,
-        pub dimension: JoinGamePacketDimensionElement,
+        pub dimension_codec: C24JoinGameDimensionCodec,
+        pub dimension: C24JoinGameDimensionElement,
         pub world_name: String,
         pub hashed_seed: u64,
         pub max_players: i32,
@@ -265,39 +362,33 @@ mod play {
         pub is_debug: bool,
         pub is_flat: bool,
     }
-    impl ClientBoundPacket for JoinGamePacket {
+    impl ClientBoundPacket for C24JoinGame {
         fn packet_id() -> i32 {
             0x24
         }
-    }
-    impl Into<RawPacket> for JoinGamePacket {
-        fn into(self) -> RawPacket {
-            let mut data = vec![];
-
-            data.extend_from_slice(&self.entity_id.to_be_bytes());
-            data.push(if self.is_hardcore { 1 } else { 0 });
-            data.push(self.gamemode);
-            data.push(self.previous_gamemode);
-            data.append(&mut encoder::varint::encode(self.world_names.len() as i32));
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i32(self.entity_id);
+            encoder.write_bool(self.is_hardcore);
+            encoder.write_u8(self.gamemode);
+            encoder.write_u8(self.previous_gamemode);
+            encoder.write_varint(self.world_names.len() as VarInt);
             for world_name in self.world_names.iter() {
-                data.append(&mut encoder::string::encode(world_name));
+                encoder.write_string(world_name);
             }
-            self.dimension_codec.encode(&mut data).unwrap();
-            nbt::ser::to_writer(&mut data, &self.dimension, None).unwrap();
-            data.append(&mut encoder::string::encode(&self.world_name));
-            data.extend_from_slice(&self.hashed_seed.to_be_bytes());
-            data.append(&mut encoder::varint::encode(self.max_players));
-            data.append(&mut encoder::varint::encode(self.view_distance));
-            data.push(self.reduced_debug_info as u8);
-            data.push(self.enable_respawn_screen as u8);
-            data.push(self.is_debug as u8);
-            data.push(self.is_flat as u8);
-
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+            self.dimension_codec.encode(encoder).unwrap();
+            nbt::ser::to_writer(encoder, &self.dimension, None).unwrap();
+            encoder.write_string(&self.world_name);
+            encoder.write_u64(self.hashed_seed);
+            encoder.write_varint(self.max_players);
+            encoder.write_varint(self.view_distance);
+            encoder.write_bool(self.reduced_debug_info);
+            encoder.write_bool(self.enable_respawn_screen);
+            encoder.write_bool(self.is_debug);
+            encoder.write_bool(self.is_flat);
         }
     }
 
-    pub struct ClientPlayerPositionAndLookPacket {
+    pub struct C36PlayerPositionAndLook {
         pub x: f64,
         pub y: f64,
         pub z: f64,
@@ -306,44 +397,36 @@ mod play {
         pub flags: u8,
         pub teleport_id: i32,
     }
-    impl ClientBoundPacket for ClientPlayerPositionAndLookPacket {
+    impl ClientBoundPacket for C36PlayerPositionAndLook {
         fn packet_id() -> i32 {
             0x36
         }
-    }
-    impl Into<RawPacket> for ClientPlayerPositionAndLookPacket {
-        fn into(self) -> RawPacket {
-            let mut data = vec![];
-            data.extend_from_slice(&self.x.to_be_bytes());
-            data.extend_from_slice(&self.y.to_be_bytes());
-            data.extend_from_slice(&self.y.to_be_bytes());
-            data.extend_from_slice(&self.yaw.to_be_bytes());
-            data.extend_from_slice(&self.pitch.to_be_bytes());
-            data.push(self.flags);
-            data.append(&mut encoder::varint::encode(self.teleport_id));
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_f32(self.yaw);
+            encoder.write_f32(self.pitch);
+            encoder.write_u8(self.flags);
+            encoder.write_varint(self.teleport_id);
         }
     }
 
-    pub struct EntityMetadataPacket {
+    pub struct C44EntityMetadata {
         entity_id: i32,
         metadata: HashMap<u8, MetadataValue>,
     }
-    impl ClientBoundPacket for EntityMetadataPacket {
+    impl ClientBoundPacket for C44EntityMetadata {
         fn packet_id() -> i32 {
             0x44
         }
-    }
-    impl Into<RawPacket> for EntityMetadataPacket {
-        fn into(self) -> RawPacket {
-            let mut data = vec![];
-            data.append(&mut encoder::varint::encode(self.entity_id));
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
             for (key, value) in self.metadata.into_iter() {
-                data.push(key);
-                data.append(&mut value.encode());
+                encoder.write_u8(key);
+                encoder.write_bytes(value.encode().as_slice());
             }
-            data.push(0xFF);
-            RawPacket::new(Self::packet_id(), data.into_boxed_slice())
+            encoder.write_u8(0xFF);
         }
     }
 }

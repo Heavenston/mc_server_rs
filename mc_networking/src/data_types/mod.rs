@@ -6,6 +6,9 @@ use uuid::Uuid;
 
 pub mod encoder;
 
+pub type VarInt = i32;
+pub type Angle = i8;
+
 pub enum Slot {
     NotPresent,
     Present {

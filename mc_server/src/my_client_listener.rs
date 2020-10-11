@@ -2,8 +2,8 @@ use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::{
-    JoinGamePacketBiomeEffects, JoinGamePacketBiomeEffectsMoodSound, JoinGamePacketBiomeElement,
-    JoinGamePacketDimensionCodec, JoinGamePacketDimensionElement,
+    C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement,
+    C24JoinGameDimensionCodec, C24JoinGameDimensionElement,
 };
 
 use async_trait::async_trait;
@@ -50,7 +50,7 @@ impl ClientListener for MyClientListener {
         info!("A player is ready !");
         let client = self.0.read().await;
 
-        let test_dimension = JoinGamePacketDimensionElement {
+        let test_dimension = C24JoinGameDimensionElement {
             natural: 1,
             ambient_light: 0.0,
             has_ceiling: 0,
@@ -66,19 +66,19 @@ impl ClientListener for MyClientListener {
             logical_height: 256,
             infiniburn: "".to_string(),
         };
-        let test_biome = JoinGamePacketBiomeElement {
+        let test_biome = C24JoinGameBiomeElement {
             depth: 0.1,
             temperature: 0.5,
             downfall: 0.5,
             precipitation: "none".to_string(),
             category: "none".to_string(),
             scale: 0.2,
-            effects: JoinGamePacketBiomeEffects {
+            effects: C24JoinGameBiomeEffects {
                 sky_color: 0x7BA4FF,
                 water_fog_color: 0x050533,
                 fog_color: 0xC0D8FF,
                 water_color: 0x3F76E4,
-                mood_sound: JoinGamePacketBiomeEffectsMoodSound {
+                mood_sound: C24JoinGameBiomeEffectsMoodSound {
                     tick_delay: 6000,
                     offset: 2.0,
                     sound: "minecraft:ambient.cave".to_string(),
@@ -93,7 +93,7 @@ impl ClientListener for MyClientListener {
                 false,
                 1,
                 vec!["minecraft:test".into()],
-                JoinGamePacketDimensionCodec {
+                C24JoinGameDimensionCodec {
                     dimensions: map!(
                         "minecraft:testdim".into() => test_dimension.clone()
                     ),

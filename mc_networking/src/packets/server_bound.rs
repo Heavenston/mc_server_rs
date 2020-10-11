@@ -17,18 +17,18 @@ mod handshake {
     use std::io::Cursor;
 
     #[derive(Clone, Debug)]
-    pub struct HandshakePacket {
+    pub struct S00Handshake {
         pub protocol_version: i32,
         pub server_addr: String,
         pub server_port: u16,
         pub next_state: i32,
     }
-    impl ServerBoundPacket for HandshakePacket {
+    impl ServerBoundPacket for S00Handshake {
         fn packet_id() -> i32 {
             0x00
         }
     }
-    impl TryFrom<RawPacket> for HandshakePacket {
+    impl TryFrom<RawPacket> for S00Handshake {
         type Error = Error;
 
         fn try_from(raw_packet: RawPacket) -> Result<Self, Self::Error> {
@@ -60,13 +60,13 @@ mod status {
     use std::convert::{TryFrom, TryInto};
 
     #[derive(Clone, Debug)]
-    pub struct RequestPacket;
-    impl ServerBoundPacket for RequestPacket {
+    pub struct S00Request;
+    impl ServerBoundPacket for S00Request {
         fn packet_id() -> i32 {
             0x00
         }
     }
-    impl TryFrom<RawPacket> for RequestPacket {
+    impl TryFrom<RawPacket> for S00Request {
         type Error = Error;
 
         fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
@@ -77,27 +77,27 @@ mod status {
                 return Err(Error::msg("Invalid data"));
             }
 
-            Ok(RequestPacket)
+            Ok(S00Request)
         }
     }
 
     #[derive(Clone, Debug)]
-    pub struct PingPacket {
+    pub struct S01Ping {
         pub payload: i64,
     }
-    impl ServerBoundPacket for PingPacket {
+    impl ServerBoundPacket for S01Ping {
         fn packet_id() -> i32 {
             0x01
         }
     }
-    impl TryFrom<RawPacket> for PingPacket {
+    impl TryFrom<RawPacket> for S01Ping {
         type Error = Error;
 
         fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
             if value.packet_id != Self::packet_id() {
                 return Err(Error::msg("Invalid packet id"));
             }
-            Ok(PingPacket {
+            Ok(S01Ping {
                 payload: i64::from_be_bytes(value.data.as_ref().try_into()?),
             })
         }
@@ -116,15 +116,15 @@ mod login {
     use std::io::{Cursor, Read};
 
     #[derive(Clone, Debug)]
-    pub struct LoginStartPacket {
+    pub struct S00LoginStart {
         pub name: String,
     }
-    impl ServerBoundPacket for LoginStartPacket {
+    impl ServerBoundPacket for S00LoginStart {
         fn packet_id() -> i32 {
             0x00
         }
     }
-    impl TryFrom<RawPacket> for LoginStartPacket {
+    impl TryFrom<RawPacket> for S00LoginStart {
         type Error = Error;
 
         fn try_from(packet: RawPacket) -> Result<Self, Self::Error> {
@@ -138,16 +138,16 @@ mod login {
     }
 
     #[derive(Clone, Debug)]
-    pub struct EncryptionResponse {
+    pub struct S01EncryptionResponse {
         pub shared_secret: Vec<u8>,
         pub verify_token: Vec<u8>,
     }
-    impl ServerBoundPacket for EncryptionResponse {
+    impl ServerBoundPacket for S01EncryptionResponse {
         fn packet_id() -> i32 {
             0x01
         }
     }
-    impl TryFrom<RawPacket> for EncryptionResponse {
+    impl TryFrom<RawPacket> for S01EncryptionResponse {
         type Error = Error;
 
         fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
@@ -176,17 +176,17 @@ mod login {
     }
 
     #[derive(Clone, Debug)]
-    pub struct LoginPluginResponsePacket {
+    pub struct S02LoginPluginResponse {
         pub message_id: i32,
         pub successful: bool,
         pub data: Option<Vec<u8>>,
     }
-    impl ServerBoundPacket for LoginPluginResponsePacket {
+    impl ServerBoundPacket for S02LoginPluginResponse {
         fn packet_id() -> i32 {
             0x02
         }
     }
-    impl TryFrom<RawPacket> for LoginPluginResponsePacket {
+    impl TryFrom<RawPacket> for S02LoginPluginResponse {
         type Error = Error;
 
         fn try_from(value: RawPacket) -> Result<Self, Self::Error> {

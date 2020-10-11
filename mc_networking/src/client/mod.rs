@@ -15,6 +15,8 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
+use uuid::Uuid;
+use crate::data_types::Angle;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -76,14 +78,56 @@ impl<T: 'static + ClientListener> Client<T> {
         self.state.read().await.clone()
     }
 
+    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
+        let raw_packet = packet.to_rawpacket();
+        self.write
+            .lock()
+            .await
+            .write_all(&raw_packet.encode())
+            .await?;
+        Ok(())
+    }
+
+    pub async fn spawn_entity(
+        &self,
+        entity_id: i32,
+        object_uuid: Uuid,
+        kind: i32,
+        x: f64,
+        y: f64,
+        z: f64,
+        pitch: Angle,
+        yaw: Angle,
+        data: i32,
+        velocity_x: i16,
+        velocity_y: i16,
+        velocity_z: i16,
+    ) -> Result<()> {
+        let spawn_entity_packet = C00SpawnEntity {
+            entity_id,
+            object_uuid,
+            kind,
+            x,
+            y,
+            z,
+            pitch,
+            yaw,
+            data,
+            velocity_x,
+            velocity_y,
+            velocity_z,
+        };
+        self.send_packet(&spawn_entity_packet).await?;
+        Ok(())
+    }
     pub async fn join_game(
         &self,
         entity_id: i32,
         is_hardcore: bool,
         gamemode: u8,
         world_names: Vec<String>,
-        dimension_codec: JoinGamePacketDimensionCodec,
-        dimension: JoinGamePacketDimensionElement,
+        dimension_codec: C24JoinGameDimensionCodec,
+        dimension: C24JoinGameDimensionElement,
         world_name: String,
         hashed_seed: u64,
         view_distance: u8,
@@ -95,7 +139,7 @@ impl<T: 'static + ClientListener> Client<T> {
         if !((2..=32).contains(&view_distance)) {
             return Err(Error::msg("Invalid render distance"));
         }
-        let join_game_packet: RawPacket = JoinGamePacket {
+        let join_game_packet = C24JoinGame {
             entity_id,
             is_hardcore,
             gamemode,
@@ -111,13 +155,8 @@ impl<T: 'static + ClientListener> Client<T> {
             enable_respawn_screen,
             is_debug,
             is_flat,
-        }
-        .into();
-        self.write
-            .lock()
-            .await
-            .write_all(&join_game_packet.encode())
-            .await?;
+        };
+        self.send_packet(&join_game_packet).await?;
         Ok(())
     }
 }
@@ -145,7 +184,7 @@ async fn listen_client_packets<T: ClientListener>(
         let current_state = state.read().await.clone();
         match current_state {
             ClientState::Handshaking => {
-                let handshake: HandshakePacket = raw_packet.try_into()?;
+                let handshake: S00Handshake = raw_packet.try_into()?;
                 debug!("Received Handshake: {:?}", handshake);
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
@@ -156,28 +195,26 @@ async fn listen_client_packets<T: ClientListener>(
             }
 
             ClientState::Status => {
-                if raw_packet.packet_id == RequestPacket::packet_id() {
-                    RequestPacket::try_from(raw_packet)?;
+                if raw_packet.packet_id == S00Request::packet_id() {
+                    S00Request::try_from(raw_packet)?;
                     let listener = listener.lock().await;
                     if listener.is_none() {
                         return Err(Error::msg("No listener registered"));
                     }
                     let listener = listener.as_ref().unwrap();
-                    let response: RawPacket = ResponsePacket {
+                    let response = ResponsePacket {
                         json_response: listener.on_slp().await,
-                    }
-                    .into();
+                    }.to_rawpacket();
                     write
                         .lock()
                         .await
                         .write_all(response.encode().as_ref())
                         .await?;
-                } else if raw_packet.packet_id == PingPacket::packet_id() {
-                    let packet: PingPacket = raw_packet.try_into()?;
-                    let pong: RawPacket = PongPacket {
+                } else if raw_packet.packet_id == S01Ping::packet_id() {
+                    let packet: S01Ping = raw_packet.try_into()?;
+                    let pong = PongPacket {
                         payload: packet.payload,
-                    }
-                    .into();
+                    }.to_rawpacket();
                     write.lock().await.write_all(pong.encode().as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
@@ -188,8 +225,8 @@ async fn listen_client_packets<T: ClientListener>(
             }
 
             ClientState::Login => {
-                if raw_packet.packet_id == LoginStartPacket::packet_id() {
-                    let login_state = LoginStartPacket::try_from(raw_packet)?;
+                if raw_packet.packet_id == S00LoginStart::packet_id() {
+                    let login_state = S00LoginStart::try_from(raw_packet)?;
                     let listener = listener.lock().await;
                     if listener.is_none() {
                         return Err(Error::msg("No listener registered"));
@@ -197,8 +234,8 @@ async fn listen_client_packets<T: ClientListener>(
                     let listener = listener.as_ref().unwrap();
                     match listener.on_login_start(login_state.name).await {
                         LoginStartResult::Accept { uuid, username } => {
-                            let login_success: RawPacket =
-                                LoginSuccessPacket { uuid, username }.into();
+                            let login_success =
+                                LoginSuccessPacket { uuid, username }.to_rawpacket();
                             write
                                 .lock()
                                 .await
@@ -207,10 +244,9 @@ async fn listen_client_packets<T: ClientListener>(
                             *(state.write().await) = ClientState::Play;
                         }
                         LoginStartResult::Disconnect { reason } => {
-                            let disconnect: RawPacket = LoginDisconnectPacket {
+                            let disconnect = LoginDisconnectPacket {
                                 reason: json!({ "text": reason }),
-                            }
-                            .into();
+                            }.to_rawpacket();
                             write
                                 .lock()
                                 .await

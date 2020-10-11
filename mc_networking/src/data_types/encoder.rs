@@ -1,11 +1,87 @@
+use crate::data_types::VarInt;
+use uuid::Uuid;
+use std::io::Write;
+
+pub struct PacketEncoder {
+    data: Vec<u8>,
+}
+impl PacketEncoder {
+    pub fn new() -> Self {
+        Self {
+            data: Vec::new()
+        }
+    }
+    pub fn consume(self) -> Vec<u8> {
+        self.data
+    }
+
+    pub fn write_u8(&mut self, v: u8) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_i8(&mut self, v: i8) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_u16(&mut self, v: u16) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_i16(&mut self, v: i16) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_u32(&mut self, v: u32) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_i32(&mut self, v: i32) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_u64(&mut self, v: u64) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_i64(&mut self, v: i64) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_f32(&mut self, v: f32) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+    pub fn write_f64(&mut self, v: f64) {
+        self.write_bytes(&v.to_be_bytes());
+    }
+
+    pub fn write_bool(&mut self, v: bool) {
+        self.write_u8(if v { 1 } else { 0 });
+    }
+    pub fn write_varint(&mut self, v: VarInt) {
+        self.data.append(&mut varint::encode(v));
+    }
+    pub fn write_bytes(&mut self, bytes: &[u8]) {
+        self.data.extend_from_slice(bytes);
+    }
+    pub fn write_string(&mut self, text: &str) {
+        self.write_bytes(string::encode(text).as_slice());
+    }
+    pub fn write_uuid(&mut self, uuid: &Uuid) {
+        self.write_bytes(uuid.as_bytes());
+    }
+}
+impl Write for PacketEncoder {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.write_bytes(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        Ok(())
+    }
+}
+
 pub mod varint {
     use anyhow::{Error, Result};
     use byteorder::ReadBytesExt;
     use std::io::{Cursor, Read};
     use tokio::prelude::io::AsyncReadExt;
     use tokio::prelude::AsyncRead;
+    use crate::data_types::VarInt;
 
-    pub fn encode(int: i32) -> Vec<u8> {
+    pub fn encode(int: VarInt) -> Vec<u8> {
         let mut val: u32 = int as u32;
         let mut buf = Vec::new();
         loop {
@@ -21,7 +97,7 @@ pub mod varint {
         }
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<i32> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<VarInt> {
         let mut num_read: i32 = 0;
         let mut result = 0i32;
         let mut read;
@@ -40,7 +116,7 @@ pub mod varint {
         }
         Ok(result)
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<i32> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<VarInt> {
         let mut num_read = 0;
         let mut result = 0i32;
         let mut read;
@@ -59,11 +135,10 @@ pub mod varint {
         }
         Ok(result)
     }
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<i32> {
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<VarInt> {
         decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 }
-
 pub mod string {
     use super::varint;
 
