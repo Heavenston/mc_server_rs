@@ -87,30 +87,32 @@ impl ClientListener for MyClientListener {
             },
         };
 
-        let join_game_packet = C24JoinGame {
-            entity_id: 0,
-            is_hardcore: false,
-            gamemode: 1,
-            previous_gamemode: 1,
-            world_names: vec!["minecraft:test".into()],
-            dimension_codec: C24JoinGameDimensionCodec {
-                dimensions: map!(
-                    "minecraft:testdim".into() => test_dimension.clone()
-                ),
-                biomes: map!(
-                    "minecraft:testbiome".into() => test_biome.clone()
-                ),
-            },
-            dimension: test_dimension.clone(),
-            world_name: "minecraft:testdim".into(),
-            hashed_seed: 0,
-            max_players: 10,
-            view_distance: 10,
-            reduced_debug_info: false,
-            enable_respawn_screen: true,
-            is_debug: false,
-            is_flat: true,
-        };
-        client.join_game(&join_game_packet).await.unwrap();
+        client
+            .join_game(&C24JoinGame {
+                entity_id: 0,
+                is_hardcore: false,
+                gamemode: 1,
+                previous_gamemode: 1,
+                world_names: vec!["minecraft:test".into()],
+                dimension_codec: C24JoinGameDimensionCodec {
+                    dimensions: map!(
+                        "minecraft:testdim".into() => test_dimension.clone()
+                    ),
+                    biomes: map!(
+                        "minecraft:testbiome".into() => test_biome.clone()
+                    ),
+                },
+                dimension: test_dimension.clone(),
+                world_name: "minecraft:testdim".into(),
+                hashed_seed: 0,
+                max_players: 10,
+                view_distance: 10,
+                reduced_debug_info: false,
+                enable_respawn_screen: true,
+                is_debug: false,
+                is_flat: true,
+            })
+            .await
+            .unwrap();
     }
 }

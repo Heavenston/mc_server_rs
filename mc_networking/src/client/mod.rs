@@ -89,22 +89,22 @@ impl<T: 'static + ClientListener> Client<T> {
     }
 
     pub async fn spawn_entity(&self, packet: &C00SpawnEntity) -> Result<()> {
-        unsafe{self.send_packet(packet)}.await?;
+        unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
     pub async fn spawn_experience_orb(&self, packet: &C01SpawnExperienceOrb) -> Result<()> {
-        unsafe{self.send_packet(packet)}.await?;
+        unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
     pub async fn spawn_weather_entity(&self, packet: &C02SpawnWeatherEntity) -> Result<()> {
-        unsafe{self.send_packet(packet)}.await?;
+        unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
     pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
         if !((2..=32).contains(&packet.view_distance)) {
             return Err(Error::msg("Invalid render distance"));
         }
-        unsafe{self.send_packet(packet)}.await?;
+        unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
 }
