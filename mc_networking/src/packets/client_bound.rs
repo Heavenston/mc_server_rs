@@ -330,6 +330,24 @@ mod play {
         }
     }
 
+    /// Used for a wide variety of game state things, from whether to bed use to gamemode to demo messages.
+    ///
+    /// https://wiki.vg/Protocol#Change_Game_State
+    #[derive(Clone, Debug)]
+    pub struct C1FChangeGameState {
+        pub reason: u8,
+        pub value: f32,
+    }
+    impl ClientBoundPacket for C1FChangeGameState {
+        fn packet_id() -> i32 {
+            0x04
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u8(self.reason);
+            encoder.write_f32(self.value);
+        }
+    }
+
     #[derive(Clone, Debug, Serialize)]
     pub struct C24JoinGameDimensionElement {
         pub natural: i8,
