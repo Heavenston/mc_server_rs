@@ -96,6 +96,10 @@ impl<T: 'static + ClientListener> Client<T> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
+    pub async fn send_plugin_message(&self, packet: &C17PluginMessage) -> Result<()> {
+        unsafe { self.send_packet(packet) }.await?;
+        Ok(())
+    }
     pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
         if !((2..=32).contains(&packet.view_distance)) {
             return Err(Error::msg("Invalid render distance"));

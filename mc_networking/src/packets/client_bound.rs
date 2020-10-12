@@ -287,6 +287,45 @@ mod play {
         }
     }
 
+    pub struct C17PluginMessageBuilder {
+        pub channel: String,
+        pub encoder: PacketEncoder,
+    }
+    impl C17PluginMessageBuilder {
+        pub fn new(channel: String) -> Self {
+            Self {
+                channel,
+                encoder: PacketEncoder::new()
+            }
+        }
+
+        pub fn build(self) -> C17PluginMessage {
+            C17PluginMessage {
+                channel: self.channel,
+                data: self.encoder.consume()
+            }
+        }
+    }
+
+    /// Tells the client to unload a chunk column.
+/// It is legal to send this packet even if the given chunk is not currently loaded.
+///
+/// https://wiki.vg/Protocol#Unload_Chunk
+    #[derive(Clone, Debug)]
+    pub struct C17PluginMessage {
+        pub channel: String,
+        pub data: Vec<u8>,
+    }
+    impl ClientBoundPacket for C17PluginMessage {
+        fn packet_id() -> i32 {
+            0x17
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.channel);
+            encoder.write_bytes(self.data.as_slice());
+        }
+    }
+
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///
