@@ -54,7 +54,7 @@ impl BitBuffer {
         self.longs[arr_idx] = (self.longs[arr_idx] & mask) | ((word as u64) << sub_idx);
     }
 
-    pub fn into_buffer<T: From<u64>>(self) -> Vec<T> {
-        self.longs.into_iter().map(|i| T::from(i)).collect()
+    pub fn into_buffer(self) -> Vec<i64> {
+        self.longs.into_iter().map(|i| i as i64).collect()
     }
 }
