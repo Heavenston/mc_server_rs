@@ -5,6 +5,7 @@ use tokio::prelude::AsyncRead;
 use uuid::Uuid;
 
 pub mod encoder;
+pub mod bitbuffer;
 
 pub type VarInt = i32;
 pub type Angle = i8;

@@ -1,7 +1,7 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C17PluginMessage, C17PluginMessageBuilder};
+use mc_networking::packets::client_bound::{C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C17PluginMessage, C17PluginMessageBuilder, C34PlayerPositionAndLook, C20ChunkData, C20ChunkDataSection};
 
 use async_trait::async_trait;
 use log::*;
@@ -10,6 +10,7 @@ use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use mc_networking::data_types::bitbuffer::BitBuffer;
 
 pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
 impl MyClientListener {
@@ -149,6 +150,68 @@ impl ClientListener for MyClientListener {
         };
         client.send_plugin_message(&brand).await.unwrap();
 
+        {
+            let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
+            for x in 0..16 {
+                for z in 0..16 {
+                    motion_blocking_heightmap.set_entry((x * 16) + z, 10);
+                }
+            }
+            let mut section_blocks = BitBuffer::create(4, 4096);
+            for y in 0..16 {
+                for z in 0..16 {
+                    for x in 0..16 {
+                        section_blocks.set_entry(x + (z * 16) + (y * 256), 0);
+                    }
+                }
+
+            }
+            for x in 0..16 {
+                for z in 0..16 {
+                    section_blocks.set_entry(x + (z * 16), 1);
+                }
+            }
+            let mut heightmaps = nbt::Blob::new();
+            heightmaps.insert("MOTION_BLOCKING", motion_blocking_heightmap.into_buffer()).unwrap();
+            let chunk_data = C20ChunkData {
+                chunk_x: 0,
+                chunk_z: 0,
+                full_chunk: true,
+                primary_bit_mask: 0b0000000000000010,
+                heightmaps,
+                biomes: Some(vec![0; 1024]),
+                chunk_sections: vec![
+                    C20ChunkDataSection {
+                        block_count: 256,
+                        bits_per_block: 4,
+                        palette: Some(vec![0, 1]),
+                        data_array: section_blocks.into_buffer()
+                    }
+                ],
+                block_entities: vec![]
+            };
+            for x in -1..=1 {
+                for z in -1..=1 {
+                    let mut n_chunk_data = chunk_data.clone();
+                    n_chunk_data.chunk_x = x;
+                    n_chunk_data.chunk_z = z;
+                    unsafe { client.send_packet(&n_chunk_data) }.await.unwrap();
+                }
+            }
+        }
+
+        let player_position_and_look = C34PlayerPositionAndLook {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            yaw: 0.0,
+            pitch: 0.0,
+            flags: 0,
+            teleport_id: 0
+        };
+        client.player_position_and_look(&player_position_and_look).await.unwrap();
+
+        client.update_view_position(0, 0).await.unwrap();
     }
 
     async fn on_perform_respawn(&self) {

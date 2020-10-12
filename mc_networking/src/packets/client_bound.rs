@@ -363,6 +363,14 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
+    pub struct C20ChunkDataSection {
+        pub block_count: i16,
+        pub bits_per_block: u8,
+        pub palette: Option<Vec<i32>>,
+        pub data_array: Vec<i64>,
+    }
+
     /// https://wiki.vg/Pre-release_protocol#Chunk_Data
     #[derive(Clone, Debug)]
     pub struct C20ChunkData {
@@ -378,14 +386,15 @@ mod play {
         /// Compound containing one long array named MOTION_BLOCKING,
         /// which is a heightmap for the highest solid block at each position in the chunk
         /// (as a compacted long array with 256 entries at 9 bits per entry totaling 36 longs).
-        pub heightmaps: nbt::Value,
+        pub heightmaps: nbt::Blob,
         /// See website
         pub biomes: Option<Vec<VarInt>>,
-        /// See website
-        pub data: Vec<u8>,
+        /// The number of elements in the array is equal to the number of bits set in Primary Bit Mask.
+        /// Sections are sent bottom-to-top, i.e. the first section, if sent, extends from Y=0 to Y=15.
+        pub chunk_sections: Vec<C20ChunkDataSection>,
         /// All block entities in the chunk.
         /// Use the x, y, and z tags in the NBT to determine their positions.
-        pub block_entities: Vec<nbt::Value>,
+        pub block_entities: Vec<nbt::Blob>,
     }
     impl ClientBoundPacket for C20ChunkData {
         fn packet_id() -> i32 {
@@ -404,8 +413,24 @@ mod play {
                     encoder.write_varint(*biome);
                 }
             }
-            encoder.write_varint(self.data.len() as i32);
-            encoder.write_bytes(self.data.as_slice());
+            let mut data_encoder = PacketEncoder::new();
+            for chunk_section in self.chunk_sections.iter() {
+                data_encoder.write_i16(chunk_section.block_count);
+                data_encoder.write_u8(chunk_section.bits_per_block);
+                if let Some(palette) = chunk_section.palette.as_ref() {
+                    data_encoder.write_varint(palette.len() as i32);
+                    for palette_entry in palette {
+                        data_encoder.write_varint(*palette_entry);
+                    }
+                }
+                data_encoder.write_varint(chunk_section.data_array.len() as i32);
+                for long in chunk_section.data_array.iter() {
+                    data_encoder.write_i64(*long);
+                }
+            }
+            let data = data_encoder.consume();
+            encoder.write_varint(data.len() as i32);
+            encoder.write_bytes(data.as_slice());
             encoder.write_varint(self.block_entities.len() as i32);
             for block_entity in self.block_entities.iter() {
                 block_entity.to_writer(encoder).unwrap();
