@@ -105,10 +105,7 @@ impl<T: 'static + ClientListener> Client<T> {
         Ok(())
     }
     pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        unsafe { self.send_packet(&C40UpdateViewPosition {
-            chunk_x,
-            chunk_z
-        }) }.await?;
+        unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
         Ok(())
     }
     pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {

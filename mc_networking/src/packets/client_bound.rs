@@ -295,22 +295,22 @@ mod play {
         pub fn new(channel: String) -> Self {
             Self {
                 channel,
-                encoder: PacketEncoder::new()
+                encoder: PacketEncoder::new(),
             }
         }
 
         pub fn build(self) -> C17PluginMessage {
             C17PluginMessage {
                 channel: self.channel,
-                data: self.encoder.consume()
+                data: self.encoder.consume(),
             }
         }
     }
 
     /// Tells the client to unload a chunk column.
-/// It is legal to send this packet even if the given chunk is not currently loaded.
-///
-/// https://wiki.vg/Protocol#Unload_Chunk
+    /// It is legal to send this packet even if the given chunk is not currently loaded.
+    ///
+    /// https://wiki.vg/Protocol#Unload_Chunk
     #[derive(Clone, Debug)]
     pub struct C17PluginMessage {
         pub channel: String,
