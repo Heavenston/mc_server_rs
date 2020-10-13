@@ -385,6 +385,26 @@ mod play {
         }
     }
 
+    /// The server will frequently send out a keep-alive, each containing a random ID.
+    /// The client must respond with the same packet.
+    /// If the client does not respond to them for over 30 seconds, the server kicks the client.
+    /// Vice versa, if the server does not send any keep-alives for 20 seconds,
+    /// the client will disconnect and yields a "Timed out" exception.
+    ///
+    /// https://wiki.vg/Protocol#Keep_Alive_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C1FKeepAlive {
+        pub id: i64,
+    }
+    impl ClientBoundPacket for C1FKeepAlive {
+        fn packet_id() -> i32 {
+            0x3F
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i64(self.id);
+        }
+    }
+
     #[derive(Clone, Debug)]
     pub struct C20ChunkDataSection {
         pub block_count: i16,
