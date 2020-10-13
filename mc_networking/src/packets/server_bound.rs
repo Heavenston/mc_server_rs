@@ -271,6 +271,25 @@ mod play {
         }
     }
 
+    /// Sent by the client after C1FKeepAlive
+    ///
+    /// https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S10KeepAlive {
+        pub id: i64,
+    }
+    impl ServerBoundPacket for S10KeepAlive {
+        fn packet_id() -> i32 {
+            0x10
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                id: decoder.read_i64()?,
+            })
+        }
+    }
+
     /// Updates the player's XYZ position on the server.
     ///
     /// https://wiki.vg/Protocol#Player_Position
