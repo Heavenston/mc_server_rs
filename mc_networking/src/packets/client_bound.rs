@@ -665,6 +665,125 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
+    pub enum C32PlayerInfoPlayerUpdate {
+        AddPlayer {
+            uuid: Uuid,
+            name: String,
+            properties: Vec<()>,
+            gamemode: VarInt,
+            ping: VarInt,
+            display_name: Option<String>,
+        },
+        UpdateGamemode {
+            uuid: Uuid,
+            gamemode: VarInt,
+        },
+        UpdateLatency {
+            uuid: Uuid,
+            ping: VarInt
+        },
+        UpdateDisplayName {
+            uuid: Uuid,
+            display_name: Option<String>,
+        },
+        RemovePlayer {
+            uuid: Uuid,
+        }
+    }
+
+    /// Sent by the server to update the user list (<tab> in the client).
+    ///
+    /// https://wiki.vg/Protocol#Player_Info
+    #[derive(Clone, Debug)]
+    pub struct C32PlayerInfo {
+        /// List of players, must all be of the same type
+        pub players: Vec<C32PlayerInfoPlayerUpdate>,
+    }
+    impl ClientBoundPacket for C32PlayerInfo {
+        fn packet_id() -> i32 {
+            0x32
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            let action = match self.players.first() {
+                Some(C32PlayerInfoPlayerUpdate::AddPlayer{..}) => 0,
+                Some(C32PlayerInfoPlayerUpdate::UpdateGamemode{..}) => 1,
+                Some(C32PlayerInfoPlayerUpdate::UpdateLatency{..}) => 2,
+                Some(C32PlayerInfoPlayerUpdate::UpdateDisplayName{..}) => 3,
+                Some(C32PlayerInfoPlayerUpdate::RemovePlayer{..}) => 4,
+                _ => 0
+            };
+            encoder.write_varint(action);
+            encoder.write_varint(self.players.len() as VarInt);
+            for player in self.players.iter() {
+                match player {
+                    C32PlayerInfoPlayerUpdate::AddPlayer {
+                        name, properties, gamemode,
+                        ping, display_name, uuid
+                    } => {
+                        if action != 0 {
+                            panic!("Invalid action (all player update s must be of the same types");
+                        }
+                        encoder.write_bytes(uuid.as_bytes());
+                        encoder.write_string(name);
+                        encoder.write_varint(properties.len() as VarInt);
+                        /*for property in properties.iter() {
+                        TODO: Add properties
+                        }*/
+                        encoder.write_varint(*gamemode);
+                        encoder.write_varint(*ping);
+                        encoder.write_bool(display_name.is_some());
+                        if let Some(display_name) = display_name {
+                            encoder.write_string(display_name);
+                        }
+                    },
+
+                    C32PlayerInfoPlayerUpdate::UpdateGamemode {
+                        uuid, gamemode
+                    } => {
+                        if action != 1 {
+                            panic!("Invalid action (all player update s must be of the same types");
+                        }
+                        encoder.write_bytes(uuid.as_bytes());
+                        encoder.write_varint(*gamemode);
+                    },
+
+                    C32PlayerInfoPlayerUpdate::UpdateLatency {
+                        uuid, ping
+                    } => {
+                        if action != 2 {
+                            panic!("Invalid action (all player update s must be of the same types");
+                        }
+                        encoder.write_bytes(uuid.as_bytes());
+                        encoder.write_varint(*ping);
+                    },
+
+                    C32PlayerInfoPlayerUpdate::UpdateDisplayName {
+                        uuid, display_name
+                    } => {
+                        if action != 3 {
+                            panic!("Invalid action (all player update s must be of the same types");
+                        }
+                        encoder.write_bytes(uuid.as_bytes());
+                        encoder.write_bool(display_name.is_some());
+                        if let Some(display_name) = display_name {
+                            encoder.write_string(display_name);
+                        }
+                    }
+
+                    C32PlayerInfoPlayerUpdate::RemovePlayer {
+                        uuid
+                    } => {
+                        if action != 4 {
+                            panic!("Invalid action (all player update s must be of the same types");
+                        }
+                        encoder.write_bytes(uuid.as_bytes());
+                    }
+                }
+            };
+        }
+    }
+
     /// Updates the player's position on the server.
     ///
     /// https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29
