@@ -127,6 +127,22 @@ impl<T: 'static + ClientListener> Client<T> {
         unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
         Ok(())
     }
+    pub async fn send_player_abilities(
+        &self,
+        invulnerable: bool,
+        flying: bool,
+        allow_flying: bool,
+        creative_mode: bool,
+        flying_speed: f32,
+        fov_modifier: f32,
+    ) -> Result<()> {
+        unsafe { self.send_packet(&C30PlayerAbilities {
+            flags: (invulnerable as u8) | (flying as u8) << 1 | (allow_flying as u8) << 3 | (creative_mode as u8) << 7,
+            flying_speed,
+            fov_modifier
+        }) }.await?;
+        Ok(())
+    }
 }
 
 async fn listen_client_packets<T: ClientListener>(
