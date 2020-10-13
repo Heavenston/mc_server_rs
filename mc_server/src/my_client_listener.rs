@@ -1,18 +1,23 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{C17PluginMessage, C17PluginMessageBuilder, C20ChunkData, C20ChunkDataSection, C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C34PlayerPositionAndLook, C32PlayerInfo, C32PlayerInfoPlayerUpdate, C13WindowItems};
+use mc_networking::packets::client_bound::{
+    C13WindowItems, C17PluginMessage, C17PluginMessageBuilder, C20ChunkData, C20ChunkDataSection,
+    C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound,
+    C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C32PlayerInfo,
+    C32PlayerInfoPlayerUpdate, C34PlayerPositionAndLook,
+};
 
 use async_trait::async_trait;
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
+use mc_networking::data_types::Slot;
 use serde_json::json;
 use serde_json::Value;
-use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
-use uuid::Uuid;
 use std::cell::RefCell;
-use mc_networking::data_types::Slot;
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
+use uuid::Uuid;
 
 pub struct MyClientListener {
     client: Arc<RwLock<Client<MyClientListener>>>,
@@ -175,34 +180,43 @@ impl ClientListener for MyClientListener {
             .await
             .unwrap();
 
-        client.send_player_info(&C32PlayerInfo {
-            players: vec![C32PlayerInfoPlayerUpdate::AddPlayer {
-                uuid: self.uuid.clone(),
-                name: username.clone(),
-                properties: vec![],
-                gamemode: 1,
-                ping: 1000,
-                display_name: Some(r#"{"text":"Robert","color":"red"}"#.to_string())
-            }, C32PlayerInfoPlayerUpdate::AddPlayer {
-                uuid: Uuid::new_v4(),
-                name: "Roberto".to_string(),
-                properties: vec![],
-                gamemode: 1,
-                ping: -1,
-                display_name: None
-            }]
-        }).await.unwrap();
+        client
+            .send_player_info(&C32PlayerInfo {
+                players: vec![
+                    C32PlayerInfoPlayerUpdate::AddPlayer {
+                        uuid: self.uuid.clone(),
+                        name: username.clone(),
+                        properties: vec![],
+                        gamemode: 1,
+                        ping: 1000,
+                        display_name: Some(r#"{"text":"Robert","color":"red"}"#.to_string()),
+                    },
+                    C32PlayerInfoPlayerUpdate::AddPlayer {
+                        uuid: Uuid::new_v4(),
+                        name: "Roberto".to_string(),
+                        properties: vec![],
+                        gamemode: 1,
+                        ping: -1,
+                        display_name: None,
+                    },
+                ],
+            })
+            .await
+            .unwrap();
 
-        client.send_window_items(&C13WindowItems {
-            window_id: 0,
-            slots: {
-                let mut slot_data = vec![];
-                for _ in 0..=44 {
-                    slot_data.push(Slot::NotPresent);
-                }
-                slot_data
-            }
-        }).await.unwrap();
+        client
+            .send_window_items(&C13WindowItems {
+                window_id: 0,
+                slots: {
+                    let mut slot_data = vec![];
+                    for _ in 0..=44 {
+                        slot_data.push(Slot::NotPresent);
+                    }
+                    slot_data
+                },
+            })
+            .await
+            .unwrap();
 
         {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
@@ -252,7 +266,6 @@ impl ClientListener for MyClientListener {
                 }
             }
         }
-
     }
 
     async fn on_perform_respawn(&self) {
