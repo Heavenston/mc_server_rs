@@ -259,8 +259,8 @@ impl ClientListener for MyClientListener {
                 }],
                 block_entities: vec![],
             };
-            for x in -1..=1 {
-                for z in -1..=1 {
+            for x in -2..=2 {
+                for z in -2..=2 {
                     let mut n_chunk_data = chunk_data.clone();
                     n_chunk_data.chunk_x = x;
                     n_chunk_data.chunk_z = z;
