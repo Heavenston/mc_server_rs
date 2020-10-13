@@ -181,7 +181,7 @@ impl ClientListener for MyClientListener {
                 properties: vec![],
                 gamemode: 1,
                 ping: 1000,
-                display_name: Some("Robert".to_string())
+                display_name: Some(r#"{"text":"Robert","color":"red"}"#.to_string())
             }]
         }).await.unwrap();
 
