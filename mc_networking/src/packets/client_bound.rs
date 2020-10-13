@@ -398,7 +398,7 @@ mod play {
     }
     impl ClientBoundPacket for C1FKeepAlive {
         fn packet_id() -> i32 {
-            0x3F
+            0x1F
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i64(self.id);
