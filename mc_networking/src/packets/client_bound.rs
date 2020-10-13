@@ -666,11 +666,18 @@ mod play {
     }
 
     #[derive(Clone, Debug)]
+    pub struct C32PlayerInfoAddPlayerProperty {
+        name: String,
+        value: String,
+        signature: Option<String>,
+    }
+
+    #[derive(Clone, Debug)]
     pub enum C32PlayerInfoPlayerUpdate {
         AddPlayer {
             uuid: Uuid,
             name: String,
-            properties: Vec<()>,
+            properties: Vec<C32PlayerInfoAddPlayerProperty>,
             gamemode: VarInt,
             ping: VarInt,
             display_name: Option<String>,
