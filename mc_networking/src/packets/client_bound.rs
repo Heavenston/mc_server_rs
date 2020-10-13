@@ -847,7 +847,7 @@ mod play {
     }
     impl ClientBoundPacket for C3FHoldItemChange {
         fn packet_id() -> i32 {
-            0x1C
+            0x3F
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i8(self.slot);
