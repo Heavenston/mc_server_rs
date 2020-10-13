@@ -154,6 +154,19 @@ impl ClientListener for MyClientListener {
         };
         client.send_plugin_message(&brand).await.unwrap();
 
+        client
+            .player_position_and_look(&C34PlayerPositionAndLook {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw: 0.0,
+                pitch: 0.0,
+                flags: 0,
+                teleport_id: 0,
+            })
+            .await
+            .unwrap();
+
         {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
             for x in 0..16 {
@@ -203,21 +216,6 @@ impl ClientListener for MyClientListener {
             }
         }
 
-        let player_position_and_look = C34PlayerPositionAndLook {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            yaw: 0.0,
-            pitch: 0.0,
-            flags: 0,
-            teleport_id: 0,
-        };
-        client
-            .player_position_and_look(&player_position_and_look)
-            .await
-            .unwrap();
-
-        client.update_view_position(0, 0).await.unwrap();
     }
 
     async fn on_perform_respawn(&self) {
