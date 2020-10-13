@@ -155,7 +155,7 @@ pub use login::*;
 
 mod play {
     use super::ClientBoundPacket;
-    use crate::data_types::{Angle, MetadataValue, Position, VarInt};
+    use crate::data_types::{Angle, MetadataValue, Position, VarInt, Slot};
     use crate::nbt_map::NBTMap;
 
     use crate::data_types::encoder::PacketEncoder;
@@ -284,6 +284,28 @@ mod play {
             encoder.write_varint(self.motive);
             encoder.write_u64(self.location.encode());
             encoder.write_u8(self.direction);
+        }
+    }
+
+    /// Sent by the server when items in multiple slots (in a window) are added/removed.
+    /// This includes the main inventory, equipped armour and crafting slots.
+    ///
+    /// https://wiki.vg/Protocol#Window_Items
+    #[derive(Clone, Debug)]
+    pub struct C13WindowItems {
+        pub window_id: u8,
+        pub slots: Vec<Slot>,
+    }
+    impl ClientBoundPacket for C13WindowItems {
+        fn packet_id() -> i32 {
+            0x13
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u8(self.window_id);
+            encoder.write_i16(self.slots.len() as i16);
+            for slot in self.slots.iter() {
+                encoder.write_bytes(slot.encode().as_slice());
+            }
         }
     }
 
