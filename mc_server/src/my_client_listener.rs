@@ -1,11 +1,7 @@
 use mc_networking::client::listener::{ClientListener, LoginStartResult};
 use mc_networking::client::Client;
 use mc_networking::map;
-use mc_networking::packets::client_bound::{
-    C17PluginMessage, C17PluginMessageBuilder, C20ChunkData, C20ChunkDataSection, C24JoinGame,
-    C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement,
-    C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C34PlayerPositionAndLook,
-};
+use mc_networking::packets::client_bound::{C17PluginMessage, C17PluginMessageBuilder, C20ChunkData, C20ChunkDataSection, C24JoinGame, C24JoinGameBiomeEffects, C24JoinGameBiomeEffectsMoodSound, C24JoinGameBiomeElement, C24JoinGameDimensionCodec, C24JoinGameDimensionElement, C34PlayerPositionAndLook, C32PlayerInfo, C32PlayerInfoPlayerUpdate};
 
 use async_trait::async_trait;
 use log::*;
@@ -13,13 +9,22 @@ use mc_networking::data_types::bitbuffer::BitBuffer;
 use serde_json::json;
 use serde_json::Value;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Mutex};
 use uuid::Uuid;
+use std::cell::RefCell;
 
-pub struct MyClientListener(Arc<RwLock<Client<MyClientListener>>>);
+pub struct MyClientListener {
+    client: Arc<RwLock<Client<MyClientListener>>>,
+    uuid: Uuid,
+    username: Mutex<String>,
+}
 impl MyClientListener {
     pub fn new(client: Arc<RwLock<Client<MyClientListener>>>) -> Self {
-        Self(client)
+        Self {
+            client,
+            uuid: Uuid::new_v4(),
+            username: Mutex::new(String::default()),
+        }
     }
 }
 #[async_trait]
@@ -41,14 +46,16 @@ impl ClientListener for MyClientListener {
     }
     async fn on_login_start(&self, username: String) -> LoginStartResult {
         info!("Login request from {}", username);
+        *self.username.lock().await = username.clone();
         LoginStartResult::Accept {
-            uuid: Uuid::new_v4(),
+            uuid: self.uuid.clone(),
             username,
         }
     }
     async fn on_ready(&self) {
         info!("A player is ready !");
-        let client = self.0.read().await;
+        let client = self.client.read().await;
+        let username = self.username.lock().await.clone();
 
         client
             .join_game(&C24JoinGame {
@@ -166,6 +173,17 @@ impl ClientListener for MyClientListener {
             })
             .await
             .unwrap();
+
+        client.send_player_info(&C32PlayerInfo {
+            players: vec![C32PlayerInfoPlayerUpdate::AddPlayer {
+                uuid: self.uuid.clone(),
+                name: username.clone(),
+                properties: vec![],
+                gamemode: 1,
+                ping: 1000,
+                display_name: Some("Robert".to_string())
+            }]
+        }).await.unwrap();
 
         {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
