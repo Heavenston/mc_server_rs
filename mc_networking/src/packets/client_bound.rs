@@ -841,6 +841,23 @@ mod play {
         }
     }
 
+    /// Sent to change the player's slot selection.
+    ///
+    /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C3FHoldItemChange {
+        /// The slot which the player has selected (0–8)
+        pub slot: i8,
+    }
+    impl ClientBoundPacket for C3FHoldItemChange {
+        fn packet_id() -> i32 {
+            0x1C
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i8(self.slot);
+        }
+    }
+
     /// Updates the client's location.
     /// This is used to determine what chunks should remain loaded and if a chunk load should be ignored;
     /// chunks outside of the view distance may be unloaded.

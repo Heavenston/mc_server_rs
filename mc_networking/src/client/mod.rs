@@ -119,6 +119,10 @@ impl<T: 'static + ClientListener> Client<T> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
+    pub async fn hold_item_change(&self, slot: i8) -> Result<()> {
+        unsafe { self.send_packet(&C3FHoldItemChange { slot }) }.await?;
+        Ok(())
+    }
     pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
         unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
         Ok(())
