@@ -100,23 +100,23 @@ impl<T: 'static + ClientListener> Client<T> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
-    pub async fn player_position_and_look(&self, packet: &C34PlayerPositionAndLook) -> Result<()> {
+    pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
+        if !((2..=32).contains(&packet.view_distance)) {
+            return Err(Error::msg("Invalid render distance"));
+        }
         unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
         Ok(())
     }
     pub async fn send_player_info(&self, packet: &C32PlayerInfo) -> Result<()> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
-    pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
-        if !((2..=32).contains(&packet.view_distance)) {
-            return Err(Error::msg("Invalid render distance"));
-        }
+    pub async fn player_position_and_look(&self, packet: &C34PlayerPositionAndLook) -> Result<()> {
         unsafe { self.send_packet(packet) }.await?;
+        Ok(())
+    }
+    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
+        unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
         Ok(())
     }
 }
