@@ -170,7 +170,7 @@ impl ClientListener for MyClientListener {
         client
             .player_position_and_look(&C34PlayerPositionAndLook {
                 x: 0.0,
-                y: 0.0,
+                y: 17.0,
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0,
@@ -220,6 +220,16 @@ impl ClientListener for MyClientListener {
 
         client.hold_item_change(0).await.unwrap();
 
+        client.send_player_abilities(
+            false,
+            false,
+            true,
+            false,
+            0.05,
+            0.1
+        ).await.unwrap();
+
+        client.update_view_position(0, 0).await.unwrap();
         {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
             for x in 0..16 {

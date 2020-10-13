@@ -137,7 +137,7 @@ impl<T: 'static + ClientListener> Client<T> {
         fov_modifier: f32,
     ) -> Result<()> {
         unsafe { self.send_packet(&C30PlayerAbilities {
-            flags: (invulnerable as u8) | (flying as u8) << 1 | (allow_flying as u8) << 3 | (creative_mode as u8) << 7,
+            flags: (invulnerable as u8) * 0x01 | (flying as u8) * 0x02 | (allow_flying as u8) * 0x04 | (creative_mode as u8) * 0x08,
             flying_speed,
             fov_modifier
         }) }.await?;
