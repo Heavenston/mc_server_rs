@@ -183,6 +183,13 @@ impl ClientListener for MyClientListener {
                 gamemode: 1,
                 ping: 1000,
                 display_name: Some(r#"{"text":"Robert","color":"red"}"#.to_string())
+            }, C32PlayerInfoPlayerUpdate::AddPlayer {
+                uuid: Uuid::new_v4(),
+                name: "Roberto".to_string(),
+                properties: vec![],
+                gamemode: 1,
+                ping: -1,
+                display_name: None
             }]
         }).await.unwrap();
 
