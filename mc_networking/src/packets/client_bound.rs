@@ -687,6 +687,24 @@ mod play {
         }
     }
 
+    /// https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C30PlayerAbilities {
+        pub flags: u8,
+        pub flying_speed: f32,
+        pub fov_modifier: f32,
+    }
+    impl ClientBoundPacket for C30PlayerAbilities {
+        fn packet_id() -> i32 {
+            0x30
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u8(self.flags);
+            encoder.write_f32(self.flying_speed);
+            encoder.write_f32(self.fov_modifier);
+        }
+    }
+
     #[derive(Clone, Debug)]
     pub struct C32PlayerInfoAddPlayerProperty {
         name: String,
