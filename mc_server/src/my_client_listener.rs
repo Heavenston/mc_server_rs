@@ -218,6 +218,8 @@ impl ClientListener for MyClientListener {
             .await
             .unwrap();
 
+        client.hold_item_change(0).await.unwrap();
+
         {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
             for x in 0..16 {
