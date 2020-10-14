@@ -273,4 +273,7 @@ impl ClientListener for MyClientListener {
     async fn on_perform_respawn(&self) {
         info!("PERFORM RESPAWN");
     }
+    async fn on_player_position(&self, x: f64, y: f64, z: f64, _on_ground: bool) {
+        println!("PLAYER POS ({}, {}, {})", x, y, z);
+    }
 }
