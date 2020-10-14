@@ -176,12 +176,14 @@ async fn listen_client_packets<T: ClientListener>(
                     *has_responded_to_keep_alive.write().await = false;
                 } else {
                     debug!("30s since keep alive, closing connection");
-                    write
+                    match write
                         .lock()
                         .await
                         .as_ref()
-                        .shutdown(Shutdown::Both)
-                        .unwrap();
+                        .shutdown(Shutdown::Both) {
+                        Err(..) => break,
+                        _ => ()
+                    }
                     *(state.write().await) = ClientState::Disconnected;
                 }
             }
