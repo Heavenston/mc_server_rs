@@ -287,6 +287,34 @@ mod play {
         }
     }
 
+    /// This packet is sent by the server when a player comes into visible range.
+    ///
+    /// https://wiki.vg/Protocol#Spawn_Player
+    #[derive(Clone, Debug)]
+    pub struct C04SpawnPlayer {
+        pub entity_id: VarInt,
+        pub uuid: Uuid,
+        pub x: f64,
+        pub y: f64,
+        pub z: f64,
+        pub yaw: Angle,
+        pub pitch: Angle,
+    }
+    impl ClientBoundPacket for C04SpawnPlayer {
+        fn packet_id() -> i32 {
+            0x04
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_uuid(&self.uuid);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_i8(self.yaw);
+            encoder.write_i8(self.pitch);
+        }
+    }
+
     /// Sent by the server when items in multiple slots (in a window) are added/removed.
     /// This includes the main inventory, equipped armour and crafting slots.
     ///

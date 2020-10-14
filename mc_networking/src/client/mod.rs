@@ -97,6 +97,10 @@ impl<T: 'static + ClientListener> Client<T> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
     }
+    pub async fn spawn_player(&self, packet: &C04SpawnPlayer) -> Result<()> {
+        unsafe { self.send_packet(packet) }.await?;
+        Ok(())
+    }
     pub async fn send_window_items(&self, packet: &C13WindowItems) -> Result<()> {
         unsafe { self.send_packet(packet) }.await?;
         Ok(())
