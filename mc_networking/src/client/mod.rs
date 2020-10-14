@@ -341,15 +341,21 @@ async fn listen_client_packets<T: ClientListener>(
                     if keep_alive.id == *last_keep_alive_id.read().await {
                         *has_responded_to_keep_alive.write().await = true;
                     }
-                }
-                else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
+                } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
                     let listener = listener.lock().await;
                     if listener.is_none() {
                         return Err(Error::msg("No listener registered"));
                     }
                     let listener = listener.as_ref().unwrap();
-                    listener.on_player_position(player_position.x, player_position.feet_y, player_position.z, player_position.on_ground).await;
+                    listener
+                        .on_player_position(
+                            player_position.x,
+                            player_position.feet_y,
+                            player_position.z,
+                            player_position.on_ground,
+                        )
+                        .await;
                 }
             }
 
