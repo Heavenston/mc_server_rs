@@ -17,6 +17,9 @@ use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::time::{Duration, Instant};
 
+const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
+const KEEP_ALIVE_INTERVAL: u64 = 15_000;
+
 #[derive(Clone, Debug)]
 enum ClientMessage {
     Init,
@@ -179,7 +182,7 @@ async fn listen_client_packets<T: ClientListener>(
                 if *has_responded_to_keep_alive.read().await {
                     *has_responded_to_keep_alive.write().await = false;
                 } else {
-                    debug!("30s since keep alive, closing connection");
+                    debug!("Keep alive timeout, closing connection");
                     match write
                         .lock()
                         .await
@@ -227,8 +230,8 @@ async fn listen_client_packets<T: ClientListener>(
                     .unwrap();
                 debug!("Sent keep alive");
                 *has_responded_to_keep_alive.write().await = false;
-                *keep_alive_timeout.lock().await = Instant::now() + Duration::from_secs(30);
-                tokio::time::delay_for(Duration::from_secs(10)).await;
+                *keep_alive_timeout.lock().await = Instant::now() + Duration::from_millis(KEEP_ALIVE_TIMEOUT);
+                tokio::time::delay_for(Duration::from_millis(KEEP_ALIVE_INTERVAL)).await;
             }
         }
     });
