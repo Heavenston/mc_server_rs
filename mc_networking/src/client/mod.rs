@@ -15,6 +15,7 @@ use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::time::{Instant, Duration};
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -152,6 +153,71 @@ async fn listen_client_packets<T: ClientListener>(
     listener: Arc<Mutex<Option<T>>>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
+    let keep_alive_timeout = Arc::new(Mutex::new(Instant::now() + Duration::from_secs(10)));
+    let has_responded_to_keep_alive = Arc::new(RwLock::new(false));
+    let last_keep_alive_id = Arc::new(RwLock::new(0i64));
+
+    let keep_alive_check_task = tokio::task::spawn({
+        let keep_alive_timeout = Arc::clone(&keep_alive_timeout);
+        let has_responded_to_keep_alive = Arc::clone(&has_responded_to_keep_alive);
+        let write = Arc::clone(&write);
+        let state = Arc::clone(&state);
+        async move {
+            loop {
+                let timeout = keep_alive_timeout.lock().await.clone();
+                tokio::time::delay_until(timeout).await;
+                if *has_responded_to_keep_alive.read().await {
+                    *has_responded_to_keep_alive.write().await = false;
+                }
+                else {
+                    debug!("30s since keep alive, closing connection");
+                    write.lock().await.as_ref().shutdown(Shutdown::Both).unwrap();
+                    *(state.write().await) = ClientState::Disconnected;
+                }
+            }
+        }
+    });
+    let keep_alive_send_task = tokio::task::spawn({
+        let keep_alive_timeout = Arc::clone(&keep_alive_timeout);
+        let has_responded_to_keep_alive = Arc::clone(&has_responded_to_keep_alive);
+        let write = Arc::clone(&write);
+        let state = Arc::clone(&state);
+        let last_keep_alive_id = Arc::clone(&last_keep_alive_id);
+        async move {
+            let start_instant = Instant::now();
+            loop {
+                match *state.read().await {
+                    ClientState::Play => {
+                        if *has_responded_to_keep_alive.read().await {
+                            debug!("Keep alive miss");
+                            tokio::time::delay_for(Duration::from_millis(500)).await;
+                            continue;
+                        }
+                    },
+                    ClientState::Disconnected => {
+                        break
+                    }
+
+                    _ => {
+                        tokio::time::delay_for(Duration::from_millis(500)).await;
+                        continue;
+                    }
+                };
+                let mut write = write.lock().await;
+                let keep_alive_id = Instant::now().duration_since(start_instant).as_millis() as i64;
+                *last_keep_alive_id.write().await = keep_alive_id;
+                let keep_alive_packet = C1FKeepAlive {
+                    id: keep_alive_id
+                };
+                write.write_all(&keep_alive_packet.to_rawpacket().encode().as_ref()).await.unwrap();
+                debug!("Sent keep alive");
+                *has_responded_to_keep_alive.write().await = false;
+                *keep_alive_timeout.lock().await = Instant::now() + Duration::from_secs(30);
+                tokio::time::delay_for(Duration::from_secs(10)).await;
+            }
+        }
+    });
+
     loop {
         if let ClientState::Disconnected = state.read().await.clone() {
             break;
@@ -160,7 +226,7 @@ async fn listen_client_packets<T: ClientListener>(
         debug!("Reading packet, State({:?})", state.read().await.clone());
         let raw_packet = RawPacket::decode_async(&mut read).await?;
         debug!(
-            "Received packet {} with data of length {}",
+            "Received packet 0x{:x} with data of length {}",
             raw_packet.packet_id,
             raw_packet.data.len()
         );
@@ -261,6 +327,13 @@ async fn listen_client_packets<T: ClientListener>(
                         _ => return Err(Error::msg("Invalid client status action id")),
                     }
                 }
+                else if raw_packet.packet_id == S10KeepAlive::packet_id() {
+                    debug!("Received keep alive");
+                    let keep_alive = S10KeepAlive::decode(raw_packet)?;
+                    if keep_alive.id == *last_keep_alive_id.read().await {
+                        *has_responded_to_keep_alive.write().await = true;
+                    }
+                }
             }
 
             ClientState::Disconnected => {
@@ -268,5 +341,8 @@ async fn listen_client_packets<T: ClientListener>(
             }
         }
     }
+
+    keep_alive_check_task.await.unwrap();
+    keep_alive_send_task.await.unwrap();
     Ok(())
 }
