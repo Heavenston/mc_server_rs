@@ -214,14 +214,10 @@ impl ClientListener for MyClientListener {
 
         client.hold_item_change(0).await.unwrap();
 
-        client.send_player_abilities(
-            false,
-            false,
-            true,
-            false,
-            0.05,
-            0.1
-        ).await.unwrap();
+        client
+            .send_player_abilities(false, false, true, false, 0.05, 0.1)
+            .await
+            .unwrap();
 
         client.update_view_position(0, 0).await.unwrap();
         {
