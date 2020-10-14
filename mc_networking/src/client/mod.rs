@@ -358,6 +358,22 @@ async fn listen_client_packets<T: ClientListener>(
                             player_position.on_ground,
                         )
                         .await;
+                } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
+                    let player_rotation = S13PlayerPositionAndRotation::decode(raw_packet)?;
+                    let listener = listener.lock().await;
+                    if listener.is_none() {
+                        return Err(Error::msg("No listener registered"));
+                    }
+                    let listener = listener.as_ref().unwrap();
+                    listener.on_player_position_and_rotation(player_rotation.x, player_rotation.feet_y, player_rotation.z, player_rotation.yaw, player_rotation.pitch, player_rotation.on_ground).await;
+                } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
+                    let player_rotation = S14PlayerRotation::decode(raw_packet)?;
+                    let listener = listener.lock().await;
+                    if listener.is_none() {
+                        return Err(Error::msg("No listener registered"));
+                    }
+                    let listener = listener.as_ref().unwrap();
+                    listener.on_player_rotation(player_rotation.yaw, player_rotation.pitch, player_rotation.on_ground).await;
                 }
             }
 

@@ -16,4 +16,8 @@ pub trait ClientListener: Send + Sync {
     async fn on_request_stats(&self) {}
     #[allow(unused_variables)]
     async fn on_player_position(&self, x: f64, y: f64, z: f64, on_ground: bool) {}
+    #[allow(unused_variables)]
+    async fn on_player_rotation(&self, yaw: f32, pitch: f32, on_ground: bool) {}
+    #[allow(unused_variables)]
+    async fn on_player_position_and_rotation(&self, x: f64, y: f64, z: f64, yaw: f32, pitch: f32, on_ground: bool) {}
 }
