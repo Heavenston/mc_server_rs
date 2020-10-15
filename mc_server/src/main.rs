@@ -1,13 +1,14 @@
-mod my_client_listener;
+mod my_server;
+mod location;
 
 use mc_networking::client::Client;
-use my_client_listener::MyClientListener;
 
 use anyhow::Result;
 use fern::colors::{Color, ColoredLevelConfig};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
+use crate::my_server::{handle_client, Server};
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()
@@ -40,16 +41,10 @@ fn setup_logger() {
 async fn main() -> Result<()> {
     setup_logger();
     let mut listener = TcpListener::bind("0.0.0.0:25565").await?;
-    let mut clients = Vec::new();
+    let server = Arc::new(RwLock::new(Server::new()));
 
     loop {
         let (socket, _) = listener.accept().await?;
-        let client = Arc::new(RwLock::new(Client::new(socket)));
-        client
-            .write()
-            .await
-            .set_listener(MyClientListener::new(Arc::clone(&client)))
-            .await;
-        clients.push(client);
+        handle_client(Arc::clone(&server), socket).await;
     }
 }

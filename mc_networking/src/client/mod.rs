@@ -1,9 +1,9 @@
-pub mod listener;
+pub mod client_event;
 
 use crate::packets::client_bound::*;
 use crate::packets::server_bound::*;
 use crate::packets::RawPacket;
-use listener::*;
+use client_event::*;
 
 use anyhow::{Error, Result};
 use log::*;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::TcpStream;
 use tokio::prelude::io::AsyncWriteExt;
-use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::{Duration, Instant};
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
@@ -34,28 +34,28 @@ pub enum ClientState {
     Disconnected,
 }
 
-pub struct Client<T: ClientListener> {
+pub struct Client {
     write: Arc<Mutex<OwnedWriteHalf>>,
     receiver: mpsc::Receiver<ClientMessage>,
     state: Arc<RwLock<ClientState>>,
-    listener: Arc<Mutex<Option<T>>>,
+    event_sender: mpsc::Sender<ClientEvent>,
 }
 
-impl<T: 'static + ClientListener> Client<T> {
-    pub fn new(socket: TcpStream) -> Self {
+impl Client {
+    pub fn new(socket: TcpStream) -> (Self, mpsc::Receiver<ClientEvent>) {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
         let (sender, receiver) = mpsc::channel(10);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let listener = Arc::new(Mutex::new(None));
+        let (event_sender, event_receiver) = mpsc::channel(10);
 
         tokio::spawn({
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
-            let listener = Arc::clone(&listener);
+            let listener_sender = event_sender.clone();
             async move {
                 if let Err(e) =
-                    listen_client_packets(read, Arc::clone(&write), sender, listener, state).await
+                    listen_client_packets(read, Arc::clone(&write), sender, listener_sender, state).await
                 {
                     error!(
                         "Error while handling {:?} packet: {:#?}",
@@ -66,15 +66,12 @@ impl<T: 'static + ClientListener> Client<T> {
             }
         });
 
-        Client {
+        (Client {
             write,
             receiver,
             state,
-            listener,
-        }
-    }
-    pub async fn set_listener(&mut self, listener: T) {
-        *(self.listener.lock().await) = Some(listener);
+            event_sender,
+        }, event_receiver)
     }
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
@@ -159,11 +156,11 @@ impl<T: 'static + ClientListener> Client<T> {
     }
 }
 
-async fn listen_client_packets<T: ClientListener>(
+async fn listen_client_packets(
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
     _sender: mpsc::Sender<ClientMessage>,
-    listener: Arc<Mutex<Option<T>>>,
+    mut event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
     let keep_alive_timeout = Arc::new(Mutex::new(Instant::now() + Duration::from_secs(10)));
@@ -220,11 +217,10 @@ async fn listen_client_packets<T: ClientListener>(
                         continue;
                     }
                 };
-                let mut write = write.lock().await;
                 let keep_alive_id = Instant::now().duration_since(start_instant).as_millis() as i64;
                 *last_keep_alive_id.write().await = keep_alive_id;
                 let keep_alive_packet = C1FKeepAlive { id: keep_alive_id };
-                write
+                write.lock().await
                     .write_all(&keep_alive_packet.to_rawpacket().encode().as_ref())
                     .await
                     .unwrap();
@@ -265,13 +261,15 @@ async fn listen_client_packets<T: ClientListener>(
             ClientState::Status => {
                 if raw_packet.packet_id == S00Request::packet_id() {
                     S00Request::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
+                    let event_response = {
+                        let (response_sender, response_receiver) = oneshot::channel();
+                        event_sender.send(ClientEvent::ServerListPing {
+                            response: response_sender
+                        }).await?;
+                        response_receiver.await?
+                    };
                     let response = C00Response {
-                        json_response: listener.on_slp().await,
+                        json_response: event_response,
                     }
                     .to_rawpacket();
                     write
@@ -297,12 +295,15 @@ async fn listen_client_packets<T: ClientListener>(
             ClientState::Login => {
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     let login_state = S00LoginStart::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
-                    match listener.on_login_start(login_state.name).await {
+                    let event_response = {
+                        let (response_sender, response_receiver) = oneshot::channel();
+                        event_sender.send(ClientEvent::LoginStart {
+                            username: login_state.name.clone(),
+                            response: response_sender
+                        }).await?;
+                        response_receiver.await?
+                    };
+                    match event_response {
                         LoginStartResult::Accept { uuid, username } => {
                             let login_success = C02LoginSuccess { uuid, username }.to_rawpacket();
                             write
@@ -327,23 +328,13 @@ async fn listen_client_packets<T: ClientListener>(
                             break;
                         }
                     };
-                    listener.on_ready().await;
+                    event_sender.send(ClientEvent::LoggedIn).await?;
                 }
             }
 
             ClientState::Play => {
                 if raw_packet.packet_id == S04ClientStatus::packet_id() {
-                    let client_status = S04ClientStatus::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
-                    match client_status.action_id {
-                        0 => listener.on_perform_respawn().await,
-                        1 => listener.on_request_stats().await,
-                        _ => return Err(Error::msg("Invalid client status action id")),
-                    }
+                    unimplemented!()
                 } else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let keep_alive = S10KeepAlive::decode(raw_packet)?;
@@ -352,35 +343,29 @@ async fn listen_client_packets<T: ClientListener>(
                     }
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
-                    listener
-                        .on_player_position(
-                            player_position.x,
-                            player_position.feet_y,
-                            player_position.z,
-                            player_position.on_ground,
-                        )
-                        .await;
+                    event_sender.send(ClientEvent::PlayerPosition {
+                        x: player_position.x,
+                        y: player_position.feet_y,
+                        z: player_position.z,
+                        on_ground: player_position.on_ground,
+                    }).await?;
                 } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
-                    let player_rotation = S13PlayerPositionAndRotation::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
-                    listener.on_player_position_and_rotation(player_rotation.x, player_rotation.feet_y, player_rotation.z, player_rotation.yaw, player_rotation.pitch, player_rotation.on_ground).await;
+                    let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
+                    event_sender.send(ClientEvent::PlayerPositionAndRotation {
+                        x: packet.x,
+                        y: packet.feet_y,
+                        z: packet.z,
+                        yaw: packet.yaw,
+                        pitch: packet.pitch,
+                        on_ground: packet.on_ground,
+                    }).await?;
                 } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
-                    let listener = listener.lock().await;
-                    if listener.is_none() {
-                        return Err(Error::msg("No listener registered"));
-                    }
-                    let listener = listener.as_ref().unwrap();
-                    listener.on_player_rotation(player_rotation.yaw, player_rotation.pitch, player_rotation.on_ground).await;
+                    event_sender.send(ClientEvent::PlayerRotation {
+                        yaw: player_rotation.yaw,
+                        pitch: player_rotation.pitch,
+                        on_ground: player_rotation.on_ground,
+                    }).await?;
                 }
             }
 
