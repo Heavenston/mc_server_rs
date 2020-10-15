@@ -128,6 +128,11 @@ impl Player {
             on_ground: self.on_ground,
         })
         .await;
+        self.broadcast_to_player_in_viewdistance(&C3AEntityHeadLook {
+            entity_id: self.entity_id,
+            head_yaw: self.location.yaw_angle(),
+        })
+        .await;
     }
     pub async fn set_position_and_rotation(
         &mut self,
