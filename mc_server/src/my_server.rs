@@ -560,6 +560,15 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                                 })
                                 .await
                                 .unwrap();
+                            a_player
+                                .read()
+                                .await
+                                .client
+                                .lock()
+                                .await
+                                .destroy_entities(vec![self_player.entity_id])
+                                .await
+                                .unwrap();
                         }
                     }
 
