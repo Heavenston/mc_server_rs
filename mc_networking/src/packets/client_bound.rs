@@ -192,8 +192,8 @@ mod play {
             packet_encoder.write_f64(self.x);
             packet_encoder.write_f64(self.y);
             packet_encoder.write_f64(self.z);
-            packet_encoder.write_i8(self.pitch);
-            packet_encoder.write_i8(self.yaw);
+            packet_encoder.write_angle(self.pitch);
+            packet_encoder.write_angle(self.yaw);
             packet_encoder.write_i32(self.data);
             packet_encoder.write_i16(self.velocity_x);
             packet_encoder.write_i16(self.velocity_y);
@@ -254,9 +254,9 @@ mod play {
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
             encoder.write_f64(self.z);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
-            encoder.write_i8(self.head_pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_angle(self.pitch);
+            encoder.write_angle(self.head_pitch);
             encoder.write_i16(self.velocity_x);
             encoder.write_i16(self.velocity_y);
             encoder.write_i16(self.velocity_z);
@@ -310,8 +310,8 @@ mod play {
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
             encoder.write_f64(self.z);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_angle(self.pitch);
         }
     }
 
@@ -689,8 +689,8 @@ mod play {
             encoder.write_i16(self.delta_x);
             encoder.write_i16(self.delta_y);
             encoder.write_i16(self.delta_z);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_angle(self.pitch);
             encoder.write_bool(self.on_ground);
         }
     }
@@ -713,8 +713,8 @@ mod play {
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_angle(self.pitch);
             encoder.write_bool(self.on_ground);
         }
     }
@@ -939,7 +939,7 @@ mod play {
         }
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
-            encoder.write_i8(self.head_yaw);
+            encoder.write_angle(self.head_yaw);
         }
     }
 
@@ -1043,8 +1043,8 @@ mod play {
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
             encoder.write_f64(self.z);
-            encoder.write_i8(self.yaw);
-            encoder.write_i8(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_angle(self.pitch);
             encoder.write_bool(self.on_ground);
         }
     }

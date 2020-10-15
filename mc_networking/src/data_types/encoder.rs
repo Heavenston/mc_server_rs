@@ -1,4 +1,4 @@
-use crate::data_types::VarInt;
+use crate::data_types::{Angle, VarInt};
 use crate::packets::RawPacket;
 
 use anyhow::Result;
@@ -48,6 +48,9 @@ impl PacketEncoder {
         self.write_bytes(&v.to_be_bytes());
     }
 
+    pub fn write_angle(&mut self, v: Angle) {
+        self.write_bytes(&v.to_be_bytes());
+    }
     pub fn write_bool(&mut self, v: bool) {
         self.write_u8(if v { 1 } else { 0 });
     }
