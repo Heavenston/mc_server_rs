@@ -412,6 +412,23 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .await
                         .unwrap();
 
+                    {
+                        let self_player = player.read().await;
+                        for a_player in server.read().await.players.values() {
+                            if Arc::ptr_eq(player, a_player) {continue};
+                            a_player.read().await.client.lock().await.send_player_info(&C32PlayerInfo {
+                                players: vec![C32PlayerInfoPlayerUpdate::AddPlayer {
+                                    uuid: self_player.uuid.clone(),
+                                    name: self_player.username.clone(),
+                                    properties: vec![],
+                                    gamemode: self_player.gamemode as i32,
+                                    ping: self_player.ping,
+                                    display_name: None
+                                }]
+                            }).await.unwrap();
+                        }
+                    }
+
                     client
                         .lock()
                         .await
