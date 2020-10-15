@@ -17,3 +17,4 @@ fern = { version = "0.5", features = ["colored"] }
 async-trait = "0.1.41"
 uuid = "0.8.1"
 hematite-nbt = "0.5.0"
+bytes = "0.5"

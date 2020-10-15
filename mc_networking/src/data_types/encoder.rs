@@ -5,6 +5,7 @@ use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
 use std::io::{Cursor, Read, Write};
 use uuid::Uuid;
+use bytes::Buf;
 
 pub struct PacketEncoder {
     data: Vec<u8>,
@@ -86,6 +87,10 @@ impl PacketDecoder {
         Self {
             data: Cursor::new(raw_packet.data),
         }
+    }
+
+    pub fn remaining(&self) -> usize {
+        self.data.remaining()
     }
 
     pub fn read_u8(&mut self) -> Result<u8> {

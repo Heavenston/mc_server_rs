@@ -245,6 +245,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "byteorder",
+ "bytes",
  "fern",
  "hematite-nbt",
  "log",

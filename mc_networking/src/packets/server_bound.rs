@@ -11,7 +11,12 @@ pub trait ServerBoundPacket: Sized {
         if raw_packet.packet_id != Self::packet_id() {
             return Err(Error::msg("Invalid packet id"));
         }
-        Self::run_decoder(&mut PacketDecoder::new(raw_packet))
+        let mut packet_decoder = PacketDecoder::new(raw_packet);
+        let result = Self::run_decoder(&mut packet_decoder);
+        if packet_decoder.remaining() > 0 {
+            return Err(Error::msg("Packet not fully consumed"));
+        }
+        result
     }
 }
 
