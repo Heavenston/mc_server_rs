@@ -16,13 +16,14 @@ use uuid::Uuid;
 pub struct Player {
     pub server: Arc<RwLock<Server>>,
     pub client: Arc<Mutex<Client>>,
-    location: Location,
     pub uuid: Uuid,
     pub entity_id: i32,
     pub username: String,
     pub ping: i32,
     pub gamemode: u8,
     pub on_ground: bool,
+    location: Location,
+    loaded_players: HashSet<i32>,
 }
 impl Player {
     pub fn new(
@@ -37,13 +38,14 @@ impl Player {
         Self {
             server,
             client,
-            location: Location::default(),
             uuid,
             entity_id,
             username,
             ping,
             gamemode,
             on_ground: false,
+            location: Location::default(),
+            loaded_players: HashSet::new(),
         }
     }
 
@@ -220,6 +222,44 @@ impl Player {
         })
         .await;
     }
+
+    pub async fn update_player_entities(&mut self) {
+        let view_distance2 = (self.server.read().await.view_distance as f64).powf(2.0);
+        for (eid, a_player) in self.server.read().await.players.iter() {
+            if self.entity_id == *eid {
+                continue;
+            };
+
+            let a_player = a_player.read().await;
+            let is_in_range = a_player.location.distance2(&self.location) < view_distance2;
+            if is_in_range && !self.loaded_players.contains(&a_player.entity_id) {
+                self.client
+                    .lock()
+                    .await
+                    .spawn_player(&C04SpawnPlayer {
+                        entity_id: a_player.entity_id,
+                        uuid: a_player.uuid.clone(),
+                        x: a_player.location.x,
+                        y: a_player.location.y,
+                        z: a_player.location.z,
+                        yaw: a_player.location.yaw_angle(),
+                        pitch: a_player.location.pitch_angle(),
+                    })
+                    .await
+                    .unwrap();
+                self.loaded_players.insert(a_player.entity_id);
+            }
+            if !is_in_range && self.loaded_players.contains(&a_player.entity_id) {
+                self.client
+                    .lock()
+                    .await
+                    .destroy_entities(vec![a_player.entity_id])
+                    .await
+                    .unwrap();
+                self.loaded_players.remove(&a_player.entity_id);
+            }
+        }
+    }
 }
 
 pub struct Server {
@@ -245,7 +285,6 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
 
     tokio::task::spawn(async move {
         let mut player: Option<Arc<RwLock<Player>>> = None;
-        let mut loaded_players: HashSet<i32> = HashSet::new();
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -615,40 +654,9 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();
 
-                    {
-                        let view_distance2 = (server.read().await.view_distance as f64).powf(2.0);
-                        let location = player.read().await.location.clone();
-                        for a_player in server.read().await.players.values() {
-                            if Arc::ptr_eq(a_player, player) {
-                                continue;
-                            };
-
-                            let a_player = a_player.read().await;
-                            let is_in_range =
-                                a_player.location.distance2(&location) < view_distance2;
-                            if is_in_range && !loaded_players.contains(&a_player.entity_id) {
-                                client
-                                    .lock()
-                                    .await
-                                    .spawn_player(&C04SpawnPlayer {
-                                        entity_id: a_player.entity_id,
-                                        uuid: a_player.uuid.clone(),
-                                        x: a_player.location.x,
-                                        y: a_player.location.y,
-                                        z: a_player.location.z,
-                                        yaw: a_player.location.yaw_angle(),
-                                        pitch: a_player.location.pitch_angle(),
-                                    })
-                                    .await
-                                    .unwrap();
-                                loaded_players.insert(a_player.entity_id);
-                            }
-                            if !is_in_range && loaded_players.contains(&a_player.entity_id) {}
-                        }
-                    }
-
                     player.write().await.on_ground = on_ground;
                     player.write().await.set_position(x, y, z).await;
+                    player.write().await.update_player_entities().await;
                 }
                 ClientEvent::PlayerPositionAndRotation {
                     x,
@@ -665,6 +673,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .await
                         .set_position_and_rotation(x, y, z, yaw, pitch)
                         .await;
+                    player.write().await.update_player_entities().await;
                 }
                 ClientEvent::PlayerRotation {
                     yaw,
