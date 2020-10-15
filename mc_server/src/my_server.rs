@@ -309,7 +309,7 @@ impl Server {
             players: HashMap::new(),
             entity_id_counter: 0,
             max_players: 10,
-            view_distance: 10,
+            view_distance: 5,
         }
     }
 
@@ -523,6 +523,13 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         })
                         .await
                         .unwrap();
+
+                    {
+                        let mut player = player.write().await;
+                        let location = player.location.clone();
+                        player.update_view_position(location.chunk_x(), location.chunk_z()).await;
+                    }
+
                     player
                         .write()
                         .await
@@ -615,12 +622,6 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .unwrap();
 
                     player.write().await.update_player_entities().await;
-
-                    {
-                        let mut player = player.write().await;
-                        let location = player.location.clone();
-                        player.update_view_position(location.chunk_x(), location.chunk_z()).await;
-                    }
                 }
                 ClientEvent::Logout => {
                     let player = player.as_ref().unwrap();
