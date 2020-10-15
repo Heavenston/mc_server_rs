@@ -903,6 +903,25 @@ mod play {
         }
     }
 
+    /// Sent by the server when a list of entities is to be destroyed on the client.
+    ///
+    /// https://wiki.vg/Protocol#Destroy_Entities
+    #[derive(Clone, Debug)]
+    pub struct C36DestroyEntities {
+        pub entities: Vec<VarInt>,
+    }
+    impl ClientBoundPacket for C36DestroyEntities {
+        fn packet_id() -> i32 {
+            0x36
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entities.len() as i32);
+            for eid in self.entities.iter() {
+                encoder.write_varint(*eid);
+            }
+        }
+    }
+
     /// Sent to change the player's slot selection.
     ///
     /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29

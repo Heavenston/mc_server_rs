@@ -172,6 +172,10 @@ impl Client {
         .await?;
         Ok(())
     }
+    pub async fn destroy_entities(&self, entities: Vec<i32>) -> Result<()> {
+        unsafe { self.send_packet(&C36DestroyEntities { entities }) }.await?;
+        Ok(())
+    }
 }
 
 async fn listen_client_packets(
