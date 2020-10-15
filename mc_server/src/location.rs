@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Default)]
 pub struct Location {
     pub x: f64,

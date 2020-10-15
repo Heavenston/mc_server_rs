@@ -1,17 +1,17 @@
-use mc_networking::client::{Client, client_event::*};
+use mc_networking::client::{client_event::*, Client};
 use mc_networking::map;
 
-use uuid::Uuid;
-use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
-use std::collections::HashMap;
-use tokio::net::TcpStream;
-use serde_json::json;
+use crate::location::Location;
 use log::*;
-use mc_networking::packets::{client_bound::*, server_bound::*};
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use mc_networking::data_types::Slot;
-use crate::location::Location;
+use mc_networking::packets::{client_bound::*, server_bound::*};
+use serde_json::json;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::net::TcpStream;
+use tokio::sync::{Mutex, RwLock};
+use uuid::Uuid;
 
 pub struct Player {
     pub server: Arc<RwLock<Server>>,
@@ -24,13 +24,15 @@ pub struct Player {
     pub gamemode: u8,
 }
 impl Player {
-    pub fn new(server: Arc<RwLock<Server>>,
-               client: Arc<Mutex<Client>>,
-               uuid: Uuid,
-               entity_id: i64,
-               username: String,
-               ping: i32,
-               gamemode: u8) -> Self {
+    pub fn new(
+        server: Arc<RwLock<Server>>,
+        client: Arc<Mutex<Client>>,
+        uuid: Uuid,
+        entity_id: i64,
+        username: String,
+        ping: i32,
+        gamemode: u8,
+    ) -> Self {
         Self {
             server,
             client,
@@ -49,7 +51,12 @@ impl Player {
             builder.encoder.write_string(&brand);
             builder.build()
         };
-        self.client.lock().await.send_plugin_message(&brand).await.unwrap();
+        self.client
+            .lock()
+            .await
+            .send_plugin_message(&brand)
+            .await
+            .unwrap();
     }
 
     /// Change current location
@@ -70,7 +77,9 @@ impl Player {
     /// Change current location and send location to the client
     pub async fn teleport(&mut self, new_location: Location) {
         self.location = new_location;
-        self.client.lock().await
+        self.client
+            .lock()
+            .await
             .player_position_and_look(&C34PlayerPositionAndLook {
                 x: self.location.x,
                 y: self.location.y,
@@ -97,7 +106,7 @@ impl Server {
             players: HashMap::new(),
             entity_id_counter: 0,
             max_players: 10,
-            view_distance: 10
+            view_distance: 10,
         }
     }
 }
@@ -112,27 +121,30 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
         while let Some(event) = event_receiver.recv().await {
             match event {
                 ClientEvent::ServerListPing { response } => {
-                    response.send(json!({
-                        "version": {
-                            "name": "1.16.3",
-                            "protocol": 753
-                        },
-                        "players": {
-                            "max": server.read().await.max_players,
-                            "online": server.read().await.players.len(),
-                            "sample": []
-                        },
-                        "description": "Hi"
-                    })).unwrap();
+                    response
+                        .send(json!({
+                            "version": {
+                                "name": "1.16.3",
+                                "protocol": 753
+                            },
+                            "players": {
+                                "max": server.read().await.max_players,
+                                "online": server.read().await.players.len(),
+                                "sample": []
+                            },
+                            "description": "Hi"
+                        }))
+                        .unwrap();
                 }
                 ClientEvent::LoginStart { response, username } => {
                     let mut server_write = server.write().await;
                     if (server_write.max_players as usize) <= server_write.players.len() {
-                        response.send(LoginStartResult::Disconnect {
-                            reason: "The server is full :(".to_string()
-                        }).unwrap();
-                    }
-                    else {
+                        response
+                            .send(LoginStartResult::Disconnect {
+                                reason: "The server is full :(".to_string(),
+                            })
+                            .unwrap();
+                    } else {
                         server_write.entity_id_counter += 1;
                         player = Some(Arc::new(RwLock::new(Player::new(
                             Arc::clone(&server),
@@ -141,20 +153,27 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             server_write.entity_id_counter,
                             username.clone(),
                             -1,
-                            1
+                            1,
                         ))));
-                        server_write.players.insert(player.as_ref().unwrap().read().await.entity_id, Arc::clone(player.as_ref().unwrap()));
+                        server_write.players.insert(
+                            player.as_ref().unwrap().read().await.entity_id,
+                            Arc::clone(player.as_ref().unwrap()),
+                        );
 
-                        response.send(LoginStartResult::Accept {
-                            uuid: player.as_ref().unwrap().read().await.uuid.clone(),
-                            username
-                        }).unwrap();
+                        response
+                            .send(LoginStartResult::Accept {
+                                uuid: player.as_ref().unwrap().read().await.uuid.clone(),
+                                username,
+                            })
+                            .unwrap();
                     }
                 }
                 ClientEvent::LoggedIn => {
                     let player = player.as_ref().unwrap();
 
-                    client.lock().await
+                    client
+                        .lock()
+                        .await
                         .join_game(&{
                             let server = server.read().await;
                             let player = player.read().await;
@@ -167,23 +186,23 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                                 world_names: vec!["heav:world".to_owned()],
                                 dimension_codec: C24JoinGameDimensionCodec {
                                     dimensions: map! {
-                                    "heav:world".to_owned() => C24JoinGameDimensionElement {
-                                        natural: 1,
-                                        ambient_light: 1.0,
-                                        has_ceiling: 0,
-                                        has_skylight: 1,
-                                        fixed_time: 6000,
-                                        shrunk: 0,
-                                        ultrawarm: 0,
-                                        has_raids: 0,
-                                        respawn_anchor_works: 0,
-                                        bed_works: 0,
-                                        coordinate_scale: 1.0,
-                                        piglin_safe: 0,
-                                        logical_height: 256,
-                                        infiniburn: "".to_owned(),
-                                    }
-                                },
+                                        "heav:world".to_owned() => C24JoinGameDimensionElement {
+                                            natural: 1,
+                                            ambient_light: 1.0,
+                                            has_ceiling: 0,
+                                            has_skylight: 1,
+                                            fixed_time: 6000,
+                                            shrunk: 0,
+                                            ultrawarm: 0,
+                                            has_raids: 0,
+                                            respawn_anchor_works: 0,
+                                            bed_works: 0,
+                                            coordinate_scale: 1.0,
+                                            piglin_safe: 0,
+                                            logical_height: 256,
+                                            infiniburn: "".to_owned(),
+                                        }
+                                    },
                                     biomes: map! {
                                         "minecraft:plains".to_owned() => C24JoinGameBiomeElement {
                                             precipitation: "none".to_owned(),
@@ -255,15 +274,21 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         })
                         .await
                         .unwrap();
-                    player.write().await.teleport(Location {
-                        x: 0.0,
-                        y: 20.0,
-                        z: 0.0,
-                        yaw: 0.0,
-                        pitch: 0.0
-                    }).await;
+                    player
+                        .write()
+                        .await
+                        .teleport(Location {
+                            x: 0.0,
+                            y: 20.0,
+                            z: 0.0,
+                            yaw: 0.0,
+                            pitch: 0.0,
+                        })
+                        .await;
 
-                    client.lock().await
+                    client
+                        .lock()
+                        .await
                         .send_player_info(&C32PlayerInfo {
                             players: {
                                 let server = server.read().await;
@@ -277,7 +302,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                                         properties: vec![],
                                         gamemode: player.gamemode as i32,
                                         ping: player.ping,
-                                        display_name: None
+                                        display_name: None,
                                     });
                                 }
                                 players
@@ -286,7 +311,9 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .await
                         .unwrap();
 
-                    client.lock().await
+                    client
+                        .lock()
+                        .await
                         .send_window_items(&C13WindowItems {
                             window_id: 0,
                             slots: {
@@ -302,7 +329,9 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
 
                     client.lock().await.hold_item_change(0).await.unwrap();
 
-                    client.lock().await
+                    client
+                        .lock()
+                        .await
                         .send_player_abilities(false, false, true, false, 0.05, 0.1)
                         .await
                         .unwrap();
@@ -351,14 +380,15 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                                 let mut n_chunk_data = chunk_data.clone();
                                 n_chunk_data.chunk_x = x;
                                 n_chunk_data.chunk_z = z;
-                                unsafe { client.lock().await.send_packet(&n_chunk_data) }.await.unwrap();
+                                unsafe { client.lock().await.send_packet(&n_chunk_data) }
+                                    .await
+                                    .unwrap();
                             }
                         }
                     }
-
                 }
 
-                _ => ()
+                _ => (),
             }
         }
     });

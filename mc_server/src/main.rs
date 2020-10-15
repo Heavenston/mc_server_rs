@@ -1,14 +1,14 @@
-mod my_server;
 mod location;
+mod my_server;
 
 use mc_networking::client::Client;
 
+use crate::my_server::{handle_client, Server};
 use anyhow::Result;
 use fern::colors::{Color, ColoredLevelConfig};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
-use crate::my_server::{handle_client, Server};
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()

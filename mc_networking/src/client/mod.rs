@@ -55,7 +55,8 @@ impl Client {
             let listener_sender = event_sender.clone();
             async move {
                 if let Err(e) =
-                    listen_client_packets(read, Arc::clone(&write), sender, listener_sender, state).await
+                    listen_client_packets(read, Arc::clone(&write), sender, listener_sender, state)
+                        .await
                 {
                     error!(
                         "Error while handling {:?} packet: {:#?}",
@@ -66,12 +67,15 @@ impl Client {
             }
         });
 
-        (Client {
-            write,
-            receiver,
-            state,
-            event_sender,
-        }, event_receiver)
+        (
+            Client {
+                write,
+                receiver,
+                state,
+                event_sender,
+            },
+            event_receiver,
+        )
     }
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
@@ -180,13 +184,9 @@ async fn listen_client_packets(
                     *has_responded_to_keep_alive.write().await = false;
                 } else {
                     debug!("Keep alive timeout, closing connection");
-                    match write
-                        .lock()
-                        .await
-                        .as_ref()
-                        .shutdown(Shutdown::Both) {
+                    match write.lock().await.as_ref().shutdown(Shutdown::Both) {
                         Err(..) => break,
-                        _ => ()
+                        _ => (),
                     }
                     *(state.write().await) = ClientState::Disconnected;
                 }
@@ -220,13 +220,16 @@ async fn listen_client_packets(
                 let keep_alive_id = Instant::now().duration_since(start_instant).as_millis() as i64;
                 *last_keep_alive_id.write().await = keep_alive_id;
                 let keep_alive_packet = C1FKeepAlive { id: keep_alive_id };
-                write.lock().await
+                write
+                    .lock()
+                    .await
                     .write_all(&keep_alive_packet.to_rawpacket().encode().as_ref())
                     .await
                     .unwrap();
                 debug!("Sent keep alive");
                 *has_responded_to_keep_alive.write().await = false;
-                *keep_alive_timeout.lock().await = Instant::now() + Duration::from_millis(KEEP_ALIVE_TIMEOUT);
+                *keep_alive_timeout.lock().await =
+                    Instant::now() + Duration::from_millis(KEEP_ALIVE_TIMEOUT);
                 tokio::time::delay_for(Duration::from_millis(KEEP_ALIVE_INTERVAL)).await;
             }
         }
@@ -263,9 +266,11 @@ async fn listen_client_packets(
                     S00Request::decode(raw_packet)?;
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender.send(ClientEvent::ServerListPing {
-                            response: response_sender
-                        }).await?;
+                        event_sender
+                            .send(ClientEvent::ServerListPing {
+                                response: response_sender,
+                            })
+                            .await?;
                         response_receiver.await?
                     };
                     let response = C00Response {
@@ -297,10 +302,12 @@ async fn listen_client_packets(
                     let login_state = S00LoginStart::decode(raw_packet)?;
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender.send(ClientEvent::LoginStart {
-                            username: login_state.name.clone(),
-                            response: response_sender
-                        }).await?;
+                        event_sender
+                            .send(ClientEvent::LoginStart {
+                                username: login_state.name.clone(),
+                                response: response_sender,
+                            })
+                            .await?;
                         response_receiver.await?
                     };
                     match event_response {
@@ -343,29 +350,35 @@ async fn listen_client_packets(
                     }
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
-                    event_sender.send(ClientEvent::PlayerPosition {
-                        x: player_position.x,
-                        y: player_position.feet_y,
-                        z: player_position.z,
-                        on_ground: player_position.on_ground,
-                    }).await?;
+                    event_sender
+                        .send(ClientEvent::PlayerPosition {
+                            x: player_position.x,
+                            y: player_position.feet_y,
+                            z: player_position.z,
+                            on_ground: player_position.on_ground,
+                        })
+                        .await?;
                 } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
                     let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
-                    event_sender.send(ClientEvent::PlayerPositionAndRotation {
-                        x: packet.x,
-                        y: packet.feet_y,
-                        z: packet.z,
-                        yaw: packet.yaw,
-                        pitch: packet.pitch,
-                        on_ground: packet.on_ground,
-                    }).await?;
+                    event_sender
+                        .send(ClientEvent::PlayerPositionAndRotation {
+                            x: packet.x,
+                            y: packet.feet_y,
+                            z: packet.z,
+                            yaw: packet.yaw,
+                            pitch: packet.pitch,
+                            on_ground: packet.on_ground,
+                        })
+                        .await?;
                 } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
-                    event_sender.send(ClientEvent::PlayerRotation {
-                        yaw: player_rotation.yaw,
-                        pitch: player_rotation.pitch,
-                        on_ground: player_rotation.on_ground,
-                    }).await?;
+                    event_sender
+                        .send(ClientEvent::PlayerRotation {
+                            yaw: player_rotation.yaw,
+                            pitch: player_rotation.pitch,
+                            on_ground: player_rotation.on_ground,
+                        })
+                        .await?;
                 }
             }
 
