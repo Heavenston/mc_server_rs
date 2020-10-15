@@ -533,6 +533,38 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         }
                     }
                 }
+                ClientEvent::Logout => {
+                    let player = player.as_ref().unwrap();
+                    server
+                        .write()
+                        .await
+                        .players
+                        .remove(&player.read().await.entity_id);
+
+                    {
+                        let self_player = player.read().await;
+                        for a_player in server.read().await.players.values() {
+                            if Arc::ptr_eq(player, a_player) {
+                                continue;
+                            };
+                            a_player
+                                .read()
+                                .await
+                                .client
+                                .lock()
+                                .await
+                                .send_player_info(&C32PlayerInfo {
+                                    players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer {
+                                        uuid: self_player.uuid.clone(),
+                                    }],
+                                })
+                                .await
+                                .unwrap();
+                        }
+                    }
+
+                    break;
+                }
 
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();

@@ -17,6 +17,7 @@ pub enum ClientEvent {
         response: oneshot::Sender<LoginStartResult>,
     },
     LoggedIn,
+    Logout,
 
     PlayerPosition {
         x: f64,

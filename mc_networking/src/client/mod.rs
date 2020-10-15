@@ -25,7 +25,7 @@ enum ClientMessage {
     Init,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientState {
     Handshaking,
     Status,
@@ -52,17 +52,31 @@ impl Client {
         tokio::spawn({
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
-            let listener_sender = event_sender.clone();
+            let mut listener_sender = event_sender.clone();
             async move {
-                if let Err(e) =
-                    listen_client_packets(read, Arc::clone(&write), sender, listener_sender, state)
-                        .await
+                if let Err(e) = listen_client_packets(
+                    read,
+                    Arc::clone(&write),
+                    sender,
+                    listener_sender.clone(),
+                    Arc::clone(&state),
+                )
+                .await
                 {
-                    error!(
-                        "Error while handling {:?} packet: {:#?}",
-                        write.lock().await.as_ref().peer_addr().unwrap(),
-                        e
-                    );
+                    if let Some(e) = e.downcast_ref::<std::io::Error>() {
+                        if e.kind() == std::io::ErrorKind::UnexpectedEof
+                            && *state.read().await == ClientState::Play
+                        {
+                            *state.write().await = ClientState::Disconnected;
+                            listener_sender.send(ClientEvent::Logout).await.unwrap();
+                        }
+                    } else {
+                        error!(
+                            "Unexpected error while handling {:?}, {:#?}",
+                            write.lock().await.as_ref().peer_addr().unwrap(),
+                            e
+                        );
+                    }
                 };
             }
         });
