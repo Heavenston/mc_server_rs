@@ -251,6 +251,12 @@ impl Player {
                     })
                     .await
                     .unwrap();
+                self.client
+                    .lock()
+                    .await
+                    .send_entity_head_look(a_player.entity_id, a_player.location.yaw_angle())
+                    .await
+                    .unwrap();
                 self.loaded_players.insert(a_player.entity_id);
             }
             if !is_in_range && self.loaded_players.contains(&a_player.entity_id) {
@@ -603,6 +609,8 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             }
                         }
                     }
+
+                    player.write().await.update_player_entities().await;
                 }
                 ClientEvent::Logout => {
                     let player = player.as_ref().unwrap();
