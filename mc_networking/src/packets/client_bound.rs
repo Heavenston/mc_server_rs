@@ -922,6 +922,27 @@ mod play {
         }
     }
 
+    /// Changes the direction an entity's head is facing.
+    /// While sending the Entity Look packet changes the vertical rotation of the head,
+    /// sending this packet appears to be necessary to rotate the head horizontally.
+    ///
+    /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C3AEntityHeadLook {
+        pub entity_id: VarInt,
+        /// New angle, not a delta
+        pub head_yaw: Angle,
+    }
+    impl ClientBoundPacket for C3AEntityHeadLook {
+        fn packet_id() -> i32 {
+            0x3A
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_i8(self.head_yaw);
+        }
+    }
+
     /// Sent to change the player's slot selection.
     ///
     /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29

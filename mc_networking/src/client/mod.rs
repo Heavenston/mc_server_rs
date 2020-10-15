@@ -5,6 +5,7 @@ use crate::packets::server_bound::*;
 use crate::packets::RawPacket;
 use client_event::*;
 
+use crate::data_types::Angle;
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
@@ -174,6 +175,16 @@ impl Client {
     }
     pub async fn destroy_entities(&self, entities: Vec<i32>) -> Result<()> {
         unsafe { self.send_packet(&C36DestroyEntities { entities }) }.await?;
+        Ok(())
+    }
+    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> Result<()> {
+        unsafe {
+            self.send_packet(&C3AEntityHeadLook {
+                entity_id,
+                head_yaw,
+            })
+        }
+        .await?;
         Ok(())
     }
 }
@@ -369,9 +380,11 @@ async fn listen_client_packets(
                     if keep_alive.id == *last_keep_alive_id.read().await {
                         *has_responded_to_keep_alive.write().await = true;
                     }
-                    event_sender.send(ClientEvent::Ping {
-                        delay: last_keep_alive_sent_at.read().await.elapsed().as_millis()
-                    }).await?;
+                    event_sender
+                        .send(ClientEvent::Ping {
+                            delay: last_keep_alive_sent_at.read().await.elapsed().as_millis(),
+                        })
+                        .await?;
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
                     event_sender
