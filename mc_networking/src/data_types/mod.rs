@@ -8,7 +8,7 @@ pub mod bitbuffer;
 pub mod encoder;
 
 pub type VarInt = i32;
-pub type Angle = i8;
+pub type Angle = u8;
 
 #[derive(Clone, Debug)]
 pub enum Slot {

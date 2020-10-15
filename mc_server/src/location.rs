@@ -17,10 +17,10 @@ impl Location {
         self.distance2(other).sqrt()
     }
     pub fn yaw_angle(&self) -> Angle {
-        (self.yaw % 350f32 / 350f32 * 256f32) as Angle
+        (self.yaw * 256f32 / 360f32).rem_euclid(256f32) as Angle
     }
     pub fn pitch_angle(&self) -> Angle {
-        (self.pitch % 350f32 / 350f32 * 256f32) as Angle
+        (self.pitch * 256f32 / 360f32).rem_euclid(256f32) as Angle
     }
 
     pub fn chunk_x(&self) -> i32 {
