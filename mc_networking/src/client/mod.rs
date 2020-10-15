@@ -18,8 +18,8 @@ use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::{Duration, Instant};
 
-const KEEP_ALIVE_TIMEOUT: u64 = 45_000;
-const KEEP_ALIVE_INTERVAL: u64 = 15_000;
+const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
+const KEEP_ALIVE_INTERVAL: u64 = 20_000;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
