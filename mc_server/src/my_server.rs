@@ -111,7 +111,6 @@ impl Player {
         }
     }
     pub async fn set_rotation(&mut self, yaw: f32, pitch: f32) {
-        info!("{} - {}", yaw, pitch);
         self.location.yaw = yaw;
         self.location.pitch = pitch;
         self.broadcast_to_player_in_viewdistance(&C29EntityRotation {
