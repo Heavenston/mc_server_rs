@@ -4,7 +4,7 @@ use mc_networking::map;
 use crate::location::Location;
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
-use mc_networking::data_types::{Slot, MetadataValue};
+use mc_networking::data_types::{Slot, MetadataValue, Pose};
 use mc_networking::packets::client_bound::*;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
@@ -266,7 +266,12 @@ impl Player {
         self.broadcast_to_player_in_viewdistance(&C44EntityMetadata {
             entity_id: self.entity_id,
             metadata: map! {
-                0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02)
+                0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02),
+                6 => MetadataValue::Pose(if self.is_sneaking {
+                    Pose::Sneaking
+                } else {
+                    Pose::Standing
+                })
             }
         }).await;
     }
@@ -709,7 +714,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             1 => {
                                 player.is_sneaking = false;
                             },
-                            _ => unimplemented!()
+                            _ => ()
                         }
                         player.update_metadata().await;
                     }
