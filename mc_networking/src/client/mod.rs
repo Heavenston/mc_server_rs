@@ -187,6 +187,10 @@ impl Client {
         .await?;
         Ok(())
     }
+    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
+        unsafe { self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z }) }.await?;
+        Ok(())
+    }
 }
 
 async fn listen_client_packets(

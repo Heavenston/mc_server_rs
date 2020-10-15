@@ -26,6 +26,7 @@ pub struct Player {
     pub is_sprinting: bool,
     location: Location,
     loaded_players: HashSet<i32>,
+    loaded_chunks: HashSet<(i32, i32)>,
 }
 impl Player {
     pub fn new(
@@ -50,6 +51,7 @@ impl Player {
             loaded_players: HashSet::new(),
             is_sneaking: false,
             is_sprinting: false,
+            loaded_chunks: HashSet::new(),
         }
     }
 
@@ -116,12 +118,7 @@ impl Player {
         if previous_location.chunk_x() != new_location.chunk_x()
             || previous_location.chunk_z() != new_location.chunk_z()
         {
-            self.client
-                .lock()
-                .await
-                .update_view_position(new_location.chunk_x(), new_location.chunk_z())
-                .await
-                .unwrap();
+            self.update_view_position(new_location.chunk_x(), new_location.chunk_z()).await;
         }
     }
     pub async fn set_rotation(&mut self, yaw: f32, pitch: f32) {
@@ -184,12 +181,27 @@ impl Player {
         if previous_location.chunk_x() != new_location.chunk_x()
             || previous_location.chunk_z() != new_location.chunk_z()
         {
-            self.client
-                .lock()
-                .await
-                .update_view_position(new_location.chunk_x(), new_location.chunk_z())
-                .await
-                .unwrap();
+            self.update_view_position(new_location.chunk_x(), new_location.chunk_z()).await;
+        }
+    }
+
+    pub async fn update_view_position(&mut self, chunk_x: i32, chunk_z: i32) {
+        let view_distance = self.server.read().await.view_distance;
+        self.client.lock().await.update_view_position(chunk_x, chunk_z).await.unwrap();
+        for (x, z) in self.loaded_chunks.clone().into_iter() {
+            if (chunk_x - x).pow(2) + (chunk_z - z).pow(2) > view_distance.pow(2) {
+                self.client.lock().await.unload_chunk(x, z).await.unwrap();
+                self.loaded_chunks.remove(&(x, z));
+            }
+        }
+        for x in chunk_x-(view_distance*2)..=chunk_x+(view_distance*2) {
+            for z in chunk_z-(view_distance*2)..=chunk_z+(view_distance*2) {
+                if !self.loaded_chunks.contains(&(x, z)) && (chunk_x - x).pow(2) + (chunk_z - z).pow(2) < view_distance.pow(2) {
+                    let chunk_data = self.server.write().await.get_chunk(x, z).await;
+                    unsafe { self.client.lock().await.send_packet(&chunk_data) }.await.unwrap();
+                    self.loaded_chunks.insert((x, z));
+                }
+            }
         }
     }
 
@@ -299,6 +311,49 @@ impl Server {
             max_players: 10,
             view_distance: 10,
         }
+    }
+
+    pub async fn get_chunk(&mut self, chunk_x: i32, chunk_z: i32) -> C20ChunkData {
+        let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
+        for x in 0..16 {
+            for z in 0..16 {
+                motion_blocking_heightmap.set_entry((x * 16) + z, 10);
+            }
+        }
+        let mut section_blocks = BitBuffer::create(4, 4096);
+        for y in 0..16 {
+            for z in 0..16 {
+                for x in 0..16 {
+                    section_blocks.set_entry(x + (z * 16) + (y * 256), 0);
+                }
+            }
+        }
+        for x in 0..16 {
+            for z in 0..16 {
+                section_blocks.set_entry(x + (z * 16), 1);
+            }
+        }
+        let mut heightmaps = nbt::Blob::new();
+        heightmaps
+            .insert("MOTION_BLOCKING", motion_blocking_heightmap.into_buffer())
+            .unwrap();
+        let chunk_data = C20ChunkData {
+            chunk_x,
+            chunk_z,
+            full_chunk: true,
+            primary_bit_mask: 0b0000000000000010,
+            heightmaps,
+            biomes: Some(vec![1; 1024]),
+            chunk_sections: vec![C20ChunkDataSection {
+                block_count: 256,
+                bits_per_block: 4,
+                palette: Some(vec![0, 1]),
+                data_array: section_blocks.into_buffer(),
+            }],
+            block_entities: vec![],
+        };
+
+        chunk_data
     }
 }
 
@@ -559,58 +614,13 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .await
                         .unwrap();
 
-                    {
-                        let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
-                        for x in 0..16 {
-                            for z in 0..16 {
-                                motion_blocking_heightmap.set_entry((x * 16) + z, 10);
-                            }
-                        }
-                        let mut section_blocks = BitBuffer::create(4, 4096);
-                        for y in 0..16 {
-                            for z in 0..16 {
-                                for x in 0..16 {
-                                    section_blocks.set_entry(x + (z * 16) + (y * 256), 0);
-                                }
-                            }
-                        }
-                        for x in 0..16 {
-                            for z in 0..16 {
-                                section_blocks.set_entry(x + (z * 16), 1);
-                            }
-                        }
-                        let mut heightmaps = nbt::Blob::new();
-                        heightmaps
-                            .insert("MOTION_BLOCKING", motion_blocking_heightmap.into_buffer())
-                            .unwrap();
-                        let chunk_data = C20ChunkData {
-                            chunk_x: 0,
-                            chunk_z: 0,
-                            full_chunk: true,
-                            primary_bit_mask: 0b0000000000000010,
-                            heightmaps,
-                            biomes: Some(vec![0; 1024]),
-                            chunk_sections: vec![C20ChunkDataSection {
-                                block_count: 256,
-                                bits_per_block: 4,
-                                palette: Some(vec![0, 1]),
-                                data_array: section_blocks.into_buffer(),
-                            }],
-                            block_entities: vec![],
-                        };
-                        for x in -2..=2 {
-                            for z in -2..=2 {
-                                let mut n_chunk_data = chunk_data.clone();
-                                n_chunk_data.chunk_x = x;
-                                n_chunk_data.chunk_z = z;
-                                unsafe { client.lock().await.send_packet(&n_chunk_data) }
-                                    .await
-                                    .unwrap();
-                            }
-                        }
-                    }
-
                     player.write().await.update_player_entities().await;
+
+                    {
+                        let mut player = player.write().await;
+                        let location = player.location.clone();
+                        player.update_view_position(location.chunk_x(), location.chunk_z()).await;
+                    }
                 }
                 ClientEvent::Logout => {
                     let player = player.as_ref().unwrap();
