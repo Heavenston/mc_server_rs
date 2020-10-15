@@ -228,7 +228,7 @@ impl Player {
     }
 
     pub async fn update_player_entities(&mut self) {
-        let view_distance2 = (self.server.read().await.view_distance as f64).powf(2.0);
+        let view_distance2 = (self.server.read().await.view_distance as f64 * 16.0).powf(2.0);
         for (eid, a_player) in self.server.read().await.players.iter() {
             if self.entity_id == *eid {
                 continue;
