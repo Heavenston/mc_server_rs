@@ -168,6 +168,11 @@ impl Player {
                 on_ground: self.on_ground,
             })
             .await;
+            self.broadcast_to_player_in_viewdistance(&C3AEntityHeadLook {
+                entity_id: self.entity_id,
+                head_yaw: self.location.yaw_angle(),
+            })
+            .await;
         }
 
         if previous_location.chunk_x() != new_location.chunk_x()
@@ -207,6 +212,11 @@ impl Player {
             yaw: self.location.yaw_angle(),
             pitch: self.location.pitch_angle(),
             on_ground: self.on_ground,
+        })
+        .await;
+        self.broadcast_to_player_in_viewdistance(&C3AEntityHeadLook {
+            entity_id: self.entity_id,
+            head_yaw: self.location.yaw_angle(),
         })
         .await;
     }
