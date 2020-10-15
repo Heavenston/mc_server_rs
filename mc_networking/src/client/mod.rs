@@ -19,7 +19,7 @@ use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::{Duration, Instant};
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
-const KEEP_ALIVE_INTERVAL: u64 = 20_000;
+const KEEP_ALIVE_INTERVAL: u64 = 15_000;
 
 #[derive(Clone, Debug)]
 enum ClientMessage {
@@ -236,8 +236,15 @@ async fn listen_client_packets(
                 match *state.read().await {
                     ClientState::Play => {
                         if *has_responded_to_keep_alive.read().await {
-                            debug!("Keep alive miss");
-                            tokio::time::delay_for(Duration::from_millis(1500)).await;
+                            debug!("Keep alive miss, resending");
+                            let keep_alive_packet = C1FKeepAlive { id: *last_keep_alive_id.read().await };
+                            write
+                                .lock()
+                                .await
+                                .write_all(&keep_alive_packet.to_rawpacket().encode().as_ref())
+                                .await
+                                .unwrap();
+                            tokio::time::delay_for(Duration::from_millis(500)).await;
                             continue;
                         }
                     }
