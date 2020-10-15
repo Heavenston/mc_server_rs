@@ -237,7 +237,7 @@ async fn listen_client_packets(
                     ClientState::Play => {
                         if *has_responded_to_keep_alive.read().await {
                             debug!("Keep alive miss");
-                            tokio::time::delay_for(Duration::from_millis(500)).await;
+                            tokio::time::delay_for(Duration::from_millis(1500)).await;
                             continue;
                         }
                     }
