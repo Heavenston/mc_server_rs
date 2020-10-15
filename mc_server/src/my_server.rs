@@ -64,7 +64,9 @@ impl Player {
     async fn broadcast_to_player_in_viewdistance<T: ClientBoundPacket>(&self, packet: &T) {
         let view_distance2 = (self.server.read().await.view_distance as f64 * 16.0).powf(2.0);
         for (entity_id, player) in self.server.read().await.players.iter() {
-            if *entity_id == self.entity_id {continue};
+            if *entity_id == self.entity_id {
+                continue;
+            };
             let player = player.read().await;
             if player.location.distance2(&self.location) < view_distance2 {
                 unsafe { player.client.lock().await.send_packet(packet) }
@@ -94,20 +96,26 @@ impl Player {
         } else {
             self.broadcast_to_player_in_viewdistance(&C27EntityPosition {
                 entity_id: self.entity_id,
-                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor() as i16,
-                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor() as i16,
-                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor() as i16,
+                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor()
+                    as i16,
+                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor()
+                    as i16,
+                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor()
+                    as i16,
                 on_ground: self.on_ground,
             })
             .await;
         }
 
         if previous_location.chunk_x() != new_location.chunk_x()
-            || previous_location.chunk_z() != new_location.chunk_z() {
-            self.client.lock().await.update_view_position(
-                new_location.chunk_x(),
-                new_location.chunk_z(),
-            ).await.unwrap();
+            || previous_location.chunk_z() != new_location.chunk_z()
+        {
+            self.client
+                .lock()
+                .await
+                .update_view_position(new_location.chunk_x(), new_location.chunk_z())
+                .await
+                .unwrap();
         }
     }
     pub async fn set_rotation(&mut self, yaw: f32, pitch: f32) {
@@ -144,9 +152,12 @@ impl Player {
         } else {
             self.broadcast_to_player_in_viewdistance(&C28EntityPositionAndRotation {
                 entity_id: self.entity_id,
-                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor() as i16,
-                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor() as i16,
-                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor() as i16,
+                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor()
+                    as i16,
+                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor()
+                    as i16,
+                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor()
+                    as i16,
                 yaw: self.location.yaw_angle(),
                 pitch: self.location.pitch_angle(),
                 on_ground: self.on_ground,
@@ -155,11 +166,14 @@ impl Player {
         }
 
         if previous_location.chunk_x() != new_location.chunk_x()
-            || previous_location.chunk_z() != new_location.chunk_z() {
-            self.client.lock().await.update_view_position(
-                new_location.chunk_x(),
-                new_location.chunk_z(),
-            ).await.unwrap();
+            || previous_location.chunk_z() != new_location.chunk_z()
+        {
+            self.client
+                .lock()
+                .await
+                .update_view_position(new_location.chunk_x(), new_location.chunk_z())
+                .await
+                .unwrap();
         }
     }
 
@@ -249,7 +263,10 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         player = Some(Arc::new(RwLock::new(Player::new(
                             Arc::clone(&server),
                             Arc::clone(&client),
-                            Uuid::new_v3(&Uuid::new_v4(), format!("OfflinePlayer;{}", username.clone()).as_bytes()),
+                            Uuid::new_v3(
+                                &Uuid::new_v4(),
+                                format!("OfflinePlayer;{}", username.clone()).as_bytes(),
+                            ),
                             server_write.entity_id_counter,
                             username.clone(),
                             -1,
@@ -414,17 +431,27 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                     {
                         let self_player = player.read().await;
                         for a_player in server.read().await.players.values() {
-                            if Arc::ptr_eq(player, a_player) {continue};
-                            a_player.read().await.client.lock().await.send_player_info(&C32PlayerInfo {
-                                players: vec![C32PlayerInfoPlayerUpdate::AddPlayer {
-                                    uuid: self_player.uuid.clone(),
-                                    name: self_player.username.clone(),
-                                    properties: vec![],
-                                    gamemode: self_player.gamemode as i32,
-                                    ping: self_player.ping,
-                                    display_name: None
-                                }]
-                            }).await.unwrap();
+                            if Arc::ptr_eq(player, a_player) {
+                                continue;
+                            };
+                            a_player
+                                .read()
+                                .await
+                                .client
+                                .lock()
+                                .await
+                                .send_player_info(&C32PlayerInfo {
+                                    players: vec![C32PlayerInfoPlayerUpdate::AddPlayer {
+                                        uuid: self_player.uuid.clone(),
+                                        name: self_player.username.clone(),
+                                        properties: vec![],
+                                        gamemode: self_player.gamemode as i32,
+                                        ping: self_player.ping,
+                                        display_name: None,
+                                    }],
+                                })
+                                .await
+                                .unwrap();
                         }
                     }
 
@@ -520,15 +547,20 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             let is_in_range =
                                 a_player.location.distance2(&location) < view_distance2;
                             if is_in_range && !loaded_players.contains(&a_player.entity_id) {
-                                client.lock().await.spawn_player(&C04SpawnPlayer {
-                                    entity_id: a_player.entity_id,
-                                    uuid: a_player.uuid.clone(),
-                                    x: a_player.location.x,
-                                    y: a_player.location.y,
-                                    z: a_player.location.z,
-                                    yaw: a_player.location.yaw_angle(),
-                                    pitch: a_player.location.pitch_angle(),
-                                }).await.unwrap();
+                                client
+                                    .lock()
+                                    .await
+                                    .spawn_player(&C04SpawnPlayer {
+                                        entity_id: a_player.entity_id,
+                                        uuid: a_player.uuid.clone(),
+                                        x: a_player.location.x,
+                                        y: a_player.location.y,
+                                        z: a_player.location.z,
+                                        yaw: a_player.location.yaw_angle(),
+                                        pitch: a_player.location.pitch_angle(),
+                                    })
+                                    .await
+                                    .unwrap();
                                 loaded_players.insert(a_player.entity_id);
                             }
                             if !is_in_range && loaded_players.contains(&a_player.entity_id) {}
