@@ -1004,8 +1004,8 @@ mod play {
     /// https://wiki.vg/Protocol#Entity_Metadata
     #[derive(Clone, Debug)]
     pub struct C44EntityMetadata {
-        entity_id: i32,
-        metadata: HashMap<u8, MetadataValue>,
+        pub entity_id: i32,
+        pub metadata: HashMap<u8, MetadataValue>,
     }
     impl ClientBoundPacket for C44EntityMetadata {
         fn packet_id() -> i32 {
