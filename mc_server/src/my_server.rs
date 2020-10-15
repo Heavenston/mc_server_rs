@@ -23,6 +23,7 @@ pub struct Player {
     pub gamemode: u8,
     pub on_ground: bool,
     pub is_sneaking: bool,
+    pub is_sprinting: bool,
     location: Location,
     loaded_players: HashSet<i32>,
 }
@@ -48,6 +49,7 @@ impl Player {
             location: Location::default(),
             loaded_players: HashSet::new(),
             is_sneaking: false,
+            is_sprinting: false,
         }
     }
 
@@ -266,7 +268,7 @@ impl Player {
         self.broadcast_to_player_in_viewdistance(&C44EntityMetadata {
             entity_id: self.entity_id,
             metadata: map! {
-                0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02),
+                0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08),
                 6 => MetadataValue::Pose(if self.is_sneaking {
                     Pose::Sneaking
                 } else {
@@ -714,6 +716,12 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             1 => {
                                 player.is_sneaking = false;
                             },
+                            3 => {
+                                player.is_sprinting = true;
+                            },
+                            4 => {
+                                player.is_sprinting = false;
+                            }
                             _ => ()
                         }
                         player.update_metadata().await;
