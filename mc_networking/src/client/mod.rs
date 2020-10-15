@@ -188,6 +188,7 @@ async fn listen_client_packets(
     let keep_alive_timeout = Arc::new(Mutex::new(Instant::now() + Duration::from_secs(10)));
     let has_responded_to_keep_alive = Arc::new(RwLock::new(false));
     let last_keep_alive_id = Arc::new(RwLock::new(0i64));
+    let last_keep_alive_sent_at = Arc::new(RwLock::new(Instant::now()));
 
     let keep_alive_check_task = tokio::task::spawn({
         let keep_alive_timeout = Arc::clone(&keep_alive_timeout);
@@ -217,6 +218,7 @@ async fn listen_client_packets(
         let write = Arc::clone(&write);
         let state = Arc::clone(&state);
         let last_keep_alive_id = Arc::clone(&last_keep_alive_id);
+        let last_keep_alive_sent_at = Arc::clone(&last_keep_alive_sent_at);
         async move {
             let start_instant = Instant::now();
             loop {
@@ -245,6 +247,7 @@ async fn listen_client_packets(
                     .await
                     .unwrap();
                 debug!("Sent keep alive");
+                *last_keep_alive_sent_at.write().await = Instant::now();
                 *has_responded_to_keep_alive.write().await = false;
                 *keep_alive_timeout.lock().await =
                     Instant::now() + Duration::from_millis(KEEP_ALIVE_TIMEOUT);
@@ -366,6 +369,9 @@ async fn listen_client_packets(
                     if keep_alive.id == *last_keep_alive_id.read().await {
                         *has_responded_to_keep_alive.write().await = true;
                     }
+                    event_sender.send(ClientEvent::Ping {
+                        delay: last_keep_alive_sent_at.read().await.elapsed().as_millis()
+                    }).await?;
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
                     event_sender

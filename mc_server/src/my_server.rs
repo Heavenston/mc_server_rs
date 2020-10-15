@@ -575,6 +575,28 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                     break;
                 }
 
+                ClientEvent::Ping { delay } => {
+                    let player = player.as_ref().unwrap();
+                    player.write().await.ping = delay as i32;
+                    let uuid = player.read().await.uuid.clone();
+                    for player in server.read().await.players.values() {
+                        player
+                            .read()
+                            .await
+                            .client
+                            .lock()
+                            .await
+                            .send_player_info(&C32PlayerInfo {
+                                players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
+                                    uuid: uuid.clone(),
+                                    ping: delay as i32,
+                                }],
+                            })
+                            .await
+                            .unwrap();
+                    }
+                }
+
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();
 

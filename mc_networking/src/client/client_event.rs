@@ -19,6 +19,10 @@ pub enum ClientEvent {
     LoggedIn,
     Logout,
 
+    Ping {
+        delay: u128,
+    },
+
     PlayerPosition {
         x: f64,
         y: f64,
