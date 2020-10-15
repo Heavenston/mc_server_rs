@@ -42,4 +42,9 @@ pub enum ClientEvent {
         pitch: f32,
         on_ground: bool,
     },
+    EntityAction {
+        entity_id: i32,
+        action_id: i32,
+        jump_boost: i32,
+    },
 }

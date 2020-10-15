@@ -416,6 +416,15 @@ async fn listen_client_packets(
                             on_ground: player_rotation.on_ground,
                         })
                         .await?;
+                } else if raw_packet.packet_id == S1CEntityAction::packet_id() {
+                    let entity_action = S1CEntityAction::decode(raw_packet)?;
+                    event_sender
+                        .send(ClientEvent::EntityAction {
+                            entity_id: entity_action.entity_id,
+                            action_id: entity_action.action_id,
+                            jump_boost: entity_action.jump_boost
+                        })
+                        .await?;
                 }
             }
 

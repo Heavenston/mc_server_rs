@@ -4,7 +4,7 @@ use mc_networking::map;
 use crate::location::Location;
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
-use mc_networking::data_types::Slot;
+use mc_networking::data_types::{Slot, MetadataValue};
 use mc_networking::packets::client_bound::*;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
@@ -22,6 +22,7 @@ pub struct Player {
     pub ping: i32,
     pub gamemode: u8,
     pub on_ground: bool,
+    pub is_sneaking: bool,
     location: Location,
     loaded_players: HashSet<i32>,
 }
@@ -46,6 +47,7 @@ impl Player {
             on_ground: false,
             location: Location::default(),
             loaded_players: HashSet::new(),
+            is_sneaking: false,
         }
     }
 
@@ -259,6 +261,14 @@ impl Player {
                 self.loaded_players.remove(&a_player.entity_id);
             }
         }
+    }
+    pub async fn update_metadata(&self) {
+        self.broadcast_to_player_in_viewdistance(&C44EntityMetadata {
+            entity_id: self.entity_id,
+            metadata: map! {
+                0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02)
+            }
+        }).await;
     }
 }
 
@@ -683,6 +693,26 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                     let player = player.as_ref().unwrap();
                     player.write().await.on_ground = on_ground;
                     player.write().await.set_rotation(yaw, pitch).await;
+                }
+                ClientEvent::EntityAction {
+                    entity_id,
+                    action_id,
+                    ..
+                } => {
+                    let player = player.as_ref().unwrap();
+                    let mut player = player.write().await;
+                    if entity_id == player.entity_id {
+                        match action_id {
+                            0 => {
+                                player.is_sneaking = true;
+                            },
+                            1 => {
+                                player.is_sneaking = false;
+                            },
+                            _ => unimplemented!()
+                        }
+                        player.update_metadata().await;
+                    }
                 }
             }
         }
