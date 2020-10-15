@@ -403,6 +403,8 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         })
                         .await;
 
+                    player.read().await.send_brand("HMC".to_string()).await;
+
                     client
                         .lock()
                         .await
