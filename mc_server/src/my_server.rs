@@ -5,9 +5,9 @@ use crate::location::Location;
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use mc_networking::data_types::Slot;
-use mc_networking::packets::{client_bound::*, server_bound::*};
+use mc_networking::packets::client_bound::*;
 use serde_json::json;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::{Mutex, RwLock};
@@ -18,17 +18,18 @@ pub struct Player {
     pub client: Arc<Mutex<Client>>,
     location: Location,
     pub uuid: Uuid,
-    pub entity_id: i64,
+    pub entity_id: i32,
     pub username: String,
     pub ping: i32,
     pub gamemode: u8,
+    pub on_ground: bool,
 }
 impl Player {
     pub fn new(
         server: Arc<RwLock<Server>>,
         client: Arc<Mutex<Client>>,
         uuid: Uuid,
-        entity_id: i64,
+        entity_id: i32,
         username: String,
         ping: i32,
         gamemode: u8,
@@ -42,6 +43,7 @@ impl Player {
             username,
             ping,
             gamemode,
+            on_ground: false,
         }
     }
 
@@ -59,21 +61,109 @@ impl Player {
             .unwrap();
     }
 
-    /// Change current location
-    pub async fn set_location(&mut self, new_location: Location) {
-        self.location = new_location;
-    }
-    // TODO: Add entity position packets
-    /// Update location to all other players
-    pub async fn update_location(&self) {
-        /*let view_distance2 = (self.server.read().await.view_distance as f64).powf(2.0);
-        for player in self.server.read().await.players.values() {
+    async fn broadcast_to_player_in_viewdistance<T: ClientBoundPacket>(&self, packet: &T) {
+        let view_distance2 = (self.server.read().await.view_distance as f64 * 16.0).powf(2.0);
+        for (entity_id, player) in self.server.read().await.players.iter() {
+            if *entity_id == self.entity_id {continue};
             let player = player.read().await;
             if player.location.distance2(&self.location) < view_distance2 {
-
+                unsafe { player.client.lock().await.send_packet(packet) }
+                    .await
+                    .unwrap();
             }
-        }*/
+        }
     }
+
+    /// Change current location
+    pub fn set_location(&mut self, new_location: Location) {
+        self.location = new_location;
+    }
+    pub async fn set_position(&mut self, x: f64, y: f64, z: f64) {
+        let previous_location = self.location.clone();
+        let new_location = Location {
+            x,
+            y,
+            z,
+            yaw: self.location.yaw,
+            pitch: self.location.pitch,
+        };
+        self.location = new_location.clone();
+
+        if previous_location.distance2(&new_location) > 8.0 * 8.0 {
+            self.teleport(new_location.clone()).await;
+        } else {
+            self.broadcast_to_player_in_viewdistance(&C27EntityPosition {
+                entity_id: self.entity_id,
+                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor() as i16,
+                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor() as i16,
+                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor() as i16,
+                on_ground: self.on_ground,
+            })
+            .await;
+        }
+
+        if previous_location.chunk_x() != new_location.chunk_x()
+            || previous_location.chunk_z() != new_location.chunk_z() {
+            self.client.lock().await.update_view_position(
+                new_location.chunk_x(),
+                new_location.chunk_z(),
+            ).await.unwrap();
+        }
+    }
+    pub async fn set_rotation(&mut self, yaw: f32, pitch: f32) {
+        info!("{} - {}", yaw, pitch);
+        self.location.yaw = yaw;
+        self.location.pitch = pitch;
+        self.broadcast_to_player_in_viewdistance(&C29EntityRotation {
+            entity_id: self.entity_id,
+            yaw: self.location.yaw_angle(),
+            pitch: self.location.pitch_angle(),
+            on_ground: self.on_ground,
+        })
+        .await;
+    }
+    pub async fn set_position_and_rotation(
+        &mut self,
+        x: f64,
+        y: f64,
+        z: f64,
+        yaw: f32,
+        pitch: f32,
+    ) {
+        let previous_location = self.location.clone();
+        let new_location = Location {
+            x,
+            y,
+            z,
+            yaw,
+            pitch,
+        };
+        self.location = new_location.clone();
+
+        if previous_location.distance2(&new_location) > 8.0 * 8.0 {
+            self.teleport(new_location.clone()).await;
+        } else {
+            self.broadcast_to_player_in_viewdistance(&C28EntityPositionAndRotation {
+                entity_id: self.entity_id,
+                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor() as i16,
+                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor() as i16,
+                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor() as i16,
+                yaw: self.location.yaw_angle(),
+                pitch: self.location.pitch_angle(),
+                on_ground: self.on_ground,
+            })
+            .await;
+        }
+
+        if previous_location.chunk_x() != new_location.chunk_x()
+            || previous_location.chunk_z() != new_location.chunk_z() {
+            self.client.lock().await.update_view_position(
+                new_location.chunk_x(),
+                new_location.chunk_z(),
+            ).await.unwrap();
+        }
+    }
+
     /// Change current location and send location to the client
     pub async fn teleport(&mut self, new_location: Location) {
         self.location = new_location;
@@ -91,12 +181,22 @@ impl Player {
             })
             .await
             .unwrap();
+        self.broadcast_to_player_in_viewdistance(&C56EntityTeleport {
+            entity_id: self.entity_id,
+            x: self.location.x,
+            y: self.location.y,
+            z: self.location.z,
+            yaw: self.location.yaw_angle(),
+            pitch: self.location.pitch_angle(),
+            on_ground: self.on_ground,
+        })
+        .await;
     }
 }
 
 pub struct Server {
-    pub players: HashMap<i64, Arc<RwLock<Player>>>,
-    pub entity_id_counter: i64,
+    pub players: HashMap<i32, Arc<RwLock<Player>>>,
+    pub entity_id_counter: i32,
     pub max_players: u16,
     pub view_distance: i32,
 }
@@ -117,6 +217,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
 
     tokio::task::spawn(async move {
         let mut player: Option<Arc<RwLock<Player>>> = None;
+        let mut loaded_players: HashSet<i32> = HashSet::new();
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -149,7 +250,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         player = Some(Arc::new(RwLock::new(Player::new(
                             Arc::clone(&server),
                             Arc::clone(&client),
-                            Uuid::new_v4(),
+                            Uuid::new_v3(&Uuid::new_v4(), format!("OfflinePlayer;{}", username.clone()).as_bytes()),
                             server_write.entity_id_counter,
                             username.clone(),
                             -1,
@@ -388,7 +489,64 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                     }
                 }
 
-                _ => (),
+                ClientEvent::PlayerPosition { x, y, z, on_ground } => {
+                    let player = player.as_ref().unwrap();
+
+                    {
+                        let view_distance2 = (server.read().await.view_distance as f64).powf(2.0);
+                        let location = player.read().await.location.clone();
+                        for a_player in server.read().await.players.values() {
+                            if Arc::ptr_eq(a_player, player) {
+                                continue;
+                            };
+
+                            let a_player = a_player.read().await;
+                            let is_in_range =
+                                a_player.location.distance2(&location) < view_distance2;
+                            if is_in_range && !loaded_players.contains(&a_player.entity_id) {
+                                client.lock().await.spawn_player(&C04SpawnPlayer {
+                                    entity_id: a_player.entity_id,
+                                    uuid: a_player.uuid.clone(),
+                                    x: a_player.location.x,
+                                    y: a_player.location.y,
+                                    z: a_player.location.z,
+                                    yaw: a_player.location.yaw_angle(),
+                                    pitch: a_player.location.pitch_angle(),
+                                }).await.unwrap();
+                                loaded_players.insert(a_player.entity_id);
+                            }
+                            if !is_in_range && loaded_players.contains(&a_player.entity_id) {}
+                        }
+                    }
+
+                    player.write().await.on_ground = on_ground;
+                    player.write().await.set_position(x, y, z).await;
+                }
+                ClientEvent::PlayerPositionAndRotation {
+                    x,
+                    y,
+                    z,
+                    yaw,
+                    pitch,
+                    on_ground,
+                } => {
+                    let player = player.as_ref().unwrap();
+                    player.write().await.on_ground = on_ground;
+                    player
+                        .write()
+                        .await
+                        .set_position_and_rotation(x, y, z, yaw, pitch)
+                        .await;
+                }
+                ClientEvent::PlayerRotation {
+                    yaw,
+                    pitch,
+                    on_ground,
+                } => {
+                    let player = player.as_ref().unwrap();
+                    player.write().await.on_ground = on_ground;
+                    player.write().await.set_rotation(yaw, pitch).await;
+                }
             }
         }
     });

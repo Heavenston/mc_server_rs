@@ -662,7 +662,7 @@ mod play {
     }
 
     /// This packet is sent by the server when an entity moves less then 8 blocks;
-    /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
+    /// if an entity moves more than 8 blocks C56EntityTeleport should be sent instead.
     ///
     /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
     #[derive(Clone, Debug)]

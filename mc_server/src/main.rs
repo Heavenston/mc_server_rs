@@ -1,8 +1,6 @@
 mod location;
 mod my_server;
 
-use mc_networking::client::Client;
-
 use crate::my_server::{handle_client, Server};
 use anyhow::Result;
 use fern::colors::{Color, ColoredLevelConfig};
