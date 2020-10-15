@@ -18,7 +18,7 @@ use tokio::prelude::io::AsyncWriteExt;
 use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tokio::time::{Duration, Instant};
 
-const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
+const KEEP_ALIVE_TIMEOUT: u64 = 45_000;
 const KEEP_ALIVE_INTERVAL: u64 = 15_000;
 
 #[derive(Clone, Debug)]
@@ -272,13 +272,13 @@ async fn listen_client_packets(
             break;
         }
 
-        debug!("Reading packet, State({:?})", state.read().await.clone());
+        //debug!("Reading packet, State({:?})", state.read().await.clone());
         let raw_packet = RawPacket::decode_async(&mut read).await?;
-        debug!(
+        /*debug!(
             "Received packet 0x{:x} with data of length {}",
             raw_packet.packet_id,
             raw_packet.data.len()
-        );
+        );*/
 
         let current_state = state.read().await.clone();
         match current_state {
