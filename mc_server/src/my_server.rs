@@ -360,7 +360,7 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             let player = player.read().await;
 
                             C24JoinGame {
-                                entity_id: 0,
+                                entity_id: player.entity_id,
                                 is_hardcore: false,
                                 gamemode: player.gamemode,
                                 previous_gamemode: player.gamemode,
