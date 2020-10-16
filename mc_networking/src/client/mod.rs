@@ -46,9 +46,9 @@ impl Client {
     pub fn new(socket: TcpStream) -> (Self, mpsc::Receiver<ClientEvent>) {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
-        let (sender, receiver) = mpsc::channel(10);
+        let (sender, receiver) = mpsc::channel(100);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = mpsc::channel(10);
+        let (event_sender, event_receiver) = mpsc::channel(100);
 
         tokio::spawn({
             let write = Arc::clone(&write);
@@ -70,6 +70,13 @@ impl Client {
                         {
                             *state.write().await = ClientState::Disconnected;
                             listener_sender.send(ClientEvent::Logout).await.unwrap();
+                        }
+                        else {
+                            error!(
+                                "Unexpected error while handling {:?}, {:#?}",
+                                write.lock().await.as_ref().peer_addr().unwrap(),
+                                e
+                            );
                         }
                     } else {
                         error!(
@@ -447,6 +454,12 @@ async fn listen_client_packets(
                             jump_boost: entity_action.jump_boost,
                         })
                         .await?;
+                }
+                else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
+                    let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
+                    event_sender.send(ClientEvent::PlayerAbilities {
+                        is_flying: player_abilities.flags & 0x02 == 0x02,
+                    }).await.unwrap();
                 }
             }
 

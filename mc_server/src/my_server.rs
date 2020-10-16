@@ -24,6 +24,7 @@ pub struct Player {
     pub on_ground: bool,
     pub is_sneaking: bool,
     pub is_sprinting: bool,
+    pub is_flying: bool,
     location: Location,
     loaded_players: HashSet<i32>,
     loaded_chunks: HashSet<(i32, i32)>,
@@ -51,6 +52,7 @@ impl Player {
             loaded_players: HashSet::new(),
             is_sneaking: false,
             is_sprinting: false,
+            is_flying: false,
             loaded_chunks: HashSet::new(),
         }
     }
@@ -298,7 +300,7 @@ impl Player {
             entity_id: self.entity_id,
             metadata: map! {
                 0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08),
-                6 => MetadataValue::Pose(if self.is_sneaking {
+                6 => MetadataValue::Pose(if self.is_sneaking && !self.is_flying {
                     Pose::Sneaking
                 } else {
                     Pose::Standing
@@ -755,6 +757,16 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                             _ => (),
                         }
                         player.update_metadata().await;
+                    }
+                }
+                ClientEvent::PlayerAbilities {
+                    is_flying
+                } => {
+                    let player = player.as_ref().unwrap();
+                    let was_flying = player.read().await.is_flying;
+                    player.write().await.is_flying = is_flying;
+                    if was_flying != is_flying {
+                        player.write().await.update_metadata().await;
                     }
                 }
             }

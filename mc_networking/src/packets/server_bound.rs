@@ -410,10 +410,8 @@ mod play {
     /// https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29
     #[derive(Clone, Debug)]
     pub struct S1APlayerAbilities {
-        /// Bit mask. 0x08: damage disabled (god mode), 0x04: can fly, 0x02: is flying, 0x01: is Creative
+        /// 0x02: is flying
         pub flags: u8,
-        pub flying_speed: f32,
-        pub walking_speed: f32,
     }
     impl ServerBoundPacket for S1APlayerAbilities {
         fn packet_id() -> i32 {
@@ -423,8 +421,6 @@ mod play {
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
                 flags: decoder.read_u8()?,
-                flying_speed: decoder.read_f32()?,
-                walking_speed: decoder.read_f32()?,
             })
         }
     }

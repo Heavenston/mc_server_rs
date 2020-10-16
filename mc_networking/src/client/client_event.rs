@@ -47,4 +47,7 @@ pub enum ClientEvent {
         action_id: i32,
         jump_boost: i32,
     },
+    PlayerAbilities {
+        is_flying: bool,
+    }
 }
