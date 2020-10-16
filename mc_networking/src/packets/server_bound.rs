@@ -404,6 +404,31 @@ mod play {
         }
     }
 
+    /// The vanilla client sends this packet when the player starts/stops flying with the Flags parameter changed accordingly.
+    /// All other parameters are ignored by the vanilla server.
+    ///
+    /// https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S1APlayerAbilities {
+        /// Bit mask. 0x08: damage disabled (god mode), 0x04: can fly, 0x02: is flying, 0x01: is Creative
+        pub flags: u8,
+        pub flying_speed: f32,
+        pub walking_speed: f32,
+    }
+    impl ServerBoundPacket for S1APlayerAbilities {
+        fn packet_id() -> i32 {
+            0x1A
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                flags: decoder.read_u8()?,
+                flying_speed: decoder.read_f32()?,
+                walking_speed: decoder.read_f32()?,
+            })
+        }
+    }
+
     /// Sent by the client to indicate that it has performed certain actions:
     /// sneaking (crouching), sprinting, exiting a bed,
     /// jumping with a horse, and opening a horse's inventory while riding it.
