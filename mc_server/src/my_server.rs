@@ -4,7 +4,7 @@ use mc_networking::map;
 use crate::location::Location;
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
-use mc_networking::data_types::{Slot, MetadataValue, Pose};
+use mc_networking::data_types::{MetadataValue, Pose, Slot};
 use mc_networking::packets::client_bound::*;
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
@@ -118,7 +118,8 @@ impl Player {
         if previous_location.chunk_x() != new_location.chunk_x()
             || previous_location.chunk_z() != new_location.chunk_z()
         {
-            self.update_view_position(new_location.chunk_x(), new_location.chunk_z()).await;
+            self.update_view_position(new_location.chunk_x(), new_location.chunk_z())
+                .await;
         }
     }
     pub async fn set_rotation(&mut self, yaw: f32, pitch: f32) {
@@ -181,24 +182,34 @@ impl Player {
         if previous_location.chunk_x() != new_location.chunk_x()
             || previous_location.chunk_z() != new_location.chunk_z()
         {
-            self.update_view_position(new_location.chunk_x(), new_location.chunk_z()).await;
+            self.update_view_position(new_location.chunk_x(), new_location.chunk_z())
+                .await;
         }
     }
 
     pub async fn update_view_position(&mut self, chunk_x: i32, chunk_z: i32) {
         let view_distance = self.server.read().await.view_distance;
-        self.client.lock().await.update_view_position(chunk_x, chunk_z).await.unwrap();
+        self.client
+            .lock()
+            .await
+            .update_view_position(chunk_x, chunk_z)
+            .await
+            .unwrap();
         for (x, z) in self.loaded_chunks.clone().into_iter() {
             if (chunk_x - x).pow(2) + (chunk_z - z).pow(2) > view_distance.pow(2) {
                 self.client.lock().await.unload_chunk(x, z).await.unwrap();
                 self.loaded_chunks.remove(&(x, z));
             }
         }
-        for x in chunk_x-(view_distance*2)..=chunk_x+(view_distance*2) {
-            for z in chunk_z-(view_distance*2)..=chunk_z+(view_distance*2) {
-                if !self.loaded_chunks.contains(&(x, z)) && (chunk_x - x).pow(2) + (chunk_z - z).pow(2) < view_distance.pow(2) {
+        for x in chunk_x - (view_distance * 2)..=chunk_x + (view_distance * 2) {
+            for z in chunk_z - (view_distance * 2)..=chunk_z + (view_distance * 2) {
+                if !self.loaded_chunks.contains(&(x, z))
+                    && (chunk_x - x).pow(2) + (chunk_z - z).pow(2) < view_distance.pow(2)
+                {
                     let chunk_data = self.server.write().await.get_chunk(x, z).await;
-                    unsafe { self.client.lock().await.send_packet(&chunk_data) }.await.unwrap();
+                    unsafe { self.client.lock().await.send_packet(&chunk_data) }
+                        .await
+                        .unwrap();
                     self.loaded_chunks.insert((x, z));
                 }
             }
@@ -527,7 +538,9 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                     {
                         let mut player = player.write().await;
                         let location = player.location.clone();
-                        player.update_view_position(location.chunk_x(), location.chunk_z()).await;
+                        player
+                            .update_view_position(location.chunk_x(), location.chunk_z())
+                            .await;
                     }
 
                     player
@@ -729,17 +742,17 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         match action_id {
                             0 => {
                                 player.is_sneaking = true;
-                            },
+                            }
                             1 => {
                                 player.is_sneaking = false;
-                            },
+                            }
                             3 => {
                                 player.is_sprinting = true;
-                            },
+                            }
                             4 => {
                                 player.is_sprinting = false;
                             }
-                            _ => ()
+                            _ => (),
                         }
                         player.update_metadata().await;
                     }

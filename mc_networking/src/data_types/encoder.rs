@@ -3,9 +3,9 @@ use crate::packets::RawPacket;
 
 use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
+use bytes::Buf;
 use std::io::{Cursor, Read, Write};
 use uuid::Uuid;
-use bytes::Buf;
 
 pub struct PacketEncoder {
     data: Vec<u8>,

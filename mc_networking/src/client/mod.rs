@@ -241,7 +241,9 @@ async fn listen_client_packets(
                     ClientState::Play => {
                         if *has_responded_to_keep_alive.read().await {
                             debug!("Keep alive miss, resending");
-                            let keep_alive_packet = C1FKeepAlive { id: *last_keep_alive_id.read().await };
+                            let keep_alive_packet = C1FKeepAlive {
+                                id: *last_keep_alive_id.read().await,
+                            };
                             write
                                 .lock()
                                 .await
@@ -433,7 +435,7 @@ async fn listen_client_packets(
                         .send(ClientEvent::EntityAction {
                             entity_id: entity_action.entity_id,
                             action_id: entity_action.action_id,
-                            jump_boost: entity_action.jump_boost
+                            jump_boost: entity_action.jump_boost,
                         })
                         .await?;
                 }
