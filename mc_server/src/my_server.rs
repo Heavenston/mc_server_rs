@@ -106,11 +106,11 @@ impl Player {
         } else {
             self.broadcast_to_player_in_viewdistance(&C27EntityPosition {
                 entity_id: self.entity_id,
-                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).floor()
+                delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).ceil()
                     as i16,
-                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).floor()
+                delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).ceil()
                     as i16,
-                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).floor()
+                delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).ceil()
                     as i16,
                 on_ground: self.on_ground,
             })
