@@ -620,8 +620,6 @@ pub async fn handle_client(server: Arc<RwLock<Server>>, socket: TcpStream) {
                         .send_player_abilities(false, false, true, false, 0.05, 0.1)
                         .await
                         .unwrap();
-
-                    player.write().await.update_player_entities().await;
                 }
                 ClientEvent::Logout => {
                     let player = player.as_ref().unwrap();
