@@ -48,7 +48,7 @@ impl Client {
         let write = Arc::new(Mutex::new(write));
         let (sender, receiver) = mpsc::channel(100);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = mpsc::channel(100);
+        let (event_sender, event_receiver) = mpsc::channel(10);
 
         tokio::spawn({
             let write = Arc::clone(&write);
@@ -69,7 +69,7 @@ impl Client {
                             && *state.read().await == ClientState::Play
                         {
                             *state.write().await = ClientState::Disconnected;
-                            listener_sender.send(ClientEvent::Logout).await.unwrap();
+                            listener_sender.try_send(ClientEvent::Logout).unwrap();
                         }
                         else {
                             error!(
@@ -318,10 +318,10 @@ async fn listen_client_packets(
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
                         event_sender
-                            .send(ClientEvent::ServerListPing {
+                            .try_send(ClientEvent::ServerListPing {
                                 response: response_sender,
                             })
-                            .await?;
+                            ?;
                         response_receiver.await?
                     };
                     let response = C00Response {
@@ -354,11 +354,11 @@ async fn listen_client_packets(
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
                         event_sender
-                            .send(ClientEvent::LoginStart {
+                            .try_send(ClientEvent::LoginStart {
                                 username: login_state.name.clone(),
                                 response: response_sender,
                             })
-                            .await?;
+                            ?;
                         response_receiver.await?
                     };
                     match event_response {
@@ -386,7 +386,7 @@ async fn listen_client_packets(
                             break;
                         }
                     };
-                    event_sender.send(ClientEvent::LoggedIn).await?;
+                    event_sender.try_send(ClientEvent::LoggedIn)?;
                     keep_alive_task = Some(tokio::task::spawn({
                         let data = Arc::clone(&keep_alive_data);
                         let write = Arc::clone(&write);
@@ -410,24 +410,24 @@ async fn listen_client_packets(
                         data.has_responded = true;
                     }
                     event_sender
-                        .send(ClientEvent::Ping {
+                        .try_send(ClientEvent::Ping {
                             delay: data.sent_at.elapsed().as_millis(),
                         })
-                        .await?;
+                        ?;
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
                     event_sender
-                        .send(ClientEvent::PlayerPosition {
+                        .try_send(ClientEvent::PlayerPosition {
                             x: player_position.x,
                             y: player_position.feet_y,
                             z: player_position.z,
                             on_ground: player_position.on_ground,
                         })
-                        .await?;
+                        ?;
                 } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
                     let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
                     event_sender
-                        .send(ClientEvent::PlayerPositionAndRotation {
+                        .try_send(ClientEvent::PlayerPositionAndRotation {
                             x: packet.x,
                             y: packet.feet_y,
                             z: packet.z,
@@ -435,31 +435,31 @@ async fn listen_client_packets(
                             pitch: packet.pitch,
                             on_ground: packet.on_ground,
                         })
-                        .await?;
+                        ?;
                 } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
                     event_sender
-                        .send(ClientEvent::PlayerRotation {
+                        .try_send(ClientEvent::PlayerRotation {
                             yaw: player_rotation.yaw,
                             pitch: player_rotation.pitch,
                             on_ground: player_rotation.on_ground,
                         })
-                        .await?;
+                        ?;
                 } else if raw_packet.packet_id == S1CEntityAction::packet_id() {
                     let entity_action = S1CEntityAction::decode(raw_packet)?;
                     event_sender
-                        .send(ClientEvent::EntityAction {
+                        .try_send(ClientEvent::EntityAction {
                             entity_id: entity_action.entity_id,
                             action_id: entity_action.action_id,
                             jump_boost: entity_action.jump_boost,
                         })
-                        .await?;
+                        ?;
                 }
                 else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
                     let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
-                    event_sender.send(ClientEvent::PlayerAbilities {
+                    event_sender.try_send(ClientEvent::PlayerAbilities {
                         is_flying: player_abilities.flags & 0x02 == 0x02,
-                    }).await.unwrap();
+                    })?;
                 }
             }
 
