@@ -19,3 +19,4 @@ chrono = "0.4"
 async-trait = "0.1.41"
 uuid = { version = "0.8", features = ["v4", "v3"] }
 hematite-nbt = "0.5.0"
+downcast-rs = "1.2.0"

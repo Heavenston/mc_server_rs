@@ -1,11 +1,11 @@
 mod location;
-mod my_server;
+mod entity;
+mod server;
 
-use crate::my_server::{handle_client, Server};
-use anyhow::Result;
+use server::Server;
+
 use fern::colors::{Color, ColoredLevelConfig};
 use std::sync::Arc;
-use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
 fn setup_logger() {
@@ -36,13 +36,9 @@ fn setup_logger() {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     setup_logger();
-    let mut listener = TcpListener::bind("0.0.0.0:25565").await?;
     let server = Arc::new(RwLock::new(Server::new()));
-
-    loop {
-        let (socket, _) = listener.accept().await?;
-        handle_client(Arc::clone(&server), socket).await;
-    }
+    Server::start_ticker(Arc::clone(&server)).await;
+    Server::listen(Arc::clone(&server), "0.0.0.0:25565").await.unwrap();
 }
