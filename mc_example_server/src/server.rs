@@ -115,7 +115,7 @@ impl Server {
                     let player = player.as_ref().unwrap();
 
                     // Join Game
-                    client.lock().await.join_game(&{
+                    client.lock().await.send_packet(&{
                         let server = server.read().await;
                         let player = player.read().await;
                         let player = player.as_player().unwrap();
@@ -242,7 +242,7 @@ impl Server {
                             }
                             players
                         };
-                        client.lock().await.send_player_info(&C32PlayerInfo {
+                        client.lock().await.send_packet(&C32PlayerInfo {
                             players,
                         }).await.unwrap();
                     }
@@ -669,21 +669,21 @@ impl Server {
         for entity in self.get_players().await.values() {
             let entity = entity.read().await;
             let player = entity.downcast_ref::<Player>().unwrap();
-            unsafe { player.client.lock().await.send_packet(packet) }.await.unwrap();
+            player.client.lock().await.send_packet(packet).await.unwrap();
         }
     }
     pub async fn broadcast_to(&self, packet: &impl ClientBoundPacket, players: HashMap<i32, Arc<RwLock<BoxedEntity>>>) {
         for (.., entity) in players {
             let entity = entity.read().await;
             let player = entity.downcast_ref::<Player>().unwrap();
-            unsafe { player.client.lock().await.send_packet(packet) }.await.unwrap();
+            player.client.lock().await.send_packet(packet).await.unwrap();
         }
     }
 
     pub async fn send_to_player(&self, player: i32, packet: &impl ClientBoundPacket) -> Result<()> {
         let player = self.entities[&player].read().await;
         let player = player.as_player()?;
-        unsafe { player.client.lock().await.send_packet(packet) }.await?;
+        player.client.lock().await.send_packet(packet).await?;
         Ok(())
     }
 

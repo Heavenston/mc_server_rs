@@ -21,11 +21,6 @@ use tokio::time::{Duration, Instant};
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
 const KEEP_ALIVE_INTERVAL: u64 = 15_000;
 
-#[derive(Clone, Debug)]
-enum ClientMessage {
-    Init,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientState {
     Handshaking,
@@ -37,8 +32,8 @@ pub enum ClientState {
 
 pub struct Client {
     write: Arc<Mutex<OwnedWriteHalf>>,
-    receiver: mpsc::Receiver<ClientMessage>,
     state: Arc<RwLock<ClientState>>,
+    #[allow(dead_code)]
     event_sender: mpsc::Sender<ClientEvent>,
 }
 
@@ -46,7 +41,6 @@ impl Client {
     pub fn new(socket: TcpStream) -> (Self, mpsc::Receiver<ClientEvent>) {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
-        let (sender, receiver) = mpsc::channel(100);
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
         let (event_sender, event_receiver) = mpsc::channel(10);
 
@@ -58,7 +52,6 @@ impl Client {
                 if let Err(e) = listen_client_packets(
                     read,
                     Arc::clone(&write),
-                    sender,
                     listener_sender.clone(),
                     Arc::clone(&state),
                 )
@@ -92,7 +85,6 @@ impl Client {
         (
             Client {
                 write,
-                receiver,
                 state,
                 event_sender,
             },
@@ -103,9 +95,7 @@ impl Client {
         self.state.read().await.clone()
     }
 
-    /// Send a packet to the client
-    /// This is unsafe because the client may send a response packet that must be handled
-    pub async unsafe fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
+    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();
         self.write
             .lock()
@@ -115,47 +105,12 @@ impl Client {
         Ok(())
     }
 
-    pub async fn spawn_entity(&self, packet: &C00SpawnEntity) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn spawn_experience_orb(&self, packet: &C01SpawnExperienceOrb) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn spawn_player(&self, packet: &C04SpawnPlayer) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn send_window_items(&self, packet: &C13WindowItems) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn send_plugin_message(&self, packet: &C17PluginMessage) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn join_game(&self, packet: &C24JoinGame) -> Result<()> {
-        if !((2..=32).contains(&packet.view_distance)) {
-            return Err(Error::msg("Invalid render distance"));
-        }
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn send_player_info(&self, packet: &C32PlayerInfo) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
-    pub async fn player_position_and_look(&self, packet: &C34PlayerPositionAndLook) -> Result<()> {
-        unsafe { self.send_packet(packet) }.await?;
-        Ok(())
-    }
     pub async fn hold_item_change(&self, slot: i8) -> Result<()> {
-        unsafe { self.send_packet(&C3FHoldItemChange { slot }) }.await?;
+        self.send_packet(&C3FHoldItemChange { slot }).await?;
         Ok(())
     }
     pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        unsafe { self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }) }.await?;
+        self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }).await?;
         Ok(())
     }
     pub async fn send_player_abilities(
@@ -167,35 +122,31 @@ impl Client {
         flying_speed: f32,
         fov_modifier: f32,
     ) -> Result<()> {
-        unsafe {
-            self.send_packet(&C30PlayerAbilities {
-                flags: (invulnerable as u8) * 0x01
-                    | (flying as u8) * 0x02
-                    | (allow_flying as u8) * 0x04
-                    | (creative_mode as u8) * 0x08,
-                flying_speed,
-                fov_modifier,
-            })
-        }
+        self.send_packet(&C30PlayerAbilities {
+            flags: (invulnerable as u8) * 0x01
+                | (flying as u8) * 0x02
+                | (allow_flying as u8) * 0x04
+                | (creative_mode as u8) * 0x08,
+            flying_speed,
+            fov_modifier,
+        })
         .await?;
         Ok(())
     }
     pub async fn destroy_entities(&self, entities: Vec<i32>) -> Result<()> {
-        unsafe { self.send_packet(&C36DestroyEntities { entities }) }.await?;
+        self.send_packet(&C36DestroyEntities { entities }).await?;
         Ok(())
     }
     pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> Result<()> {
-        unsafe {
-            self.send_packet(&C3AEntityHeadLook {
-                entity_id,
-                head_yaw,
-            })
-        }
+        self.send_packet(&C3AEntityHeadLook {
+            entity_id,
+            head_yaw,
+        })
         .await?;
         Ok(())
     }
     pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        unsafe { self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z }) }.await?;
+        self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z }).await?;
         Ok(())
     }
 }
@@ -275,7 +226,6 @@ async fn handle_keep_alive(
 async fn listen_client_packets(
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
-    _sender: mpsc::Sender<ClientMessage>,
     mut event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
