@@ -1,5 +1,5 @@
 [workspace]
 members = [
     "mc_networking",
-    "mc_server"
+    "mc_example_server"
 ]

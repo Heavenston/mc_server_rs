@@ -245,24 +245,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc_networking"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "byteorder",
- "bytes",
- "fern",
- "hematite-nbt",
- "log",
- "serde",
- "serde_json",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "mc_server"
+name = "mc_example_server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -274,6 +257,23 @@ dependencies = [
  "hematite-nbt",
  "log",
  "mc_networking",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "mc_networking"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "byteorder",
+ "bytes",
+ "fern",
+ "hematite-nbt",
+ "log",
  "serde",
  "serde_json",
  "tokio",
