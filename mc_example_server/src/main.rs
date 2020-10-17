@@ -1,4 +1,3 @@
-mod location;
 mod entity;
 mod server;
 

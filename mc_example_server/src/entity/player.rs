@@ -1,14 +1,13 @@
-use mc_networking::client::{client_event::*, Client};
+use mc_networking::client::Client;
 use mc_networking::map;
 use super::Entity;
-use crate::location::Location;
-
+use mc_utils::Location;
 use mc_networking::data_types::{MetadataValue, Pose};
+
 use uuid::Uuid;
 use std::collections::{HashSet, HashMap};
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
-use crate::server::Server;
+use tokio::sync::Mutex;
 
 pub struct Player {
     pub username: String,

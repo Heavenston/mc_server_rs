@@ -1,16 +1,12 @@
 pub mod player;
 
-use crate::location::Location;
 use mc_networking::data_types::MetadataValue;
-use crate::server::Server;
 use crate::entity::player::Player;
-use mc_networking::packets::client_bound::{ClientBoundPacket, C02SpawnLivingEntity};
+use mc_utils::Location;
 
 use downcast_rs::{DowncastSync, impl_downcast};
 use uuid::Uuid;
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::collections::HashMap;
 use anyhow::{Result, Error};
 use std::ops::{Deref, DerefMut};
 

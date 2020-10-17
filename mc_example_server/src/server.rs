@@ -1,19 +1,18 @@
-use crate::entity::{Entity, BoxedEntity};
-use crate::location::Location;
+use crate::entity::BoxedEntity;
 use crate::entity::player::Player;
 use mc_networking::map;
 use mc_networking::client::Client;
 use mc_networking::client::client_event::*;
 use mc_networking::packets::client_bound::*;
+use mc_utils::Location;
 
 use std::sync::Arc;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tokio::sync::{RwLock, Mutex};
-use anyhow::{Result, Error};
+use anyhow::Result;
 use tokio::net::{ToSocketAddrs, TcpListener};
 use serde_json::json;
 use uuid::Uuid;
-use std::any::Any;
 use tokio::time::{Instant, Duration};
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use log::*;
