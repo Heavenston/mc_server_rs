@@ -632,6 +632,8 @@ impl Server {
                 }, players).await;
             }
         }
+
+        // TODO: Update metadata and entities propeties
     }
 
     pub async fn get_players(&self) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
