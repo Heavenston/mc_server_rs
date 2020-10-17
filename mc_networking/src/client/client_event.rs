@@ -49,5 +49,5 @@ pub enum ClientEvent {
     },
     PlayerAbilities {
         is_flying: bool,
-    }
+    },
 }

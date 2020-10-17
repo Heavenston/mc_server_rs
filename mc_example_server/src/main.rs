@@ -39,5 +39,7 @@ async fn main() {
     setup_logger();
     let server = Arc::new(RwLock::new(Server::new()));
     Server::start_ticker(Arc::clone(&server)).await;
-    Server::listen(Arc::clone(&server), "0.0.0.0:25565").await.unwrap();
+    Server::listen(Arc::clone(&server), "0.0.0.0:25565")
+        .await
+        .unwrap();
 }

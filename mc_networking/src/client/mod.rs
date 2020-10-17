@@ -63,8 +63,7 @@ impl Client {
                         {
                             *state.write().await = ClientState::Disconnected;
                             listener_sender.try_send(ClientEvent::Logout).unwrap();
-                        }
-                        else {
+                        } else {
                             error!(
                                 "Unexpected error while handling {:?}, {:#?}",
                                 write.lock().await.as_ref().peer_addr().unwrap(),
@@ -110,7 +109,8 @@ impl Client {
         Ok(())
     }
     pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z }).await?;
+        self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .await?;
         Ok(())
     }
     pub async fn send_player_abilities(
@@ -146,7 +146,8 @@ impl Client {
         Ok(())
     }
     pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z }).await?;
+        self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
+            .await?;
         Ok(())
     }
 }
@@ -267,11 +268,9 @@ async fn listen_client_packets(
                     S00Request::decode(raw_packet)?;
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender
-                            .try_send(ClientEvent::ServerListPing {
-                                response: response_sender,
-                            })
-                            ?;
+                        event_sender.try_send(ClientEvent::ServerListPing {
+                            response: response_sender,
+                        })?;
                         response_receiver.await?
                     };
                     let response = C00Response {
@@ -303,12 +302,10 @@ async fn listen_client_packets(
                     let login_state = S00LoginStart::decode(raw_packet)?;
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender
-                            .try_send(ClientEvent::LoginStart {
-                                username: login_state.name.clone(),
-                                response: response_sender,
-                            })
-                            ?;
+                        event_sender.try_send(ClientEvent::LoginStart {
+                            username: login_state.name.clone(),
+                            response: response_sender,
+                        })?;
                         response_receiver.await?
                     };
                     match event_response {
@@ -359,53 +356,42 @@ async fn listen_client_packets(
                     if keep_alive.id == data.last_id {
                         data.has_responded = true;
                     }
-                    event_sender
-                        .try_send(ClientEvent::Ping {
-                            delay: data.sent_at.elapsed().as_millis(),
-                        })
-                        ?;
+                    event_sender.try_send(ClientEvent::Ping {
+                        delay: data.sent_at.elapsed().as_millis(),
+                    })?;
                 } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
-                    event_sender
-                        .try_send(ClientEvent::PlayerPosition {
-                            x: player_position.x,
-                            y: player_position.feet_y,
-                            z: player_position.z,
-                            on_ground: player_position.on_ground,
-                        })
-                        ?;
+                    event_sender.try_send(ClientEvent::PlayerPosition {
+                        x: player_position.x,
+                        y: player_position.feet_y,
+                        z: player_position.z,
+                        on_ground: player_position.on_ground,
+                    })?;
                 } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
                     let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
-                    event_sender
-                        .try_send(ClientEvent::PlayerPositionAndRotation {
-                            x: packet.x,
-                            y: packet.feet_y,
-                            z: packet.z,
-                            yaw: packet.yaw,
-                            pitch: packet.pitch,
-                            on_ground: packet.on_ground,
-                        })
-                        ?;
+                    event_sender.try_send(ClientEvent::PlayerPositionAndRotation {
+                        x: packet.x,
+                        y: packet.feet_y,
+                        z: packet.z,
+                        yaw: packet.yaw,
+                        pitch: packet.pitch,
+                        on_ground: packet.on_ground,
+                    })?;
                 } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
-                    event_sender
-                        .try_send(ClientEvent::PlayerRotation {
-                            yaw: player_rotation.yaw,
-                            pitch: player_rotation.pitch,
-                            on_ground: player_rotation.on_ground,
-                        })
-                        ?;
+                    event_sender.try_send(ClientEvent::PlayerRotation {
+                        yaw: player_rotation.yaw,
+                        pitch: player_rotation.pitch,
+                        on_ground: player_rotation.on_ground,
+                    })?;
                 } else if raw_packet.packet_id == S1CEntityAction::packet_id() {
                     let entity_action = S1CEntityAction::decode(raw_packet)?;
-                    event_sender
-                        .try_send(ClientEvent::EntityAction {
-                            entity_id: entity_action.entity_id,
-                            action_id: entity_action.action_id,
-                            jump_boost: entity_action.jump_boost,
-                        })
-                        ?;
-                }
-                else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
+                    event_sender.try_send(ClientEvent::EntityAction {
+                        entity_id: entity_action.entity_id,
+                        action_id: entity_action.action_id,
+                        jump_boost: entity_action.jump_boost,
+                    })?;
+                } else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
                     let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::PlayerAbilities {
                         is_flying: player_abilities.flags & 0x02 == 0x02,

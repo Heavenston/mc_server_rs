@@ -1,13 +1,13 @@
-use mc_networking::client::Client;
-use mc_networking::map;
 use super::Entity;
-use mc_utils::Location;
+use mc_networking::client::Client;
 use mc_networking::data_types::{MetadataValue, Pose};
+use mc_networking::map;
+use mc_utils::Location;
 
-use uuid::Uuid;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use uuid::Uuid;
 
 pub struct Player {
     pub username: String,
@@ -29,7 +29,10 @@ pub struct Player {
 impl Player {
     pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Arc<Mutex<Client>>) -> Self {
         Self {
-            username, entity_id, uuid, client,
+            username,
+            entity_id,
+            uuid,
+            client,
             location: Location::default(),
             ping: 0,
             gamemode: 0,
@@ -72,13 +75,15 @@ impl Entity for Player {
     }
     fn metadata_value(&self, id: i32) -> Option<MetadataValue> {
         Some(match id {
-            0 => MetadataValue::Byte((self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08),
+            0 => MetadataValue::Byte(
+                (self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08,
+            ),
             6 => MetadataValue::Pose(if self.is_sneaking && !self.is_flying {
                 Pose::Sneaking
             } else {
                 Pose::Standing
             }),
-            _ => return None
+            _ => return None,
         })
     }
     fn set_metadata_value(&mut self, id: i32, value: MetadataValue) -> bool {
@@ -89,7 +94,7 @@ impl Entity for Player {
                     self.is_sprinting = flags & 0x08 == 0x08;
                     return true;
                 }
-            },
+            }
             _ => (),
         }
 

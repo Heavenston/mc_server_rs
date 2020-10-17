@@ -1,14 +1,14 @@
 pub mod player;
 
-use mc_networking::data_types::MetadataValue;
 use crate::entity::player::Player;
+use mc_networking::data_types::MetadataValue;
 use mc_utils::Location;
 
-use downcast_rs::{DowncastSync, impl_downcast};
-use uuid::Uuid;
+use anyhow::{Error, Result};
+use downcast_rs::{impl_downcast, DowncastSync};
 use std::collections::HashMap;
-use anyhow::{Result, Error};
 use std::ops::{Deref, DerefMut};
+use uuid::Uuid;
 
 pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
@@ -35,49 +35,47 @@ pub enum BoxedEntity {
 }
 impl BoxedEntity {
     pub fn new(entity: impl Entity) -> Self {
-        BoxedEntity::Unknown(Box::new(entity))
-            .into_known()
+        BoxedEntity::Unknown(Box::new(entity)).into_known()
     }
 
     pub fn is_player(&self) -> bool {
         match self {
             BoxedEntity::Player(..) => true,
-            _ => false
+            _ => false,
         }
     }
     pub fn is_unknown(&self) -> bool {
         match self {
             BoxedEntity::Unknown(..) => true,
-            _ => false
+            _ => false,
         }
     }
 
     pub fn as_player(&self) -> Result<&Box<Player>> {
         match self {
             BoxedEntity::Player(p) => Ok(p),
-            _ => Err(Error::msg("Entity is not a player"))
+            _ => Err(Error::msg("Entity is not a player")),
         }
     }
     pub fn as_player_mut(&mut self) -> Result<&mut Box<Player>> {
         match self {
             BoxedEntity::Player(p) => Ok(p),
-            _ => Err(Error::msg("Entity is not a player"))
+            _ => Err(Error::msg("Entity is not a player")),
         }
     }
     pub fn into_known(self) -> BoxedEntity {
         if let BoxedEntity::Unknown(entity) = self {
             if entity.is::<Player>() {
                 BoxedEntity::Player(
-                    entity.downcast::<Player>().map_err(|_| Error::msg("")).unwrap()
-                )
-            }
-            else {
-                BoxedEntity::Unknown(
                     entity
+                        .downcast::<Player>()
+                        .map_err(|_| Error::msg(""))
+                        .unwrap(),
                 )
+            } else {
+                BoxedEntity::Unknown(entity)
             }
-        }
-        else {
+        } else {
             self
         }
     }

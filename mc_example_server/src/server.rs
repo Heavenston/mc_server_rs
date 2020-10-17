@@ -1,21 +1,21 @@
-use crate::entity::BoxedEntity;
 use crate::entity::player::Player;
-use mc_networking::map;
-use mc_networking::client::Client;
+use crate::entity::BoxedEntity;
 use mc_networking::client::client_event::*;
+use mc_networking::client::Client;
+use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 
-use std::sync::Arc;
-use std::collections::HashMap;
-use tokio::sync::{RwLock, Mutex};
 use anyhow::Result;
-use tokio::net::{ToSocketAddrs, TcpListener};
-use serde_json::json;
-use uuid::Uuid;
-use tokio::time::{Instant, Duration};
-use mc_networking::data_types::bitbuffer::BitBuffer;
 use log::*;
+use mc_networking::data_types::bitbuffer::BitBuffer;
+use serde_json::json;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::net::{TcpListener, ToSocketAddrs};
+use tokio::sync::{Mutex, RwLock};
+use tokio::time::{Duration, Instant};
+use uuid::Uuid;
 
 pub struct Server {
     entities: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
@@ -34,7 +34,7 @@ impl Server {
             entity_id_counter: 0,
             max_players: 10,
             view_distance: 10,
-            brand: "BEST SERVER EVER".to_string()
+            brand: "BEST SERVER EVER".to_string(),
         }
     }
     pub async fn listen(server: Arc<RwLock<Server>>, addr: impl ToSocketAddrs) -> Result<()> {
@@ -48,7 +48,9 @@ impl Server {
                 let server = Arc::clone(&server);
                 let client = Arc::clone(&client);
                 async move {
-                    Server::handle_client(server, client, event_receiver).await.unwrap();
+                    Server::handle_client(server, client, event_receiver)
+                        .await
+                        .unwrap();
                 }
             });
         }
@@ -56,7 +58,7 @@ impl Server {
     async fn handle_client(
         server: Arc<RwLock<Server>>,
         client: Arc<Mutex<Client>>,
-        mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>
+        mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
         let mut player: Option<Arc<RwLock<BoxedEntity>>> = None;
         let mut player_eid = -1i32;
@@ -81,7 +83,8 @@ impl Server {
                 }
                 ClientEvent::LoginStart { response, username } => {
                     let mut server_write = server.write().await;
-                    if (server_write.max_players as usize) <= server_write.get_players().await.len() {
+                    if (server_write.max_players as usize) <= server_write.get_players().await.len()
+                    {
                         response
                             .send(LoginStartResult::Disconnect {
                                 reason: "The server is full :(".to_string(),
@@ -91,17 +94,20 @@ impl Server {
                         server_write.entity_id_counter += 1;
                         player_eid = server_write.entity_id_counter;
                         let uuid = Uuid::new_v4();
-                        let entity = Arc::new(RwLock::new(
-                            BoxedEntity::new(Player::new(
-                                username.clone(),
-                                server_write.entity_id_counter,
-                                uuid.clone(),
-                                Arc::clone(&client)
-                            ))
-                        ));
+                        let entity = Arc::new(RwLock::new(BoxedEntity::new(Player::new(
+                            username.clone(),
+                            server_write.entity_id_counter,
+                            uuid.clone(),
+                            Arc::clone(&client),
+                        ))));
                         player = Some(entity);
 
-                        info!("{} joined the game, EID: {}, UUID: {}", username.clone(), player_eid, uuid.clone());
+                        info!(
+                            "{} joined the game, EID: {}, UUID: {}",
+                            username.clone(),
+                            player_eid,
+                            uuid.clone()
+                        );
 
                         response
                             .send(LoginStartResult::Accept {
@@ -115,19 +121,22 @@ impl Server {
                     let player = player.as_ref().unwrap();
 
                     // Join Game
-                    client.lock().await.send_packet(&{
-                        let server = server.read().await;
-                        let player = player.read().await;
-                        let player = player.as_player().unwrap();
+                    client
+                        .lock()
+                        .await
+                        .send_packet(&{
+                            let server = server.read().await;
+                            let player = player.read().await;
+                            let player = player.as_player().unwrap();
 
-                        C24JoinGame {
-                            entity_id: player.entity_id,
-                            is_hardcore: false,
-                            gamemode: player.gamemode,
-                            previous_gamemode: player.gamemode,
-                            world_names: vec!["heav:world".to_owned()],
-                            dimension_codec: C24JoinGameDimensionCodec {
-                                dimensions: map! {
+                            C24JoinGame {
+                                entity_id: player.entity_id,
+                                is_hardcore: false,
+                                gamemode: player.gamemode,
+                                previous_gamemode: player.gamemode,
+                                world_names: vec!["heav:world".to_owned()],
+                                dimension_codec: C24JoinGameDimensionCodec {
+                                    dimensions: map! {
                                         "heav:world".to_owned() => C24JoinGameDimensionElement {
                                             natural: 1,
                                             ambient_light: 1.0,
@@ -145,7 +154,7 @@ impl Server {
                                             infiniburn: "".to_owned(),
                                         }
                                     },
-                                biomes: map! {
+                                    biomes: map! {
                                         "minecraft:plains".to_owned() => C24JoinGameBiomeElement {
                                             precipitation: "none".to_owned(),
                                             effects: C24JoinGameBiomeEffects {
@@ -187,33 +196,35 @@ impl Server {
                                             category: "none".to_owned(),
                                         }
                                     },
-                            },
-                            dimension: C24JoinGameDimensionElement {
-                                natural: 1,
-                                ambient_light: 1.0,
-                                has_ceiling: 0,
-                                has_skylight: 1,
-                                fixed_time: 6000,
-                                shrunk: 0,
-                                ultrawarm: 0,
-                                has_raids: 0,
-                                respawn_anchor_works: 0,
-                                bed_works: 0,
-                                coordinate_scale: 1.0,
-                                piglin_safe: 0,
-                                logical_height: 256,
-                                infiniburn: "".to_owned(),
-                            },
-                            world_name: "heav:world".to_owned(),
-                            hashed_seed: 0,
-                            max_players: server.max_players as i32,
-                            view_distance: server.view_distance as i32,
-                            reduced_debug_info: false,
-                            enable_respawn_screen: true,
-                            is_debug: false,
-                            is_flat: true,
-                        }
-                    }).await.unwrap();
+                                },
+                                dimension: C24JoinGameDimensionElement {
+                                    natural: 1,
+                                    ambient_light: 1.0,
+                                    has_ceiling: 0,
+                                    has_skylight: 1,
+                                    fixed_time: 6000,
+                                    shrunk: 0,
+                                    ultrawarm: 0,
+                                    has_raids: 0,
+                                    respawn_anchor_works: 0,
+                                    bed_works: 0,
+                                    coordinate_scale: 1.0,
+                                    piglin_safe: 0,
+                                    logical_height: 256,
+                                    infiniburn: "".to_owned(),
+                                },
+                                world_name: "heav:world".to_owned(),
+                                hashed_seed: 0,
+                                max_players: server.max_players as i32,
+                                view_distance: server.view_distance as i32,
+                                reduced_debug_info: false,
+                                enable_respawn_screen: true,
+                                is_debug: false,
+                                is_flat: true,
+                            }
+                        })
+                        .await
+                        .unwrap();
 
                     let my_player_info = C32PlayerInfoPlayerUpdate::AddPlayer {
                         uuid: player.read().await.uuid().clone(),
@@ -221,7 +232,7 @@ impl Server {
                         properties: vec![],
                         gamemode: player.read().await.as_player().unwrap().gamemode as i32,
                         ping: player.read().await.as_player().unwrap().ping,
-                        display_name: None
+                        display_name: None,
                     };
                     // Send to him all players (and himself)
                     {
@@ -242,14 +253,21 @@ impl Server {
                             }
                             players
                         };
-                        client.lock().await.send_packet(&C32PlayerInfo {
-                            players,
-                        }).await.unwrap();
+                        client
+                            .lock()
+                            .await
+                            .send_packet(&C32PlayerInfo { players })
+                            .await
+                            .unwrap();
                     }
                     // Send to all his player info
-                    server.read().await.broadcast(&C32PlayerInfo {
-                        players: vec![my_player_info]
-                    }).await;
+                    server
+                        .read()
+                        .await
+                        .broadcast(&C32PlayerInfo {
+                            players: vec![my_player_info],
+                        })
+                        .await;
 
                     client
                         .lock()
@@ -263,31 +281,51 @@ impl Server {
                     // Send server brand
                     {
                         let brand = server.read().await.brand.clone();
-                        server.read().await.send_to_player(player_eid, &{
-                            let mut builder = C17PluginMessageBuilder::new("minecraft:brand".to_string());
-                            builder.encoder.write_string(&brand);
-                            builder.build()
-                        }).await.unwrap();
+                        server
+                            .read()
+                            .await
+                            .send_to_player(player_eid, &{
+                                let mut builder =
+                                    C17PluginMessageBuilder::new("minecraft:brand".to_string());
+                                builder.encoder.write_string(&brand);
+                                builder.build()
+                            })
+                            .await
+                            .unwrap();
                     }
 
-                    server.read().await.update_player_view_position(player_eid).await.unwrap();
+                    server
+                        .read()
+                        .await
+                        .update_player_view_position(player_eid)
+                        .await
+                        .unwrap();
                     // Update position
-                    server.read().await.teleport_entity(player_eid, Location {
-                        x: 0.0,
-                        y: 20.0,
-                        z: 0.0,
-                        yaw: 0.0,
-                        pitch: 0.0,
-                    }).await;
+                    server
+                        .read()
+                        .await
+                        .teleport_entity(
+                            player_eid,
+                            Location {
+                                x: 0.0,
+                                y: 20.0,
+                                z: 0.0,
+                                yaw: 0.0,
+                                pitch: 0.0,
+                            },
+                        )
+                        .await;
                 }
                 ClientEvent::Logout => {
                     server.write().await.remove_entity(player_eid).await;
                     let uuid = player.unwrap().read().await.uuid().clone();
-                    server.read().await.broadcast(&C32PlayerInfo {
-                        players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer {
-                            uuid,
-                        }],
-                    }).await;
+                    server
+                        .read()
+                        .await
+                        .broadcast(&C32PlayerInfo {
+                            players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
+                        })
+                        .await;
                     break;
                 }
 
@@ -295,20 +333,26 @@ impl Server {
                     let player = player.as_ref().unwrap();
                     player.write().await.as_player_mut().unwrap().ping = delay as i32;
                     let uuid = player.read().await.as_player().unwrap().uuid.clone();
-                    server.read().await.broadcast(&C32PlayerInfo {
-                        players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
-                            uuid: uuid.clone(),
-                            ping: delay as i32,
-                        }],
-                    }).await;
+                    server
+                        .read()
+                        .await
+                        .broadcast(&C32PlayerInfo {
+                            players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
+                                uuid: uuid.clone(),
+                                ping: delay as i32,
+                            }],
+                        })
+                        .await;
                 }
 
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let last_location = player.as_ref().unwrap().read().await.location().clone();
                     let new_location = Location {
-                        x, y, z,
+                        x,
+                        y,
+                        z,
                         yaw: last_location.yaw,
-                        pitch: last_location.pitch
+                        pitch: last_location.pitch,
                     };
                     {
                         let mut player = player.as_ref().unwrap().write().await;
@@ -316,8 +360,15 @@ impl Server {
                         player.set_location(new_location.clone());
                     }
                     let player_id = player.as_ref().unwrap().read().await.entity_id();
-                    if last_location.chunk_x() != new_location.chunk_x() || last_location.chunk_z() != new_location.chunk_z() {
-                        server.write().await.update_player_view_position(player_id).await.unwrap();
+                    if last_location.chunk_x() != new_location.chunk_x()
+                        || last_location.chunk_z() != new_location.chunk_z()
+                    {
+                        server
+                            .write()
+                            .await
+                            .update_player_view_position(player_id)
+                            .await
+                            .unwrap();
                     }
                 }
                 ClientEvent::PlayerPositionAndRotation {
@@ -330,7 +381,11 @@ impl Server {
                 } => {
                     let last_location = player.as_ref().unwrap().read().await.location().clone();
                     let new_location = Location {
-                        x, y, z, yaw, pitch
+                        x,
+                        y,
+                        z,
+                        yaw,
+                        pitch,
                     };
                     {
                         let mut player = player.as_ref().unwrap().write().await;
@@ -338,8 +393,15 @@ impl Server {
                         player.set_location(new_location.clone());
                     }
                     let player_id = player.as_ref().unwrap().read().await.entity_id();
-                    if last_location.chunk_x() != new_location.chunk_x() || last_location.chunk_z() != new_location.chunk_z() {
-                        server.write().await.update_player_view_position(player_id).await.unwrap();
+                    if last_location.chunk_x() != new_location.chunk_x()
+                        || last_location.chunk_z() != new_location.chunk_z()
+                    {
+                        server
+                            .write()
+                            .await
+                            .update_player_view_position(player_id)
+                            .await
+                            .unwrap();
                     }
                 }
                 ClientEvent::PlayerRotation {
@@ -354,7 +416,8 @@ impl Server {
                         x: location.x,
                         y: location.y,
                         z: location.z,
-                        yaw, pitch
+                        yaw,
+                        pitch,
                     });
                 }
 
@@ -383,10 +446,15 @@ impl Server {
                         }
                     }
                 }
-                ClientEvent::PlayerAbilities {
-                    is_flying
-                } => {
-                    player.as_ref().unwrap().write().await.as_player_mut().unwrap().is_flying = is_flying;
+                ClientEvent::PlayerAbilities { is_flying } => {
+                    player
+                        .as_ref()
+                        .unwrap()
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .unwrap()
+                        .is_flying = is_flying;
                 }
             }
         }
@@ -400,22 +468,33 @@ impl Server {
 
         let (chunk_x, chunk_z) = (location.chunk_x(), location.chunk_z());
 
-        self.send_to_player(player_id, &C40UpdateViewPosition {
-            chunk_x,
-            chunk_z
-        }).await.unwrap();
+        self.send_to_player(player_id, &C40UpdateViewPosition { chunk_x, chunk_z })
+            .await
+            .unwrap();
         let loaded_chunks = entity.read().await.as_player()?.loaded_chunks.clone();
 
         let view_distance = self.view_distance as i32;
         let view_distance2 = self.view_distance.pow(2) as i32;
 
         for (x, z) in loaded_chunks.iter().cloned() {
-            if loaded_chunks.contains(&(x, z)) && ((chunk_x - x).pow(2) + (chunk_z - z).pow(2)) >= view_distance2 {
-                self.send_to_player(player_id, &C1CUnloadChunk {
-                    chunk_x: x,
-                    chunk_z: z
-                }).await.unwrap();
-                entity.write().await.as_player_mut()?.loaded_chunks.remove(&(x, z));
+            if loaded_chunks.contains(&(x, z))
+                && ((chunk_x - x).pow(2) + (chunk_z - z).pow(2)) >= view_distance2
+            {
+                self.send_to_player(
+                    player_id,
+                    &C1CUnloadChunk {
+                        chunk_x: x,
+                        chunk_z: z,
+                    },
+                )
+                .await
+                .unwrap();
+                entity
+                    .write()
+                    .await
+                    .as_player_mut()?
+                    .loaded_chunks
+                    .remove(&(x, z));
             }
         }
         for x in chunk_x - (view_distance * 2)..=chunk_x + (view_distance * 2) {
@@ -425,7 +504,12 @@ impl Server {
                 {
                     let chunk_data = self.get_chunk(x, z).await;
                     self.send_to_player(player_id, &chunk_data).await.unwrap();
-                    entity.write().await.as_player_mut()?.loaded_chunks.insert((x, z));
+                    entity
+                        .write()
+                        .await
+                        .as_player_mut()?
+                        .loaded_chunks
+                        .insert((x, z));
                 }
             }
         }
@@ -500,35 +584,65 @@ impl Server {
         for (eid, entity) in self.entities.iter().map(|(a, b)| (*a, Arc::clone(b))) {
             let entity_location = entity.read().await.location().clone();
 
-            for (player_eid, player) in self.get_players_ifs(|player| player.entity_id != eid).await {
+            for (player_eid, player) in self.get_players_ifs(|player| player.entity_id != eid).await
+            {
                 let view_distance2 = self.view_distance.pow(2) as f64;
                 let player_location = player.read().await.location().clone();
-                let should_be_loaded = entity_location.h_distance2(&player_location) < view_distance2;
-                let is_loaded = player.read().await.as_player().unwrap().loaded_entities.contains(&eid);
+                let should_be_loaded =
+                    entity_location.h_distance2(&player_location) < view_distance2;
+                let is_loaded = player
+                    .read()
+                    .await
+                    .as_player()
+                    .unwrap()
+                    .loaded_entities
+                    .contains(&eid);
                 if !is_loaded && should_be_loaded {
                     match &*entity.read().await {
                         // TODO: Implement it in the entity trait... somehow
                         BoxedEntity::Player(entity) => {
-                            self.send_to_player(player_eid, &C04SpawnPlayer {
-                                entity_id: eid,
-                                uuid: entity.uuid.clone(),
-                                x: entity.location.x,
-                                y: entity.location.y,
-                                z: entity.location.z,
-                                yaw: entity.location.yaw_angle(),
-                                pitch: entity.location.pitch_angle()
-                            }).await.unwrap();
-                        },
-                        _ => unimplemented!()
+                            self.send_to_player(
+                                player_eid,
+                                &C04SpawnPlayer {
+                                    entity_id: eid,
+                                    uuid: entity.uuid.clone(),
+                                    x: entity.location.x,
+                                    y: entity.location.y,
+                                    z: entity.location.z,
+                                    yaw: entity.location.yaw_angle(),
+                                    pitch: entity.location.pitch_angle(),
+                                },
+                            )
+                            .await
+                            .unwrap();
+                        }
+                        _ => unimplemented!(),
                     }
-                    player.write().await.as_player_mut().unwrap().loaded_entities.insert(eid);
+                    player
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .unwrap()
+                        .loaded_entities
+                        .insert(eid);
                 }
                 if is_loaded && !should_be_loaded {
                     // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
-                    self.send_to_player(player_eid, &C36DestroyEntities {
-                        entities: vec![eid]
-                    }).await.unwrap();
-                    player.write().await.as_player_mut().unwrap().loaded_entities.remove(&eid);
+                    self.send_to_player(
+                        player_eid,
+                        &C36DestroyEntities {
+                            entities: vec![eid],
+                        },
+                    )
+                    .await
+                    .unwrap();
+                    player
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .unwrap()
+                        .loaded_entities
+                        .remove(&eid);
                 }
             }
         }
@@ -536,7 +650,14 @@ impl Server {
         for player in self.get_players().await.values() {
             let player_eid = player.read().await.entity_id();
             let mut to_destroy = vec![];
-            for eid in player.read().await.as_player().unwrap().loaded_entities.iter() {
+            for eid in player
+                .read()
+                .await
+                .as_player()
+                .unwrap()
+                .loaded_entities
+                .iter()
+            {
                 if !self.entities.contains_key(&eid) {
                     to_destroy.push(*eid);
                 }
@@ -549,9 +670,14 @@ impl Server {
                 }
             }
             if !to_destroy.is_empty() {
-                self.send_to_player(player_eid, &C36DestroyEntities {
-                    entities: to_destroy
-                }).await.unwrap();
+                self.send_to_player(
+                    player_eid,
+                    &C36DestroyEntities {
+                        entities: to_destroy,
+                    },
+                )
+                .await
+                .unwrap();
             }
         }
 
@@ -567,68 +693,84 @@ impl Server {
             }
             let has_rotation_changed = !previous_location.rotation_eq(&new_location);
             let has_position_changed = !previous_location.position_eq(&new_location);
-            self.synced_entities_locations.insert(eid, new_location.clone());
+            self.synced_entities_locations
+                .insert(eid, new_location.clone());
 
             let on_ground = entity.read().await.on_ground();
 
             let players = self.get_players_around(eid).await;
 
             if has_rotation_changed {
-                self.broadcast_to(&C3AEntityHeadLook {
-                    entity_id: eid,
-                    head_yaw: new_location.yaw_angle()
-                }, players.clone()).await;
+                self.broadcast_to(
+                    &C3AEntityHeadLook {
+                        entity_id: eid,
+                        head_yaw: new_location.yaw_angle(),
+                    },
+                    players.clone(),
+                )
+                .await;
             }
 
             if previous_location.distance2(&new_location) > 8.0 * 8.0 {
-                self.broadcast_to(&C56EntityTeleport {
-                    entity_id: eid,
-                    x: new_location.x,
-                    y: new_location.y,
-                    z: new_location.z,
-                    yaw: new_location.yaw_angle(),
-                    pitch: new_location.pitch_angle(),
-                    on_ground
-                }, players).await;
-            }
-            else if has_position_changed && has_rotation_changed {
-                self.broadcast_to(&C28EntityPositionAndRotation {
-                    entity_id: eid,
-                    delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).ceil()
-                        as i16,
-                    delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).ceil()
-                        as i16,
-                    delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).ceil()
-                        as i16,
-                    yaw: new_location.yaw_angle(),
-                    pitch: new_location.pitch_angle(),
-                    on_ground
-                }, players).await;
-            }
-            else if has_position_changed {
-                self.broadcast_to(&C27EntityPosition {
-                    entity_id: eid,
-                    delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64).ceil()
-                        as i16,
-                    delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64).ceil()
-                        as i16,
-                    delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64).ceil()
-                        as i16,
-                    on_ground
-                }, players).await;
-            }
-            else if has_rotation_changed {
-                self.broadcast_to(&C29EntityRotation {
-                    entity_id: eid,
-                    yaw: new_location.yaw_angle(),
-                    pitch: new_location.pitch_angle(),
-                    on_ground
-                }, players).await;
-            }
-            else {
-                self.broadcast_to(&C2AEntityMovement {
-                    entity_id: eid,
-                }, players).await;
+                self.broadcast_to(
+                    &C56EntityTeleport {
+                        entity_id: eid,
+                        x: new_location.x,
+                        y: new_location.y,
+                        z: new_location.z,
+                        yaw: new_location.yaw_angle(),
+                        pitch: new_location.pitch_angle(),
+                        on_ground,
+                    },
+                    players,
+                )
+                .await;
+            } else if has_position_changed && has_rotation_changed {
+                self.broadcast_to(
+                    &C28EntityPositionAndRotation {
+                        entity_id: eid,
+                        delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64)
+                            .ceil() as i16,
+                        delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64)
+                            .ceil() as i16,
+                        delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64)
+                            .ceil() as i16,
+                        yaw: new_location.yaw_angle(),
+                        pitch: new_location.pitch_angle(),
+                        on_ground,
+                    },
+                    players,
+                )
+                .await;
+            } else if has_position_changed {
+                self.broadcast_to(
+                    &C27EntityPosition {
+                        entity_id: eid,
+                        delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64)
+                            .ceil() as i16,
+                        delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64) * 128f64)
+                            .ceil() as i16,
+                        delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64) * 128f64)
+                            .ceil() as i16,
+                        on_ground,
+                    },
+                    players,
+                )
+                .await;
+            } else if has_rotation_changed {
+                self.broadcast_to(
+                    &C29EntityRotation {
+                        entity_id: eid,
+                        yaw: new_location.yaw_angle(),
+                        pitch: new_location.pitch_angle(),
+                        on_ground,
+                    },
+                    players,
+                )
+                .await;
+            } else {
+                self.broadcast_to(&C2AEntityMovement { entity_id: eid }, players)
+                    .await;
             }
         }
 
@@ -637,14 +779,21 @@ impl Server {
 
     pub async fn get_players(&self) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
-        for (eid, entity) in self.entities.iter().map(|(eid, entity)| (*eid, Arc::clone(entity))) {
+        for (eid, entity) in self
+            .entities
+            .iter()
+            .map(|(eid, entity)| (*eid, Arc::clone(entity)))
+        {
             if entity.read().await.is_player() {
                 players.insert(eid, entity);
             }
         }
         players
     }
-    pub async fn get_players_ifs(&self, tester: impl Fn(&Player) -> bool) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
+    pub async fn get_players_ifs(
+        &self,
+        tester: impl Fn(&Player) -> bool,
+    ) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
         for (eid, entity) in self.entities.iter() {
             let entity_read = entity.read().await;
@@ -655,28 +804,55 @@ impl Server {
         players
     }
     /// Get all players in view distance of an entity
-    pub async fn get_players_around(&self, entity_id: i32) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        let location = self.get_entity(entity_id).await.read().await.location().clone();
+    pub async fn get_players_around(
+        &self,
+        entity_id: i32,
+    ) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
+        let location = self
+            .get_entity(entity_id)
+            .await
+            .read()
+            .await
+            .location()
+            .clone();
         let view_distance2 = self.view_distance.pow(2) as f64;
         self.get_players_ifs({
             move |player: &Player| {
-                player.entity_id != entity_id && player.location.h_distance2(&location) <= view_distance2
+                player.entity_id != entity_id
+                    && player.location.h_distance2(&location) <= view_distance2
             }
-        }).await
+        })
+        .await
     }
 
     pub async fn broadcast(&self, packet: &impl ClientBoundPacket) {
         for entity in self.get_players().await.values() {
             let entity = entity.read().await;
             let player = entity.downcast_ref::<Player>().unwrap();
-            player.client.lock().await.send_packet(packet).await.unwrap();
+            player
+                .client
+                .lock()
+                .await
+                .send_packet(packet)
+                .await
+                .unwrap();
         }
     }
-    pub async fn broadcast_to(&self, packet: &impl ClientBoundPacket, players: HashMap<i32, Arc<RwLock<BoxedEntity>>>) {
+    pub async fn broadcast_to(
+        &self,
+        packet: &impl ClientBoundPacket,
+        players: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
+    ) {
         for (.., entity) in players {
             let entity = entity.read().await;
             let player = entity.downcast_ref::<Player>().unwrap();
-            player.client.lock().await.send_packet(packet).await.unwrap();
+            player
+                .client
+                .lock()
+                .await
+                .send_packet(packet)
+                .await
+                .unwrap();
         }
     }
 
@@ -689,10 +865,7 @@ impl Server {
 
     pub async fn add_entity(&mut self, entity: Arc<RwLock<BoxedEntity>>) {
         let entity_id = entity.read().await.entity_id();
-        self.entities.insert(
-            entity_id,
-            entity
-        );
+        self.entities.insert(entity_id, entity);
     }
     pub async fn get_entity(&self, id: i32) -> Arc<RwLock<BoxedEntity>> {
         Arc::clone(&self.entities[&id])
@@ -702,27 +875,40 @@ impl Server {
     }
 
     pub async fn teleport_entity(&self, id: i32, location: Location) {
-        self.get_entity(id).await.write().await.set_location(location.clone());
-        self.broadcast_to(&C56EntityTeleport {
-            entity_id: id,
-            x: location.x,
-            y: location.y,
-            z: location.z,
-            yaw: location.yaw_angle(),
-            pitch: location.pitch_angle(),
-            on_ground: self.get_entity(id).await.read().await.on_ground()
-        }, self.get_players_around(id).await).await;
-        let is_player = self.get_entity(id).await.write().await.is_player();
-        if is_player {
-            self.send_to_player(id, &C34PlayerPositionAndLook {
+        self.get_entity(id)
+            .await
+            .write()
+            .await
+            .set_location(location.clone());
+        self.broadcast_to(
+            &C56EntityTeleport {
+                entity_id: id,
                 x: location.x,
                 y: location.y,
                 z: location.z,
-                yaw: location.yaw,
-                pitch: location.pitch,
-                flags: 0,
-                teleport_id: 0
-            }).await.unwrap();
+                yaw: location.yaw_angle(),
+                pitch: location.pitch_angle(),
+                on_ground: self.get_entity(id).await.read().await.on_ground(),
+            },
+            self.get_players_around(id).await,
+        )
+        .await;
+        let is_player = self.get_entity(id).await.write().await.is_player();
+        if is_player {
+            self.send_to_player(
+                id,
+                &C34PlayerPositionAndLook {
+                    x: location.x,
+                    y: location.y,
+                    z: location.z,
+                    yaw: location.yaw,
+                    pitch: location.pitch,
+                    flags: 0,
+                    teleport_id: 0,
+                },
+            )
+            .await
+            .unwrap();
         }
     }
 }
