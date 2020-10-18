@@ -23,6 +23,11 @@ pub struct Player {
     pub is_sprinting: bool,
     pub is_flying: bool,
 
+    pub invulnerable: bool,
+    pub can_fly: bool,
+    pub flying_speed: f32,
+    pub fov_modifier: f32,
+
     pub loaded_entities: HashSet<i32>,
     pub loaded_chunks: HashSet<(i32, i32)>,
 }
@@ -40,6 +45,10 @@ impl Player {
             is_sneaking: false,
             is_sprinting: false,
             is_flying: false,
+            invulnerable: false,
+            can_fly: false,
+            flying_speed: 0.05,
+            fov_modifier: 0.1,
             loaded_entities: HashSet::new(),
             loaded_chunks: HashSet::new(),
         }

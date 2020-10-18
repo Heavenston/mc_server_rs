@@ -4,7 +4,7 @@ use mc_networking::client::client_event::*;
 use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::*;
-use mc_utils::{Location, ChunkData};
+use mc_utils::{ChunkData, Location};
 
 use anyhow::{Error, Result};
 use log::*;
@@ -269,12 +269,24 @@ impl Server {
                         })
                         .await;
 
-                    client
-                        .lock()
-                        .await
-                        .send_player_abilities(false, false, true, false, 0.05, 0.1)
-                        .await
-                        .unwrap();
+                    {
+                        let player = player.read().await;
+                        let player = player.as_player().unwrap();
+
+                        client
+                            .lock()
+                            .await
+                            .send_player_abilities(
+                                player.invulnerable,
+                                player.is_flying,
+                                player.can_fly,
+                                player.gamemode == 1,
+                                player.flying_speed,
+                                player.fov_modifier,
+                            )
+                            .await
+                            .unwrap();
+                    }
 
                     server.write().await.add_entity(Arc::clone(player)).await;
 
