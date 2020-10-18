@@ -4,7 +4,7 @@ use mc_networking::client::client_event::*;
 use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::*;
-use mc_utils::Location;
+use mc_utils::{Location, ChunkData};
 
 use anyhow::{Error, Result};
 use log::*;
@@ -530,46 +530,15 @@ impl Server {
         Ok(())
     }
     async fn get_chunk(&self, chunk_x: i32, chunk_z: i32) -> C20ChunkData {
-        let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
-        for x in 0..16 {
-            for z in 0..16 {
-                motion_blocking_heightmap.set_entry((x * 16) + z, 10);
-            }
-        }
-        let mut section_blocks = BitBuffer::create(4, 4096);
-        for y in 0..16 {
-            for z in 0..16 {
-                for x in 0..16 {
-                    section_blocks.set_entry(x + (z * 16) + (y * 256), 0);
-                }
-            }
-        }
-        for x in 0..16 {
-            for z in 0..16 {
-                section_blocks.set_entry(x + (z * 16), 1);
-            }
-        }
-        let mut heightmaps = nbt::Blob::new();
-        heightmaps
-            .insert("MOTION_BLOCKING", motion_blocking_heightmap.into_buffer())
-            .unwrap();
-        let chunk_data = C20ChunkData {
-            chunk_x,
-            chunk_z,
-            full_chunk: true,
-            primary_bit_mask: 0b0000000000000010,
-            heightmaps,
-            biomes: Some(vec![1; 1024]),
-            chunk_sections: vec![C20ChunkDataSection {
-                block_count: 256,
-                bits_per_block: 4,
-                palette: Some(vec![0, 1]),
-                data_array: section_blocks.into_buffer(),
-            }],
-            block_entities: vec![],
-        };
+        let mut chunk_data = ChunkData::new();
 
-        chunk_data
+        for x in 0..16 {
+            for z in 0..16 {
+                chunk_data.set_block(x, 5, z, 1);
+            }
+        }
+
+        chunk_data.encode(chunk_x, chunk_z)
     }
 
     async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
