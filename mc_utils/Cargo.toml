@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 mc_networking = {path = "../mc_networking"}
+hematite-nbt = "0.5.0"
