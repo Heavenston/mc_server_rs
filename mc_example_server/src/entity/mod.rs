@@ -23,9 +23,9 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn on_ground(&self) -> bool;
     fn set_on_ground(&mut self, on_ground: bool);
 
-    fn metadata(&self) -> HashMap<i32, MetadataValue>;
-    fn metadata_value(&self, id: i32) -> Option<MetadataValue>;
-    fn set_metadata_value(&mut self, id: i32, value: MetadataValue) -> bool;
+    fn metadata(&self) -> HashMap<u8, MetadataValue>;
+    fn metadata_value(&self, id: u8) -> Option<MetadataValue>;
+    fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool;
 }
 impl_downcast!(sync Entity);
 

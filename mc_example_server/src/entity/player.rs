@@ -67,13 +67,13 @@ impl Entity for Player {
         self.on_ground = on_ground
     }
 
-    fn metadata(&self) -> HashMap<i32, MetadataValue> {
+    fn metadata(&self) -> HashMap<u8, MetadataValue> {
         map! {
             0 => self.metadata_value(0).unwrap().clone(),
             6 => self.metadata_value(6).unwrap().clone()
         }
     }
-    fn metadata_value(&self, id: i32) -> Option<MetadataValue> {
+    fn metadata_value(&self, id: u8) -> Option<MetadataValue> {
         Some(match id {
             0 => MetadataValue::Byte(
                 (self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08,
@@ -86,7 +86,7 @@ impl Entity for Player {
             _ => return None,
         })
     }
-    fn set_metadata_value(&mut self, id: i32, value: MetadataValue) -> bool {
+    fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool {
         match id {
             0 => {
                 if let MetadataValue::Byte(flags) = value {

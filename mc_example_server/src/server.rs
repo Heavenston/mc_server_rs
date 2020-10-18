@@ -6,7 +6,7 @@ use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 
-use anyhow::Result;
+use anyhow::{Result, Error};
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use serde_json::json;
@@ -426,24 +426,28 @@ impl Server {
                     action_id,
                     ..
                 } => {
-                    let mut player = player.as_ref().unwrap().write().await;
-                    let mut player = player.as_player_mut().unwrap();
-                    if entity_id == player.entity_id {
-                        match action_id {
-                            0 => {
-                                player.is_sneaking = true;
+
+                    if entity_id == player_eid {
+                        {
+                            let mut player = player.as_ref().unwrap().write().await;
+                            let mut player = player.as_player_mut().unwrap();
+                            match action_id {
+                                0 => {
+                                    player.is_sneaking = true;
+                                }
+                                1 => {
+                                    player.is_sneaking = false;
+                                }
+                                3 => {
+                                    player.is_sprinting = true;
+                                }
+                                4 => {
+                                    player.is_sprinting = false;
+                                }
+                                _ => (),
                             }
-                            1 => {
-                                player.is_sneaking = false;
-                            }
-                            3 => {
-                                player.is_sprinting = true;
-                            }
-                            4 => {
-                                player.is_sprinting = false;
-                            }
-                            _ => (),
                         }
+                        server.read().await.update_entity_metadata(player_eid).await.unwrap();
                     }
                 }
                 ClientEvent::PlayerAbilities { is_flying } => {
@@ -455,6 +459,7 @@ impl Server {
                         .as_player_mut()
                         .unwrap()
                         .is_flying = is_flying;
+                    server.read().await.update_entity_metadata(player_eid).await.unwrap();
                 }
             }
         }
@@ -556,6 +561,18 @@ impl Server {
         };
 
         chunk_data
+    }
+
+    async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
+        let entity = self.entities.get(&entity_id).ok_or(Error::msg("Invalid "))?;
+        let metadata = entity.read().await.metadata();
+
+        self.broadcast_to(&C44EntityMetadata {
+            entity_id,
+            metadata
+        }, self.get_players_around(entity_id).await).await;
+
+        Ok(())
     }
 
     fn get_synced_entity_location(&mut self, entity: i32) -> &Location {
