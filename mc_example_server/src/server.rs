@@ -6,7 +6,7 @@ use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 
-use anyhow::{Result, Error};
+use anyhow::{Error, Result};
 use log::*;
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use serde_json::json;
@@ -426,7 +426,6 @@ impl Server {
                     action_id,
                     ..
                 } => {
-
                     if entity_id == player_eid {
                         {
                             let mut player = player.as_ref().unwrap().write().await;
@@ -447,7 +446,12 @@ impl Server {
                                 _ => (),
                             }
                         }
-                        server.read().await.update_entity_metadata(player_eid).await.unwrap();
+                        server
+                            .read()
+                            .await
+                            .update_entity_metadata(player_eid)
+                            .await
+                            .unwrap();
                     }
                 }
                 ClientEvent::PlayerAbilities { is_flying } => {
@@ -459,7 +463,12 @@ impl Server {
                         .as_player_mut()
                         .unwrap()
                         .is_flying = is_flying;
-                    server.read().await.update_entity_metadata(player_eid).await.unwrap();
+                    server
+                        .read()
+                        .await
+                        .update_entity_metadata(player_eid)
+                        .await
+                        .unwrap();
                 }
             }
         }
@@ -564,13 +573,20 @@ impl Server {
     }
 
     async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
-        let entity = self.entities.get(&entity_id).ok_or(Error::msg("Invalid "))?;
+        let entity = self
+            .entities
+            .get(&entity_id)
+            .ok_or(Error::msg("Invalid "))?;
         let metadata = entity.read().await.metadata();
 
-        self.broadcast_to(&C44EntityMetadata {
-            entity_id,
-            metadata
-        }, self.get_players_around(entity_id).await).await;
+        self.broadcast_to(
+            &C44EntityMetadata {
+                entity_id,
+                metadata,
+            },
+            self.get_players_around(entity_id).await,
+        )
+        .await;
 
         Ok(())
     }
