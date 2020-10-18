@@ -35,7 +35,7 @@ impl ChunkDataSection {
 
         let mut block_count = 0;
 
-        let bits_per_block = ((palette.len() - 1) as f64).log2().ceil() as u8;
+        let bits_per_block = ((palette.len() as f64).log2().ceil() as u8).max(4);
         let mut blocks = BitBuffer::create(bits_per_block, 4096);
         for (i, block) in self.blocks.iter().map(|n| *n as i32).enumerate() {
             block_count += (block != 0) as i16;
