@@ -631,6 +631,15 @@ impl Server {
                     .loaded_entities
                     .contains(&eid);
                 if !is_loaded && should_be_loaded {
+                    self.send_to_player(
+                        player_eid,
+                        &C3AEntityHeadLook {
+                            entity_id: eid,
+                            head_yaw: entity.read().await.location().yaw_angle(),
+                        },
+                    )
+                    .await
+                    .unwrap();
                     match &*entity.read().await {
                         // TODO: Implement it in the entity trait... somehow
                         BoxedEntity::Player(entity) => {
