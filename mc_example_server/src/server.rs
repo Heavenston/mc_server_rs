@@ -669,7 +669,7 @@ impl Server {
                 }
             }
         }
-        // Remove unexisting entities that are loaded in players
+        // Remove nonexisting entities that are loaded in players
         for player in self.get_players().await.values() {
             let player_eid = player.read().await.entity_id();
             let mut to_destroy = vec![];
@@ -797,7 +797,7 @@ impl Server {
             }
         }
 
-        // TODO: Update metadata and entities propeties
+        // TODO: Update metadata and entities properties
     }
 
     pub async fn get_players(&self) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
