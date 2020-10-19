@@ -42,7 +42,7 @@ impl Client {
         let (read, write) = socket.into_split();
         let write = Arc::new(Mutex::new(write));
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = mpsc::channel(10);
+        let (event_sender, event_receiver) = mpsc::channel(100);
 
         tokio::spawn({
             let write = Arc::clone(&write);
