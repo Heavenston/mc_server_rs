@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::stream::StreamExt;
 use tokio::sync::{Mutex, RwLock};
-use tokio::time::{Duration, Instant};
+use tokio::time::Duration;
 use uuid::Uuid;
 
 pub struct Server {
