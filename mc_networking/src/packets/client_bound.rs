@@ -1052,6 +1052,27 @@ mod play {
         }
     }
 
+    /// This packet may be used by custom servers to display additional information above/below the player list.
+    /// It is never sent by the Notchian server.
+    ///
+    /// https://wiki.vg/Protocol#Player_List_Header_And_Footer
+    #[derive(Clone, Debug)]
+    pub struct C53PlayerListHeaderAndFooter {
+        /// To remove the header, send a empty text component: {"text":""}
+        pub header: serde_json::Value,
+        /// To remove the footer, send a empty text component: {"text":""}
+        pub footer: serde_json::Value,
+    }
+    impl ClientBoundPacket for C53PlayerListHeaderAndFooter {
+        fn packet_id() -> i32 {
+            0x53
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.header.to_string());
+            encoder.write_string(&self.footer.to_string());
+        }
+    }
+
     /// This packet is sent by the server when an entity moves more than 8 blocks.
     ///
     /// https://wiki.vg/Protocol#Entity_Teleport
