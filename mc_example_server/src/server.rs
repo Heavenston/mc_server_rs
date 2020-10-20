@@ -583,7 +583,7 @@ impl Server {
 
     pub async fn start_ticker(server: Arc<RwLock<Server>>) {
         tokio::task::spawn(async move {
-            let mut expected_tps = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
+            let mut tps_interval = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
             let ticks = Arc::new(RwLock::new(0i32));
             tokio::task::spawn({
                 let ticks = Arc::clone(&ticks);
@@ -600,7 +600,7 @@ impl Server {
             loop {
                 *ticks.write().await += 1;
                 server.write().await.tick().await;
-                expected_tps.next().await;
+                tps_interval.next().await;
             }
         });
     }
