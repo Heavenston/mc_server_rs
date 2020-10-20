@@ -221,6 +221,26 @@ mod play {
         }
     }
 
+    /// Used to send a chat message to the server.
+    /// The message may not be longer than 256 characters or else the server will kick the client.
+    ///
+    /// https://wiki.vg/Protocol#Chat_Message_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S03ChatMessage {
+        pub message: String,
+    }
+    impl ServerBoundPacket for S03ChatMessage {
+        fn packet_id() -> i32 {
+            0x03
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                message: decoder.read_string()?
+            })
+        }
+    }
+
     /// 0: Perform Respawn | Sent when the client is ready to complete login and when the client is ready to respawn after death.
     /// 1: Request Stats   | Sent when the client opens the Statistics menu
     ///
