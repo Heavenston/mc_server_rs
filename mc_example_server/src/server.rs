@@ -23,6 +23,7 @@ pub struct Server {
     max_players: u16,
     view_distance: u16,
     brand: String,
+    spawn_location: Location,
 }
 
 impl Server {
@@ -33,6 +34,13 @@ impl Server {
             max_players: 10,
             view_distance: 10,
             brand: "BEST SERVER EVER".to_string(),
+            spawn_location: Location {
+                x: 0.0,
+                y: 6.0,
+                z: 0.0,
+                yaw: 0.0,
+                pitch: 0.0
+            }
         }
     }
     pub async fn listen(server: Arc<RwLock<Server>>, addr: impl ToSocketAddrs) -> Result<()> {
@@ -322,19 +330,14 @@ impl Server {
                         .update_player_view_position(player_eid)
                         .await
                         .unwrap();
+                    let spawn_location = server.read().await.spawn_location.clone();
                     // Update position
                     entity_pool
                         .read()
                         .await
                         .teleport_entity(
                             player_eid,
-                            Location {
-                                x: 0.0,
-                                y: 20.0,
-                                z: 0.0,
-                                yaw: 0.0,
-                                pitch: 0.0,
-                            },
+                            spawn_location,
                         )
                         .await;
                 }
