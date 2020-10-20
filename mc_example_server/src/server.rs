@@ -5,18 +5,16 @@ use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::{ChunkData, Location};
+use crate::entity_pool::EntityPool;
 
 use anyhow::{Error, Result};
 use log::*;
-use mc_networking::data_types::bitbuffer::BitBuffer;
 use serde_json::json;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::sync::{Mutex, RwLock};
-use tokio::time::{Duration, Instant};
+use tokio::time::Duration;
 use uuid::Uuid;
-use crate::entity_pool::{EntityPool, broadcast_to};
 use tokio::stream::StreamExt;
 
 pub struct Server {
