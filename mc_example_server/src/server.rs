@@ -1,21 +1,21 @@
 use crate::entity::player::Player;
 use crate::entity::BoxedEntity;
+use crate::entity_pool::EntityPool;
 use mc_networking::client::client_event::*;
 use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::{ChunkData, Location};
-use crate::entity_pool::EntityPool;
 
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
 use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
+use tokio::stream::StreamExt;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::Duration;
 use uuid::Uuid;
-use tokio::stream::StreamExt;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -28,7 +28,7 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Self {
-            entity_pool: Arc::new(RwLock::new(EntityPool::new(10*16))),
+            entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             entity_id_counter: 0,
             max_players: 10,
             view_distance: 10,
@@ -81,7 +81,8 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::LoginStart { response, username } => {
-                    if (server.read().await.max_players as usize) <= entity_pool.read().await.get_players().len()
+                    if (server.read().await.max_players as usize)
+                        <= entity_pool.read().await.get_players().len()
                     {
                         response
                             .send(LoginStartResult::Disconnect {
@@ -288,8 +289,16 @@ impl Server {
                             .unwrap();
                     }
 
-                    entity_pool.write().await.add_entity(Arc::clone(player)).await;
-                    entity_pool.write().await.add_player(Arc::clone(player)).await;
+                    entity_pool
+                        .write()
+                        .await
+                        .add_entity(Arc::clone(player))
+                        .await;
+                    entity_pool
+                        .write()
+                        .await
+                        .add_player(Arc::clone(player))
+                        .await;
 
                     // Send server brand
                     {
@@ -492,12 +501,20 @@ impl Server {
     }
 
     async fn update_player_view_position(&self, player_id: i32) -> Result<()> {
-        let entity = self.entity_pool.read().await.get_player(player_id).ok_or(Error::msg("No player found"))?;
+        let entity = self
+            .entity_pool
+            .read()
+            .await
+            .get_player(player_id)
+            .ok_or(Error::msg("No player found"))?;
         let location = entity.read().await.location().clone();
 
         let (chunk_x, chunk_z) = (location.chunk_x(), location.chunk_z());
 
-        self.entity_pool.read().await.send_to_player(player_id, &C40UpdateViewPosition { chunk_x, chunk_z })
+        self.entity_pool
+            .read()
+            .await
+            .send_to_player(player_id, &C40UpdateViewPosition { chunk_x, chunk_z })
             .await
             .unwrap();
         let loaded_chunks = entity.read().await.as_player()?.loaded_chunks.clone();
@@ -509,15 +526,18 @@ impl Server {
             if loaded_chunks.contains(&(x, z))
                 && ((chunk_x - x).pow(2) + (chunk_z - z).pow(2)) >= view_distance2
             {
-                self.entity_pool.read().await.send_to_player(
-                    player_id,
-                    &C1CUnloadChunk {
-                        chunk_x: x,
-                        chunk_z: z,
-                    },
-                )
-                .await
-                .unwrap();
+                self.entity_pool
+                    .read()
+                    .await
+                    .send_to_player(
+                        player_id,
+                        &C1CUnloadChunk {
+                            chunk_x: x,
+                            chunk_z: z,
+                        },
+                    )
+                    .await
+                    .unwrap();
                 entity
                     .write()
                     .await
@@ -532,7 +552,12 @@ impl Server {
                     && (chunk_x - x).pow(2) + (chunk_z - z).pow(2) <= view_distance2
                 {
                     let chunk_data = self.get_chunk(x, z).await;
-                    self.entity_pool.read().await.send_to_player(player_id, &chunk_data).await.unwrap();
+                    self.entity_pool
+                        .read()
+                        .await
+                        .send_to_player(player_id, &chunk_data)
+                        .await
+                        .unwrap();
                     entity
                         .write()
                         .await

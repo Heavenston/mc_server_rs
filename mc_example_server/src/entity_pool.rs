@@ -1,12 +1,12 @@
-use crate::entity::BoxedEntity;
 use crate::entity::player::Player;
+use crate::entity::BoxedEntity;
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 
-use tokio::sync::RwLock;
+use anyhow::{Error, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
-use anyhow::{Result, Error};
+use tokio::sync::RwLock;
 
 pub struct EntityPool {
     pub view_distance: u16,
@@ -37,21 +37,29 @@ impl EntityPool {
         for entity in self.players.values() {
             let entity = entity.read().await;
             let player = entity.downcast_ref::<Player>().unwrap();
-            player
-                .client
-                .lock()
-                .await
-                .send_packet(packet)
-                .await?;
+            player.client.lock().await.send_packet(packet).await?;
         }
         Ok(())
     }
     pub async fn send_to_player(&self, player: i32, packet: &impl ClientBoundPacket) -> Result<()> {
-        self.players.get(&player).ok_or(Error::msg(""))?.read().await.as_player()?.client.lock().await.send_packet(packet).await?;
+        self.players
+            .get(&player)
+            .ok_or(Error::msg(""))?
+            .read()
+            .await
+            .as_player()?
+            .client
+            .lock()
+            .await
+            .send_packet(packet)
+            .await?;
 
         Ok(())
     }
-    pub async fn get_filtered_players(&self, filter: impl Fn(&Player) -> bool) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
+    pub async fn get_filtered_players(
+        &self,
+        filter: impl Fn(&Player) -> bool,
+    ) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
         for (eid, player) in self.players.iter() {
             let result = {
@@ -68,7 +76,11 @@ impl EntityPool {
     /// Get all players in view distance of an entity
     pub async fn get_players_around(&self, eid: i32) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
-        for (player_eid, player) in self.get_filtered_players(|p| p.entity_id != eid).await.into_iter() {
+        for (player_eid, player) in self
+            .get_filtered_players(|p| p.entity_id != eid)
+            .await
+            .into_iter()
+        {
             if self.can_see_each_other(player_eid, eid).await {
                 players.insert(player_eid, player);
             }
@@ -83,7 +95,9 @@ impl EntityPool {
         for (eid, entity) in self.entities.iter().map(|(a, b)| (*a, Arc::clone(b))) {
             let entity_location = entity.read().await.location().clone();
 
-            for (player_eid, player) in self.get_filtered_players(|player| player.entity_id != eid).await
+            for (player_eid, player) in self
+                .get_filtered_players(|player| player.entity_id != eid)
+                .await
             {
                 let view_distance2 = self.view_distance.pow(2) as f64;
                 let player_location = player.read().await.location().clone();
@@ -112,8 +126,8 @@ impl EntityPool {
                                     pitch: entity.location.pitch_angle(),
                                 },
                             )
-                                .await
-                                .unwrap();
+                            .await
+                            .unwrap();
                         }
                         _ => unimplemented!(),
                     }
@@ -131,8 +145,8 @@ impl EntityPool {
                             head_yaw: entity.read().await.location().yaw_angle(),
                         },
                     )
-                        .await
-                        .unwrap();
+                    .await
+                    .unwrap();
                 }
                 if is_loaded && !should_be_loaded {
                     // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
@@ -142,8 +156,8 @@ impl EntityPool {
                             entities: vec![eid],
                         },
                     )
-                        .await
-                        .unwrap();
+                    .await
+                    .unwrap();
                     player
                         .write()
                         .await
@@ -184,8 +198,8 @@ impl EntityPool {
                         entities: to_destroy,
                     },
                 )
-                    .await
-                    .unwrap();
+                .await
+                .unwrap();
             }
         }
 
@@ -216,7 +230,7 @@ impl EntityPool {
                     },
                     players.clone(),
                 )
-                    .await;
+                .await;
             }
 
             if previous_location.distance2(&new_location) > 8.0 * 8.0 {
@@ -232,7 +246,7 @@ impl EntityPool {
                     },
                     players,
                 )
-                    .await;
+                .await;
             } else if has_position_changed && has_rotation_changed {
                 broadcast_to(
                     &C28EntityPositionAndRotation {
@@ -249,7 +263,7 @@ impl EntityPool {
                     },
                     players,
                 )
-                    .await;
+                .await;
             } else if has_position_changed {
                 broadcast_to(
                     &C27EntityPosition {
@@ -264,7 +278,7 @@ impl EntityPool {
                     },
                     players,
                 )
-                    .await;
+                .await;
             } else if has_rotation_changed {
                 broadcast_to(
                     &C29EntityRotation {
@@ -275,17 +289,17 @@ impl EntityPool {
                     },
                     players,
                 )
-                    .await;
+                .await;
             } else {
-                broadcast_to(&C2AEntityMovement { entity_id: eid }, players)
-                    .await;
+                broadcast_to(&C2AEntityMovement { entity_id: eid }, players).await;
             }
         }
     }
 
     fn get_synced_entity_location(&mut self, eid: i32) -> Location {
         if !self.synced_entities_location.contains_key(&eid) {
-            self.synced_entities_location.insert(eid, Location::default());
+            self.synced_entities_location
+                .insert(eid, Location::default());
         }
 
         self.synced_entities_location[&eid].clone()
@@ -357,14 +371,12 @@ impl EntityPool {
                     teleport_id: 0,
                 },
             )
-                .await
-                .unwrap();
+            .await
+            .unwrap();
         }
     }
     pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
-        let entity = self
-            .get_entity(entity_id)
-            .ok_or(Error::msg("Invalid "))?;
+        let entity = self.get_entity(entity_id).ok_or(Error::msg("Invalid "))?;
         let metadata = entity.read().await.metadata();
 
         broadcast_to(

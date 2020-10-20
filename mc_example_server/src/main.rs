@@ -1,6 +1,6 @@
 mod entity;
-mod server;
 mod entity_pool;
+mod server;
 
 use server::Server;
 
