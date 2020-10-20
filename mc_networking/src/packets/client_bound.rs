@@ -315,6 +315,37 @@ mod play {
         }
     }
 
+    /// Identifying the difference between Chat/System Message is important as
+    /// it helps respect the user's chat visibility options.
+    /// See processing chat for more info about these positions.
+    ///
+    /// https://wiki.vg/Pre-release_protocol#Chat_Message_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C0EChatMessage {
+        /// Limited to 32767 bytes
+        pub json_data: serde_json::Value,
+        /// 0: chat (chat box), 1: system message (chat box), 2: game info (above hotbar).
+        pub position: u8,
+        /// Used by the Notchian client for the disableChat launch option. Setting to `None` will always display the message regardless of the setting.
+        pub sender: Option<uuid::Uuid>,
+    }
+    impl ClientBoundPacket for C0EChatMessage {
+        fn packet_id() -> i32 {
+            0x0E
+        }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.json_data.to_string());
+            encoder.write_u8(self.position);
+            match self.sender.as_ref() {
+                Some(uuid) => encoder.write_uuid(uuid),
+                None => {
+                    encoder.write_u64(0);
+                    encoder.write_u64(0);
+                }
+            }
+        }
+    }
+
     /// Sent by the server when items in multiple slots (in a window) are added/removed.
     /// This includes the main inventory, equipped armour and crafting slots.
     ///
