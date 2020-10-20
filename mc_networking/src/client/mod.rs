@@ -349,7 +349,7 @@ async fn listen_client_packets(
                 if raw_packet.packet_id == S03ChatMessage::packet_id() {
                     let chat_message = S03ChatMessage::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::ChatMessage {
-                        message: chat_message.message
+                        message: chat_message.message,
                     })?
                 } else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()

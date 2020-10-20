@@ -236,7 +236,7 @@ mod play {
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
-                message: decoder.read_string()?
+                message: decoder.read_string()?,
             })
         }
     }

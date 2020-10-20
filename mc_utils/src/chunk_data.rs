@@ -7,9 +7,7 @@ pub struct ChunkDataSection {
 }
 impl ChunkDataSection {
     pub fn new() -> Self {
-        Self {
-            blocks: [0; 4096],
-        }
+        Self { blocks: [0; 4096] }
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
