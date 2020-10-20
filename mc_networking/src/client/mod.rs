@@ -346,7 +346,12 @@ async fn listen_client_packets(
             }
 
             ClientState::Play => {
-                if raw_packet.packet_id == S04ClientStatus::packet_id() {
+                if raw_packet.packet_id == S03ChatMessage::packet_id() {
+                    let chat_message = S03ChatMessage::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::ChatMessage {
+                        message: chat_message.message
+                    })?
+                } else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()
                 } else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");

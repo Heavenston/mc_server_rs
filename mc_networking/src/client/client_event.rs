@@ -23,6 +23,9 @@ pub enum ClientEvent {
         delay: u128,
     },
 
+    ChatMessage {
+        message: String,
+    },
     PlayerPosition {
         x: f64,
         y: f64,
