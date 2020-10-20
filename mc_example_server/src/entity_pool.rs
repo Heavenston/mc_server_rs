@@ -41,7 +41,11 @@ impl EntityPool {
         }
         Ok(())
     }
-    pub async fn send_to_player(&self, player_id: i32, packet: &impl ClientBoundPacket) -> Result<()> {
+    pub async fn send_to_player(
+        &self,
+        player_id: i32,
+        packet: &impl ClientBoundPacket,
+    ) -> Result<()> {
         self.players
             .get(&player_id)
             .ok_or(Error::msg("Invalid player id"))?

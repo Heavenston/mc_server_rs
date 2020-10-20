@@ -40,7 +40,7 @@ impl Server {
                 y: 6.0,
                 z: 0.0,
                 yaw: 0.0,
-                pitch: 0.0
+                pitch: 0.0,
             },
             tps: 20.0,
         }
@@ -337,10 +337,7 @@ impl Server {
                     entity_pool
                         .read()
                         .await
-                        .teleport_entity(
-                            player_eid,
-                            spawn_location,
-                        )
+                        .teleport_entity(player_eid, spawn_location)
                         .await;
                 }
                 ClientEvent::Logout => {
