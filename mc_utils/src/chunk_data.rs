@@ -1,15 +1,13 @@
 use mc_networking::data_types::bitbuffer::BitBuffer;
 use mc_networking::packets::client_bound::{C20ChunkData, C20ChunkDataSection};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub struct ChunkDataSection {
-    block_count: i16,
     blocks: [u16; 4096],
 }
 impl ChunkDataSection {
     pub fn new() -> Self {
         Self {
-            block_count: 0,
             blocks: [0; 4096],
         }
     }
