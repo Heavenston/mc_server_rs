@@ -24,6 +24,7 @@ pub struct Server {
     view_distance: u16,
     brand: String,
     spawn_location: Location,
+    tps: f64,
 }
 
 impl Server {
@@ -40,7 +41,8 @@ impl Server {
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0
-            }
+            },
+            tps: 20.0,
         }
     }
     pub async fn listen(server: Arc<RwLock<Server>>, addr: impl ToSocketAddrs) -> Result<()> {
@@ -610,11 +612,13 @@ impl Server {
             let ticks = Arc::new(RwLock::new(0i32));
             tokio::task::spawn({
                 let ticks = Arc::clone(&ticks);
+                let server = Arc::clone(&server);
                 async move {
                     loop {
                         tokio::time::delay_for(Duration::from_secs(10)).await;
                         let n = (*ticks.read().await as f64) / 10f64;
                         *ticks.write().await = 0;
+                        server.write().await.tps = n;
                         info!("{} TPS", n);
                     }
                 }
