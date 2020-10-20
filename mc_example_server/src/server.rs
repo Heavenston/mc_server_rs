@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::stream::StreamExt;
 use tokio::sync::{Mutex, RwLock};
-use tokio::time::Duration;
+use tokio::time::{Duration, Instant};
 use uuid::Uuid;
 
 pub struct Server {
@@ -630,5 +630,19 @@ impl Server {
     }
     pub async fn tick(&mut self) {
         self.entity_pool.write().await.tick().await;
+        self.entity_pool.read().await.broadcast(&C53PlayerListHeaderAndFooter {
+            header: json!({
+                "text": "\nHeavenstone\n",
+                "color": "blue"
+            }),
+            footer: json!({
+                "text": "TPS: ",
+                "color": "white",
+                "extra": [ {
+                    "text": format!("{}", self.tps),
+                    "color": "green"
+                } ]
+            })
+        }).await.unwrap();
     }
 }
