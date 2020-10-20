@@ -369,6 +369,16 @@ impl Server {
                         .unwrap();
                 }
 
+                ClientEvent::ChatMessage { message } => {
+                    let player = player.as_ref().unwrap();
+                    entity_pool.read().await.broadcast(&C0EChatMessage {
+                        json_data: json!({
+                            "text": format!("<{}> {}", player.read().await.as_player().unwrap().username, message)
+                        }),
+                        position: 0,
+                        sender: Some(player.read().await.uuid().clone())
+                    }).await.unwrap();
+                }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let last_location = player.as_ref().unwrap().read().await.location().clone();
                     let new_location = Location {
