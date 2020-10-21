@@ -1,4 +1,4 @@
-use mc_networking::data_types::Angle;
+use mc_networking::data_types::{Angle, Position};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Location {
@@ -10,6 +10,14 @@ pub struct Location {
 }
 
 impl Location {
+    pub fn block_position(&self) -> Position {
+        Position {
+            x: self.x.floor() as i32,
+            y: self.y.floor() as i32,
+            z: self.z.floor() as i32,
+        }
+    }
+
     pub fn distance2(&self, other: &Location) -> f64 {
         (other.x - self.x).powf(2.0) + (other.y - self.y).powf(2.0) + (other.z - self.z).powf(2.0)
     }
