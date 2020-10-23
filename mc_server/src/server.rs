@@ -386,6 +386,7 @@ impl Server {
                         .await;
                 }
                 ClientEvent::Logout => {
+                    server.write().await.players.remove_entity(player_eid);
                     entity_pool.write().await.entities.remove_entity(player_eid);
                     entity_pool.write().await.players.remove_entity(player_eid);
                     chunk_pool.write().await.remove_player(player_eid);
