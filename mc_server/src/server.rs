@@ -550,8 +550,25 @@ impl Server {
             });
 
             loop {
-                *ticks.write().await += 1;
+                let finished = Arc::new(RwLock::new(false));
+                tokio::task::spawn({
+                    let finished = Arc::clone(&finished);
+                    async move {
+                        tokio::time::delay_for(Duration::from_millis(500)).await;
+                        if !*finished.read().await {
+                            error!("Tick took more than 500ms !");
+                        }
+                        tokio::time::delay_for(Duration::from_millis(1500)).await;
+                        if !*finished.read().await {
+                            error!("A tick took more than 2s, closing server");
+                            std::process::exit(0);
+                        }
+                    }
+                });
                 server.write().await.tick().await;
+                *ticks.write().await += 1;
+                *finished.write().await = true;
+
                 tps_interval.next().await;
             }
         });
