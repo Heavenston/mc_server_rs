@@ -62,7 +62,6 @@ impl<T: ChunkGenerator> ChunkPool<T> {
     }
 
     async fn update_player_view_position(&mut self, player_id: i32, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        println!("UPDATE {}", player_id);
         let player = Arc::clone(&self.players[&player_id]);
         for dx in (-self.view_distance / 2)..self.view_distance / 2 {
             for dz in (-self.view_distance / 2)..self.view_distance / 2 {
