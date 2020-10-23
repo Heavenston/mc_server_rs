@@ -358,6 +358,8 @@ impl Server {
                 }
                 ClientEvent::Logout => {
                     entity_pool.write().await.remove_entity(player_eid);
+                    entity_pool.write().await.remove_player(player_eid);
+                    chunk_pool.write().await.remove_player(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     entity_pool
                         .read()
