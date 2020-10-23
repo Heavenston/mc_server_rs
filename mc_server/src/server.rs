@@ -22,6 +22,8 @@ use tokio::{
     time::Duration,
 };
 use uuid::Uuid;
+use tokio::join;
+use tokio::time::Instant;
 
 struct Generator;
 #[async_trait]
@@ -547,22 +549,26 @@ impl Server {
         tokio::task::spawn(async move {
             let mut tps_interval = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
             let ticks = Arc::new(RwLock::new(0i32));
+            let times = Arc::new(RwLock::new(0u128));
             tokio::task::spawn({
                 let ticks = Arc::clone(&ticks);
                 let server = Arc::clone(&server);
+                let times = Arc::clone(&times);
                 async move {
                     loop {
                         tokio::time::delay_for(Duration::from_secs(10)).await;
                         let n = (*ticks.read().await as f64) / 10f64;
                         *ticks.write().await = 0;
                         server.write().await.tps = n;
-                        info!("{} TPS", n);
+                        info!("{} TPS (~{}ms)", n, *times.read().await / 10);
+                        *times.write().await = 0;
                     }
                 }
             });
 
             loop {
                 let finished = Arc::new(RwLock::new(false));
+                let start = Instant::now();
                 tokio::task::spawn({
                     let finished = Arc::clone(&finished);
                     async move {
@@ -578,6 +584,7 @@ impl Server {
                     }
                 });
                 server.write().await.tick().await;
+                *times.write().await += start.elapsed().as_millis();
                 *ticks.write().await += 1;
                 *finished.write().await = true;
 
@@ -587,8 +594,19 @@ impl Server {
     }
 
     pub async fn tick(&mut self) {
-        self.chunk_pool.write().await.tick().await.unwrap();
-        self.entity_pool.write().await.tick().await;
+        let chunk_tick = {
+            let chunk_pool = Arc::clone(&self.chunk_pool);
+            async move {
+                chunk_pool.write().await.tick().await.unwrap();
+            }
+        };
+        let entity_tick = {
+            let entity_pool = Arc::clone(&self.entity_pool);
+            async move {
+                entity_pool.write().await.tick().await;
+            }
+        };
+        join!(chunk_tick, entity_tick);
         self.entity_pool
             .read()
             .await
