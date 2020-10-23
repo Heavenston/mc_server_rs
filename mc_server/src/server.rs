@@ -25,16 +25,20 @@ use uuid::Uuid;
 use tokio::join;
 use tokio::time::Instant;
 
-struct Generator;
-#[async_trait]
-impl ChunkGenerator for Generator {
-    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> ChunkData {
+struct Generator {
+    one: ChunkData,
+    two: ChunkData,
+}
+impl Generator {
+    pub fn new() -> Self {
+        Self {
+            one: Self::get_chunk(1),
+            two: Self::get_chunk(3),
+        }
+    }
+
+    fn get_chunk(block: u16) -> ChunkData {
         let mut data = ChunkData::new();
-        let block = if (x+z) % 2 == 0 {
-            1
-        } else {
-            3
-        };
         for x in 0..16 {
             for z in 0..16 {
                 for y in 0..=100 {
@@ -43,6 +47,16 @@ impl ChunkGenerator for Generator {
             }
         }
         data
+    }
+}
+#[async_trait]
+impl ChunkGenerator for Generator {
+    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> ChunkData {
+        if (x+z) % 2 == 0 {
+            self.one.clone()
+        } else {
+            self.two.clone()
+        }
     }
 }
 
@@ -61,7 +75,7 @@ impl Server {
     pub fn new() -> Self {
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
-            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator, 10))),
+            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 10))),
             entity_id_counter: 0,
             max_players: 10,
             view_distance: 10,
