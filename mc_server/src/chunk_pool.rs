@@ -81,9 +81,10 @@ impl<T: ChunkGenerator> ChunkPool<T> {
                         player.write().await.as_player_mut()?.loaded_chunks.insert((current_chunk.0 + dx, current_chunk.1 + dz));
                     }
                 }
-                for chunk in player.read().await.as_player()?.loaded_chunks.iter() {
-                    if (chunk.0 - current_chunk.0).abs() >= self.view_distance
-                    || (chunk.1 - current_chunk.1).abs() >= self.view_distance {
+                let loaded_chunks = player.read().await.as_player()?.loaded_chunks.clone();
+                for chunk in loaded_chunks {
+                    if (chunk.0 - current_chunk.0).abs() >= self.view_distance/2
+                    || (chunk.1 - current_chunk.1).abs() >= self.view_distance/2 {
                         player.read().await.as_player()?.client.lock().await.unload_chunk(chunk.0, chunk.1).await?;
                         player.write().await.as_player_mut()?.loaded_chunks.remove(&chunk);
                     }
