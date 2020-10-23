@@ -85,7 +85,7 @@ impl<T: ChunkGenerator> ChunkPool<T> {
                     .client
                     .lock()
                     .await
-                    .send_packet(&chunk.read().await.encode())
+                    .send_packet(&chunk.read().await.encode(true))
                     .await?;
                 player
                     .write()
