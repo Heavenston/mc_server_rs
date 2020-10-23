@@ -92,13 +92,15 @@ impl EntityPool {
         /*
         Update entities visibilities
         */
-        for (eid, entity) in self.entities.iter().map(|(a, b)| (*a, Arc::clone(b))) {
+        let entities = self.entities.clone();
+        for (eid, entity) in entities {
+            let synced_entity_location = self.get_synced_entity_location(eid);
             let entity_location = entity.read().await.location().clone();
 
-            for (player_eid, player) in self
+            let players = self
                 .get_filtered_players(|player| player.entity_id != eid)
-                .await
-            {
+                .await;
+            for (player_eid, player) in players {
                 let view_distance2 = self.view_distance.pow(2) as f64;
                 let player_location = player.read().await.location().clone();
                 let should_be_loaded =
@@ -119,11 +121,11 @@ impl EntityPool {
                                 &C04SpawnPlayer {
                                     entity_id: eid,
                                     uuid: entity.uuid.clone(),
-                                    x: entity.location.x,
-                                    y: entity.location.y,
-                                    z: entity.location.z,
-                                    yaw: entity.location.yaw_angle(),
-                                    pitch: entity.location.pitch_angle(),
+                                    x: synced_entity_location.x,
+                                    y: synced_entity_location.y,
+                                    z: synced_entity_location.z,
+                                    yaw: synced_entity_location.yaw_angle(),
+                                    pitch: synced_entity_location.pitch_angle(),
                                 },
                             )
                             .await
