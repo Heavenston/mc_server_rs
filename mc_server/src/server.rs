@@ -588,6 +588,8 @@ impl Server {
             });
 
             loop {
+                tps_interval.tick().await;
+
                 let finished = Arc::new(RwLock::new(false));
                 let start = Instant::now();
                 tokio::task::spawn({
@@ -595,21 +597,23 @@ impl Server {
                     async move {
                         tokio::time::delay_for(Duration::from_millis(500)).await;
                         if !*finished.read().await {
-                            warn!("Tick took more than 500ms !");
+                            warn!("Tick takes more than 500ms !");
                         }
-                        tokio::time::delay_for(Duration::from_millis(4500)).await;
+                        tokio::time::delay_for(Duration::from_millis(9500)).await;
                         if !*finished.read().await {
-                            warn!("A tick took more than 5s, closing server");
+                            warn!("A tick take more than 10s, closing server");
                             std::process::exit(0);
                         }
                     }
                 });
                 server.write().await.tick().await;
-                *times.write().await += start.elapsed().as_millis();
+                let elapsed = start.elapsed().as_millis();
+                if elapsed > 200 {
+                    debug!("Tick took {}ms", elapsed);
+                }
+                *times.write().await += elapsed;
                 *ticks.write().await += 1;
                 *finished.write().await = true;
-
-                tps_interval.tick().await;
             }
         });
     }
