@@ -3,6 +3,7 @@ mod chunk_pool;
 mod entity;
 mod entity_pool;
 mod server;
+mod entity_manager;
 
 use server::Server;
 

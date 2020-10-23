@@ -5,6 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+use crate::entity_manager::{PlayerManager, PlayerWrapper};
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -18,7 +19,7 @@ pub struct ChunkPool<T: ChunkGenerator> {
     pub view_distance: i32,
     chunk_generator: T,
     chunks: HashMap<(i32, i32), Arc<RwLock<Chunk>>>,
-    players: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
+    players: PlayerManager,
     synced_player_chunks: HashMap<i32, (i32, i32)>,
 }
 
@@ -28,7 +29,7 @@ impl<T: ChunkGenerator> ChunkPool<T> {
             view_distance,
             chunk_generator,
             chunks: HashMap::new(),
-            players: HashMap::new(),
+            players: PlayerManager::new(),
             synced_player_chunks: HashMap::new(),
         }
     }
@@ -47,22 +48,20 @@ impl<T: ChunkGenerator> ChunkPool<T> {
         self.chunks.get(&(x, z)).cloned()
     }
 
-    pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.players }
-    pub fn has_player(&self, id: i32) -> bool { self.players.contains_key(&id) }
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
+        self.players.add_entity(Arc::clone(&player)).await;
         let eid = player.read().await.entity_id();
-        self.players.insert(eid, Arc::clone(&player));
         let location = player.read().await.location().clone();
         self.update_player_view_position(eid, location.chunk_x(), location.chunk_z()).await.unwrap();
         self.synced_player_chunks.insert(eid, (location.chunk_x(), location.chunk_z()));
     }
-    pub fn remove_player(&mut self, id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
+    pub fn remove_player(&mut self, id: i32) -> Option<PlayerWrapper> {
         self.synced_player_chunks.remove(&id);
-        self.players.remove(&id)
+        self.players.remove_entity(id)
     }
 
     async fn update_player_view_position(&mut self, player_id: i32, chunk_x: i32, chunk_z: i32) -> Result<()> {
-        let player = Arc::clone(&self.players[&player_id]);
+        let player = Arc::clone(&self.players[player_id]);
         for dx in -self.view_distance..self.view_distance {
             for dz in -self.view_distance..self.view_distance {
                 if dx*dx + dz*dz > self.view_distance*self.view_distance {

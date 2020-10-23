@@ -9,6 +9,7 @@ use mc_networking::{
     packets::client_bound::*,
 };
 use mc_utils::{ChunkData, Location};
+use crate::entity_manager::{PlayerManager, PlayerWrapper};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -17,7 +18,6 @@ use serde_json::json;
 use std::sync::Arc;
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
-    stream::StreamExt,
     sync::{Mutex, RwLock},
     time::Duration,
 };
@@ -71,6 +71,7 @@ impl ChunkGenerator for Generator {
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_pool: Arc<RwLock<ChunkPool<Generator>>>,
+    players: PlayerManager,
     entity_id_counter: i32,
     max_players: u16,
     view_distance: u16,
@@ -82,11 +83,12 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Self {
-            entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
-            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 10))),
+            entity_pool: Arc::new(RwLock::new(EntityPool::new(5 * 16))),
+            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 5))),
+            players: PlayerManager::new(),
             entity_id_counter: 0,
             max_players: 10,
-            view_distance: 10,
+            view_distance: 5,
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: Location {
                 x: 0.0,
@@ -123,7 +125,7 @@ impl Server {
         client: Arc<Mutex<Client>>,
         mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
-        let mut player: Option<Arc<RwLock<BoxedEntity>>> = None;
+        let mut player: Option<PlayerWrapper> = None;
         let mut player_eid = -1i32;
         let entity_pool = Arc::clone(&server.read().await.entity_pool);
         let chunk_pool = Arc::clone(&server.read().await.chunk_pool);
@@ -139,7 +141,7 @@ impl Server {
                             },
                             "players": {
                                 "max": server.read().await.max_players,
-                                "online": entity_pool.read().await.get_players().len(),
+                                "online": server.read().await.players.size(),
                                 "sample": []
                             },
                             "description": "Hi"
@@ -148,7 +150,7 @@ impl Server {
                 }
                 ClientEvent::LoginStart { response, username } => {
                     if (server.read().await.max_players as usize)
-                        <= entity_pool.read().await.get_players().len()
+                        <= server.read().await.players.size()
                     {
                         response
                             .send(LoginStartResult::Disconnect {
@@ -160,14 +162,17 @@ impl Server {
                         let mut server_write = server.write().await;
                         server_write.entity_id_counter += 1;
                         player_eid = server_write.entity_id_counter;
-                        let uuid = Uuid::new_v4();
+                        let uuid = Uuid::new_v3(
+                            &Uuid::new_v4(),
+                            format!("OfflinePlayer:{}", username).as_bytes(),
+                        );
                         let entity = Arc::new(RwLock::new(BoxedEntity::new(Player::new(
                             username.clone(),
                             server_write.entity_id_counter,
                             uuid.clone(),
                             Arc::clone(&client),
                         ))));
-                        player = Some(entity);
+                        player = Some(entity.into());
 
                         info!(
                             "{} joined the game, EID: {}, UUID: {}",
@@ -303,17 +308,16 @@ impl Server {
                     };
                     // Send to him all players (and himself)
                     {
-                        let entity_pool = entity_pool.read().await;
                         let players = {
                             let mut players = vec![my_player_info.clone()];
-                            for (.., player) in entity_pool.get_players().iter() {
+                            for player in server.read().await.players.entities() {
                                 let player = player.read().await;
                                 let player = player.as_player().unwrap();
                                 players.push(C32PlayerInfoPlayerUpdate::AddPlayer {
                                     uuid: player.uuid.clone(),
                                     name: player.username.clone(),
                                     properties: vec![],
-                                    gamemode: player.gamemode as i32,
+                                    gamemode: 1,
                                     ping: player.ping,
                                     display_name: None,
                                 });
@@ -328,43 +332,27 @@ impl Server {
                             .unwrap();
                     }
                     // Send to all his player info
-                    entity_pool
+                    server
                         .read()
-                        .await
+                        .await.players
                         .broadcast(&C32PlayerInfo {
                             players: vec![my_player_info],
                         })
                         .await
                         .unwrap();
 
-                    {
-                        let player = player.read().await;
-                        let player = player.as_player().unwrap();
-
-                        client
-                            .lock()
-                            .await
-                            .send_player_abilities(
-                                player.invulnerable,
-                                player.is_flying,
-                                player.can_fly,
-                                player.gamemode == 1,
-                                player.flying_speed,
-                                player.fov_modifier,
-                            )
-                            .await
-                            .unwrap();
-                    }
+                    player.update_abilities().await.unwrap();
+                    server.write().await.players.add_entity(Arc::clone(&player)).await;
 
                     entity_pool
                         .write()
-                        .await
+                        .await.entities
                         .add_entity(Arc::clone(player))
                         .await;
                     entity_pool
                         .write()
-                        .await
-                        .add_player(Arc::clone(player))
+                        .await.players
+                        .add_entity(Arc::clone(player))
                         .await;
 
                     chunk_pool
@@ -376,9 +364,9 @@ impl Server {
                     // Send server brand
                     {
                         let brand = server.read().await.brand.clone();
-                        entity_pool
+                        server
                             .read()
-                            .await
+                            .await.players
                             .send_to_player(player_eid, &{
                                 let mut builder =
                                     C17PluginMessageBuilder::new("minecraft:brand".to_string());
@@ -398,13 +386,13 @@ impl Server {
                         .await;
                 }
                 ClientEvent::Logout => {
-                    entity_pool.write().await.remove_entity(player_eid);
-                    entity_pool.write().await.remove_player(player_eid);
+                    entity_pool.write().await.entities.remove_entity(player_eid);
+                    entity_pool.write().await.players.remove_entity(player_eid);
                     chunk_pool.write().await.remove_player(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
-                    entity_pool
+                    server
                         .read()
-                        .await
+                        .await.players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
                         })
@@ -417,9 +405,9 @@ impl Server {
                     let player = player.as_ref().unwrap();
                     player.write().await.as_player_mut().unwrap().ping = delay as i32;
                     let uuid = player.read().await.as_player().unwrap().uuid.clone();
-                    entity_pool
+                    server
                         .read()
-                        .await
+                        .await.players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
                                 uuid: uuid.clone(),
@@ -432,29 +420,14 @@ impl Server {
 
                 ClientEvent::ChatMessage { message } => {
                     let player = player.as_ref().unwrap();
-                    if message == "fly" {
-                        player.write().await.as_player_mut().unwrap().can_fly = true;
-                        let player = player.read().await;
-                        let player = player.as_player().unwrap();
-
-                        client
-                            .lock()
-                            .await
-                            .send_player_abilities(
-                                player.invulnerable,
-                                player.is_flying,
-                                player.can_fly,
-                                player.gamemode == 1,
-                                player.flying_speed,
-                                player.fov_modifier,
-                            )
-                            .await
-                            .unwrap();
+                    if message == "gm" {
+                        let current_gamemode = player.read().await.as_player().unwrap().gamemode;
+                        player.set_gamemode(if current_gamemode == 1 { 0 } else { 1 }).await;
                     }
                     else {
-                        entity_pool
+                        server
                             .read()
-                            .await
+                            .await.players
                             .broadcast(&C0EChatMessage {
                                 json_data: json!({
                                     "text":
@@ -640,9 +613,7 @@ impl Server {
             }
         };
         join!(chunk_tick, entity_tick);
-        self.entity_pool
-            .read()
-            .await
+        self.players
             .broadcast(&C53PlayerListHeaderAndFooter {
                 header: json!({
                     "text": "\nHeavenstone\n",
