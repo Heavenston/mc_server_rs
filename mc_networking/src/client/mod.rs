@@ -1,22 +1,22 @@
 pub mod client_event;
 
-use crate::packets::client_bound::*;
-use crate::packets::server_bound::*;
-use crate::packets::RawPacket;
+use crate::packets::{client_bound::*, server_bound::*, RawPacket};
 use client_event::*;
 
 use crate::data_types::Angle;
 use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
-use std::convert::TryInto;
-use std::net::Shutdown;
-use std::sync::Arc;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::net::TcpStream;
-use tokio::prelude::io::AsyncWriteExt;
-use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
-use tokio::time::{Duration, Instant};
+use std::{convert::TryInto, net::Shutdown, sync::Arc};
+use tokio::{
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpStream,
+    },
+    prelude::io::AsyncWriteExt,
+    sync::{mpsc, oneshot, Mutex, RwLock},
+    time::{Duration, Instant},
+};
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
 const KEEP_ALIVE_INTERVAL: u64 = 15_000;
@@ -63,14 +63,16 @@ impl Client {
                         {
                             *state.write().await = ClientState::Disconnected;
                             listener_sender.try_send(ClientEvent::Logout).unwrap();
-                        } else {
+                        }
+                        else {
                             error!(
                                 "Unexpected error while handling {:?}, {:#?}",
                                 write.lock().await.as_ref().peer_addr().unwrap(),
                                 e
                             );
                         }
-                    } else {
+                    }
+                    else {
                         error!(
                             "Unexpected error while handling {:?}, {:#?}",
                             write.lock().await.as_ref().peer_addr().unwrap(),
@@ -90,9 +92,8 @@ impl Client {
             event_receiver,
         )
     }
-    pub async fn get_state(&self) -> ClientState {
-        self.state.read().await.clone()
-    }
+
+    pub async fn get_state(&self) -> ClientState { self.state.read().await.clone() }
 
     pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();
@@ -108,11 +109,13 @@ impl Client {
         self.send_packet(&C3FHoldItemChange { slot }).await?;
         Ok(())
     }
+
     pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
         self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
             .await?;
         Ok(())
     }
+
     pub async fn send_player_abilities(
         &self,
         invulnerable: bool,
@@ -133,10 +136,12 @@ impl Client {
         .await?;
         Ok(())
     }
+
     pub async fn destroy_entities(&self, entities: Vec<i32>) -> Result<()> {
         self.send_packet(&C36DestroyEntities { entities }).await?;
         Ok(())
     }
+
     pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> Result<()> {
         self.send_packet(&C3AEntityHeadLook {
             entity_id,
@@ -145,6 +150,7 @@ impl Client {
         .await?;
         Ok(())
     }
+
     pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
         self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
             .await?;
@@ -200,7 +206,8 @@ async fn handle_keep_alive(
                         .shutdown(Shutdown::Both)
                         .unwrap();
                     *state.write().await = ClientState::Disconnected;
-                } else {
+                }
+                else {
                     debug!("Keep alive miss, sending it again");
                     write
                         .lock()
@@ -216,7 +223,8 @@ async fn handle_keep_alive(
                         .await
                         .unwrap();
                 }
-            } else {
+            }
+            else {
                 break;
             }
         }
@@ -282,7 +290,8 @@ async fn listen_client_packets(
                         .await
                         .write_all(response.encode().as_ref())
                         .await?;
-                } else if raw_packet.packet_id == S01Ping::packet_id() {
+                }
+                else if raw_packet.packet_id == S01Ping::packet_id() {
                     let packet: S01Ping = raw_packet.try_into()?;
                     let pong = C01Pong {
                         payload: packet.payload,
@@ -292,7 +301,8 @@ async fn listen_client_packets(
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
                     break;
-                } else {
+                }
+                else {
                     return Err(Error::msg("Invalid packet_id"));
                 }
             }
@@ -351,9 +361,11 @@ async fn listen_client_packets(
                     event_sender.try_send(ClientEvent::ChatMessage {
                         message: chat_message.message,
                     })?
-                } else if raw_packet.packet_id == S04ClientStatus::packet_id() {
+                }
+                else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()
-                } else if raw_packet.packet_id == S10KeepAlive::packet_id() {
+                }
+                else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let mut data = keep_alive_data.write().await;
                     let keep_alive = S10KeepAlive::decode(raw_packet)?;
@@ -364,7 +376,8 @@ async fn listen_client_packets(
                     event_sender.try_send(ClientEvent::Ping {
                         delay: data.sent_at.elapsed().as_millis(),
                     })?;
-                } else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
+                }
+                else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::PlayerPosition {
                         x: player_position.x,
@@ -372,7 +385,8 @@ async fn listen_client_packets(
                         z: player_position.z,
                         on_ground: player_position.on_ground,
                     })?;
-                } else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
+                }
+                else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
                     let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::PlayerPositionAndRotation {
                         x: packet.x,
@@ -382,21 +396,24 @@ async fn listen_client_packets(
                         pitch: packet.pitch,
                         on_ground: packet.on_ground,
                     })?;
-                } else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
+                }
+                else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::PlayerRotation {
                         yaw: player_rotation.yaw,
                         pitch: player_rotation.pitch,
                         on_ground: player_rotation.on_ground,
                     })?;
-                } else if raw_packet.packet_id == S1CEntityAction::packet_id() {
+                }
+                else if raw_packet.packet_id == S1CEntityAction::packet_id() {
                     let entity_action = S1CEntityAction::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::EntityAction {
                         entity_id: entity_action.entity_id,
                         action_id: entity_action.action_id,
                         jump_boost: entity_action.jump_boost,
                     })?;
-                } else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
+                }
+                else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
                     let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::PlayerAbilities {
                         is_flying: player_abilities.flags & 0x02 == 0x02,

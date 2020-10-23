@@ -15,7 +15,5 @@ impl Chunk {
         }
     }
 
-    pub fn encode(&self) -> C20ChunkData {
-        self.data.encode(self.x, self.z)
-    }
+    pub fn encode(&self) -> C20ChunkData { self.data.encode(self.x, self.z) }
 }

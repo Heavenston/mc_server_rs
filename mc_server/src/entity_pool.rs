@@ -1,11 +1,9 @@
-use crate::entity::player::Player;
-use crate::entity::BoxedEntity;
+use crate::entity::{player::Player, BoxedEntity};
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 
 use anyhow::{Error, Result};
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 pub struct EntityPool {
@@ -41,6 +39,7 @@ impl EntityPool {
         }
         Ok(())
     }
+
     pub async fn send_to_player(
         &self,
         player_id: i32,
@@ -60,6 +59,7 @@ impl EntityPool {
 
         Ok(())
     }
+
     pub async fn get_filtered_players(
         &self,
         filter: impl Fn(&Player) -> bool,
@@ -77,6 +77,7 @@ impl EntityPool {
         }
         players
     }
+
     /// Get all players in view distance of an entity
     pub async fn get_players_around(&self, eid: i32) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
@@ -251,7 +252,8 @@ impl EntityPool {
                     players,
                 )
                 .await;
-            } else if has_position_changed && has_rotation_changed {
+            }
+            else if has_position_changed && has_rotation_changed {
                 broadcast_to(
                     &C28EntityPositionAndRotation {
                         entity_id: eid,
@@ -268,7 +270,8 @@ impl EntityPool {
                     players,
                 )
                 .await;
-            } else if has_position_changed {
+            }
+            else if has_position_changed {
                 broadcast_to(
                     &C27EntityPosition {
                         entity_id: eid,
@@ -283,7 +286,8 @@ impl EntityPool {
                     players,
                 )
                 .await;
-            } else if has_rotation_changed {
+            }
+            else if has_rotation_changed {
                 broadcast_to(
                     &C29EntityRotation {
                         entity_id: eid,
@@ -294,7 +298,8 @@ impl EntityPool {
                     players,
                 )
                 .await;
-            } else {
+            }
+            else {
                 broadcast_to(&C2AEntityMovement { entity_id: eid }, players).await;
             }
         }
@@ -309,36 +314,36 @@ impl EntityPool {
         self.synced_entities_location[&eid].clone()
     }
 
-    pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        &self.players
-    }
-    pub fn has_player(&self, player_id: i32) -> bool {
-        self.players.contains_key(&player_id)
-    }
+    pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.players }
+
+    pub fn has_player(&self, player_id: i32) -> bool { self.players.contains_key(&player_id) }
+
     pub fn get_player(&self, player_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.players.get(&player_id).cloned()
     }
+
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
         let entity_id = player.read().await.entity_id();
         self.players.insert(entity_id, player);
     }
+
     pub fn remove_player(&mut self, player_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.players.remove(&player_id)
     }
 
-    pub fn get_entities(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        &self.entities
-    }
-    pub fn has_entity(&self, entity_id: i32) -> bool {
-        self.entities.contains_key(&entity_id)
-    }
+    pub fn get_entities(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.entities }
+
+    pub fn has_entity(&self, entity_id: i32) -> bool { self.entities.contains_key(&entity_id) }
+
     pub fn get_entity(&self, entity_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.entities.get(&entity_id).cloned()
     }
+
     pub async fn add_entity(&mut self, entity: Arc<RwLock<BoxedEntity>>) {
         let entity_id = entity.read().await.entity_id();
         self.entities.insert(entity_id, entity);
     }
+
     pub fn remove_entity(&mut self, entity_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.entities.remove(&entity_id)
     }
@@ -379,6 +384,7 @@ impl EntityPool {
             .unwrap();
         }
     }
+
     pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
         let entity = self.get_entity(entity_id).ok_or(Error::msg("Invalid "))?;
         let metadata = entity.read().await.metadata();

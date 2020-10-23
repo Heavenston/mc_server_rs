@@ -1,7 +1,6 @@
 use anyhow::{Error, Result};
 use std::io::{Cursor, Read};
-use tokio::prelude::io::AsyncReadExt;
-use tokio::prelude::AsyncRead;
+use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 use uuid::Uuid;
 
 pub mod bitbuffer;
@@ -52,6 +51,7 @@ impl Position {
 
         ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
     }
+
     pub fn decode(bytes: u64) -> Self {
         let x = (bytes >> 38) as u32;
         let y = (bytes & 0xFFF) as u32;
@@ -77,18 +77,20 @@ impl Particle {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn decode_async<T: AsyncRead+Unpin>(stream: &mut T) -> Result<Self> {
         Ok(Self {
             id: encoder::varint::decode_async(stream).await?,
             data: encoder::varint::decode_async(stream).await?,
         })
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
+
+    pub fn decode_sync<T: Read+Unpin>(stream: &mut T) -> Result<Self> {
         Ok(Self {
             id: encoder::varint::decode_sync(stream)?,
             data: encoder::varint::decode_sync(stream)?,
         })
     }
+
     pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<Self> {
         Self::decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
@@ -106,9 +108,8 @@ pub enum Pose {
     Dying = 6,
 }
 impl Pose {
-    pub fn encode(&self) -> u8 {
-        *self as u8
-    }
+    pub fn encode(&self) -> u8 { *self as u8 }
+
     pub fn decode(data: u8) -> Self {
         if data > 6 {
             panic!("Invalid enum")
@@ -275,7 +276,7 @@ impl MetadataValue {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn decode_async<T: AsyncRead+Unpin>(stream: &mut T) -> Result<Self> {
         let kind = encoder::varint::decode_async(stream).await?;
 
         #[allow(overlapping_patterns)]

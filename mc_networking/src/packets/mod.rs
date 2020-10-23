@@ -6,17 +6,14 @@ use crate::data_types::encoder::varint;
 use anyhow::Result;
 use byteorder::ReadBytesExt;
 use std::io::Read;
-use tokio::prelude::io::AsyncReadExt;
-use tokio::prelude::AsyncRead;
+use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
 pub struct RawPacket {
     pub packet_id: i32,
     pub data: Box<[u8]>,
 }
 impl RawPacket {
-    pub fn new(packet_id: i32, data: Box<[u8]>) -> Self {
-        Self { packet_id, data }
-    }
+    pub fn new(packet_id: i32, data: Box<[u8]>) -> Self { Self { packet_id, data } }
 
     pub fn encode(&self) -> Box<[u8]> {
         let packet_id = &mut varint::encode(self.packet_id);
@@ -30,7 +27,7 @@ impl RawPacket {
         buffer.into_boxed_slice()
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn decode_async<T: AsyncRead+Unpin>(stream: &mut T) -> Result<Self> {
         let length = varint::decode_async(stream).await?;
         let mut taker = stream.take(length as u64);
         let packet_id = varint::decode_async(&mut taker).await?;
@@ -43,7 +40,8 @@ impl RawPacket {
             data: data.into_boxed_slice(),
         })
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
+
+    pub fn decode_sync<T: Read+Unpin>(stream: &mut T) -> Result<Self> {
         let length = varint::decode_sync(stream)?;
         let mut taker = stream.take(length as u64);
         let packet_id = varint::decode_sync(&mut taker)?;

@@ -1,19 +1,20 @@
-use mc_networking::data_types::bitbuffer::BitBuffer;
-use mc_networking::packets::client_bound::{C20ChunkData, C20ChunkDataSection};
+use mc_networking::{
+    data_types::bitbuffer::BitBuffer,
+    packets::client_bound::{C20ChunkData, C20ChunkDataSection},
+};
 use std::collections::HashMap;
 
 pub struct ChunkDataSection {
     blocks: [u16; 4096],
 }
 impl ChunkDataSection {
-    pub fn new() -> Self {
-        Self { blocks: [0; 4096] }
-    }
+    pub fn new() -> Self { Self { blocks: [0; 4096] } }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
         let (x, y, z) = (x as usize, y as usize, z as usize);
         self.blocks[x + (z * 16) + (y * 256)] = block;
     }
+
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
         let (x, y, z) = (x as usize, y as usize, z as usize);
         self.blocks[x + (z * 16) + (y * 256)]
@@ -61,9 +62,8 @@ impl ChunkData {
     }
 
     /// Get a reference to a section, returns None id it doesn't exist
-    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> {
-        self.sections.get(&y)
-    }
+    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> { self.sections.get(&y) }
+
     /// Get a mutable reference to a section, create the section if it doesn't exist
     pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
         if !self.sections.contains_key(&y) {
@@ -77,6 +77,7 @@ impl ChunkData {
         let section = self.get_section_mut(y / 16);
         section.set_block(x, y.rem_euclid(16), z, block);
     }
+
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
         self.get_section(y / 16)
             .map(|s| s.get_block(x, y.rem_euclid(16), z))

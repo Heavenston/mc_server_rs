@@ -1,11 +1,13 @@
-use crate::chunk_pool::{ChunkGenerator, ChunkPool};
-use crate::entity::player::Player;
-use crate::entity::BoxedEntity;
-use crate::entity_pool::EntityPool;
-use mc_networking::client::client_event::*;
-use mc_networking::client::Client;
-use mc_networking::map;
-use mc_networking::packets::client_bound::*;
+use crate::{
+    chunk_pool::{ChunkGenerator, ChunkPool},
+    entity::{player::Player, BoxedEntity},
+    entity_pool::EntityPool,
+};
+use mc_networking::{
+    client::{client_event::*, Client},
+    map,
+    packets::client_bound::*,
+};
 use mc_utils::{ChunkData, Location};
 
 use anyhow::Result;
@@ -13,10 +15,12 @@ use async_trait::async_trait;
 use log::*;
 use serde_json::json;
 use std::sync::Arc;
-use tokio::net::{TcpListener, ToSocketAddrs};
-use tokio::stream::StreamExt;
-use tokio::sync::{Mutex, RwLock};
-use tokio::time::Duration;
+use tokio::{
+    net::{TcpListener, ToSocketAddrs},
+    stream::StreamExt,
+    sync::{Mutex, RwLock},
+    time::Duration,
+};
 use uuid::Uuid;
 
 struct Generator;
@@ -63,6 +67,7 @@ impl Server {
             tps: 20.0,
         }
     }
+
     pub async fn listen(server: Arc<RwLock<Server>>, addr: impl ToSocketAddrs) -> Result<()> {
         let mut listener = TcpListener::bind(addr).await?;
         loop {
@@ -81,6 +86,7 @@ impl Server {
             });
         }
     }
+
     async fn handle_client(
         server: Arc<RwLock<Server>>,
         client: Arc<Mutex<Client>>,
@@ -118,7 +124,8 @@ impl Server {
                                 reason: "The server is full :(".to_string(),
                             })
                             .unwrap();
-                    } else {
+                    }
+                    else {
                         let mut server_write = server.write().await;
                         server_write.entity_id_counter += 1;
                         player_eid = server_write.entity_id_counter;
@@ -412,7 +419,8 @@ impl Server {
                             )
                             .await
                             .unwrap();
-                    } else {
+                    }
+                    else {
                         entity_pool
                             .read()
                             .await
@@ -577,6 +585,7 @@ impl Server {
             }
         });
     }
+
     pub async fn tick(&mut self) {
         self.chunk_pool.write().await.tick().await.unwrap();
         self.entity_pool.write().await.tick().await;

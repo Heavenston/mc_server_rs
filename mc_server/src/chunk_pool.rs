@@ -1,11 +1,9 @@
-use crate::chunk::Chunk;
-use crate::entity::BoxedEntity;
+use crate::{chunk::Chunk, entity::BoxedEntity};
 use mc_utils::ChunkData;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[async_trait]
@@ -45,20 +43,20 @@ impl<T: ChunkGenerator> ChunkPool<T> {
         self.chunks.insert((x, z), Arc::clone(&chunk));
         chunk
     }
+
     pub fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
         self.chunks.get(&(x, z)).cloned()
     }
 
-    pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        &self.players
-    }
-    pub fn has_player(&self, id: i32) -> bool {
-        self.players.contains_key(&id)
-    }
+    pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.players }
+
+    pub fn has_player(&self, id: i32) -> bool { self.players.contains_key(&id) }
+
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
         let eid = player.read().await.entity_id();
         self.players.insert(eid, player);
     }
+
     pub fn remove_player(&mut self, id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.synced_player_chunks.remove(&id);
         self.players.remove(&id)

@@ -1,11 +1,15 @@
 use super::Entity;
-use mc_networking::client::Client;
-use mc_networking::data_types::{MetadataValue, Pose};
-use mc_networking::map;
+use mc_networking::{
+    client::Client,
+    data_types::{MetadataValue, Pose},
+    map,
+};
 use mc_utils::Location;
 
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -55,26 +59,17 @@ impl Player {
     }
 }
 impl Entity for Player {
-    fn entity_id(&self) -> i32 {
-        self.entity_id
-    }
-    fn uuid(&self) -> &Uuid {
-        &self.uuid
-    }
+    fn entity_id(&self) -> i32 { self.entity_id }
 
-    fn location(&self) -> &Location {
-        &self.location
-    }
-    fn location_mut(&mut self) -> &mut Location {
-        &mut self.location
-    }
+    fn uuid(&self) -> &Uuid { &self.uuid }
 
-    fn on_ground(&self) -> bool {
-        self.on_ground
-    }
-    fn set_on_ground(&mut self, on_ground: bool) {
-        self.on_ground = on_ground
-    }
+    fn location(&self) -> &Location { &self.location }
+
+    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+
+    fn on_ground(&self) -> bool { self.on_ground }
+
+    fn set_on_ground(&mut self, on_ground: bool) { self.on_ground = on_ground }
 
     fn metadata(&self) -> HashMap<u8, MetadataValue> {
         map! {
@@ -82,6 +77,7 @@ impl Entity for Player {
             6 => self.metadata_value(6).unwrap().clone()
         }
     }
+
     fn metadata_value(&self, id: u8) -> Option<MetadataValue> {
         Some(match id {
             0 => MetadataValue::Byte(
@@ -89,12 +85,14 @@ impl Entity for Player {
             ),
             6 => MetadataValue::Pose(if self.is_sneaking && !self.is_flying {
                 Pose::Sneaking
-            } else {
+            }
+            else {
                 Pose::Standing
             }),
             _ => return None,
         })
     }
+
     fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool {
         match id {
             0 => {

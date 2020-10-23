@@ -1,5 +1,7 @@
-use crate::data_types::{Angle, VarInt};
-use crate::packets::RawPacket;
+use crate::{
+    data_types::{Angle, VarInt},
+    packets::RawPacket,
+};
 
 use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
@@ -11,62 +13,43 @@ pub struct PacketEncoder {
     data: Vec<u8>,
 }
 impl PacketEncoder {
-    pub fn new() -> Self {
-        Self { data: Vec::new() }
-    }
-    pub fn consume(self) -> Vec<u8> {
-        self.data
-    }
+    pub fn new() -> Self { Self { data: Vec::new() } }
 
-    pub fn write_u8(&mut self, v: u8) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_i8(&mut self, v: i8) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_u16(&mut self, v: u16) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_i16(&mut self, v: i16) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_u32(&mut self, v: u32) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_i32(&mut self, v: i32) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_u64(&mut self, v: u64) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_i64(&mut self, v: i64) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_f32(&mut self, v: f32) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_f64(&mut self, v: f64) {
-        self.write_bytes(&v.to_be_bytes());
-    }
+    pub fn consume(self) -> Vec<u8> { self.data }
 
-    pub fn write_angle(&mut self, v: Angle) {
-        self.write_bytes(&v.to_be_bytes());
-    }
-    pub fn write_bool(&mut self, v: bool) {
-        self.write_u8(if v { 1 } else { 0 });
-    }
-    pub fn write_varint(&mut self, v: VarInt) {
-        self.data.append(&mut varint::encode(v));
-    }
-    pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.data.extend_from_slice(bytes);
-    }
+    pub fn write_u8(&mut self, v: u8) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_i8(&mut self, v: i8) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_u16(&mut self, v: u16) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_i16(&mut self, v: i16) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_u32(&mut self, v: u32) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_i32(&mut self, v: i32) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_u64(&mut self, v: u64) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_i64(&mut self, v: i64) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_f32(&mut self, v: f32) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_f64(&mut self, v: f64) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_angle(&mut self, v: Angle) { self.write_bytes(&v.to_be_bytes()); }
+
+    pub fn write_bool(&mut self, v: bool) { self.write_u8(if v { 1 } else { 0 }); }
+
+    pub fn write_varint(&mut self, v: VarInt) { self.data.append(&mut varint::encode(v)); }
+
+    pub fn write_bytes(&mut self, bytes: &[u8]) { self.data.extend_from_slice(bytes); }
+
     pub fn write_string(&mut self, text: &str) {
         self.write_bytes(string::encode(text).as_slice());
     }
-    pub fn write_uuid(&mut self, uuid: &Uuid) {
-        self.write_bytes(uuid.as_bytes());
-    }
+
+    pub fn write_uuid(&mut self, uuid: &Uuid) { self.write_bytes(uuid.as_bytes()); }
 }
 impl Write for PacketEncoder {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
@@ -74,9 +57,7 @@ impl Write for PacketEncoder {
         Ok(buf.len())
     }
 
-    fn flush(&mut self) -> Result<(), std::io::Error> {
-        Ok(())
-    }
+    fn flush(&mut self) -> Result<(), std::io::Error> { Ok(()) }
 }
 
 pub struct PacketDecoder {
@@ -89,60 +70,46 @@ impl PacketDecoder {
         }
     }
 
-    pub fn remaining(&self) -> usize {
-        self.data.remaining()
-    }
+    pub fn remaining(&self) -> usize { self.data.remaining() }
 
-    pub fn read_u8(&mut self) -> Result<u8> {
-        Ok(self.data.read_u8()?)
-    }
-    pub fn read_i8(&mut self) -> Result<i8> {
-        Ok(self.data.read_i8()?)
-    }
-    pub fn read_u16(&mut self) -> Result<u16> {
-        Ok(self.data.read_u16::<BE>()?)
-    }
-    pub fn read_i16(&mut self) -> Result<i16> {
-        Ok(self.data.read_i16::<BE>()?)
-    }
-    pub fn read_u32(&mut self) -> Result<u32> {
-        Ok(self.data.read_u32::<BE>()?)
-    }
-    pub fn read_i32(&mut self) -> Result<i32> {
-        Ok(self.data.read_i32::<BE>()?)
-    }
-    pub fn read_u64(&mut self) -> Result<u64> {
-        Ok(self.data.read_u64::<BE>()?)
-    }
-    pub fn read_i64(&mut self) -> Result<i64> {
-        Ok(self.data.read_i64::<BE>()?)
-    }
-    pub fn read_f32(&mut self) -> Result<f32> {
-        Ok(self.data.read_f32::<BE>()?)
-    }
-    pub fn read_f64(&mut self) -> Result<f64> {
-        Ok(self.data.read_f64::<BE>()?)
-    }
+    pub fn read_u8(&mut self) -> Result<u8> { Ok(self.data.read_u8()?) }
 
-    pub fn read_bool(&mut self) -> Result<bool> {
-        Ok(self.read_u8()? == 1)
-    }
-    pub fn read_varint(&mut self) -> Result<VarInt> {
-        Ok(varint::decode_sync(&mut self.data)?)
-    }
+    pub fn read_i8(&mut self) -> Result<i8> { Ok(self.data.read_i8()?) }
+
+    pub fn read_u16(&mut self) -> Result<u16> { Ok(self.data.read_u16::<BE>()?) }
+
+    pub fn read_i16(&mut self) -> Result<i16> { Ok(self.data.read_i16::<BE>()?) }
+
+    pub fn read_u32(&mut self) -> Result<u32> { Ok(self.data.read_u32::<BE>()?) }
+
+    pub fn read_i32(&mut self) -> Result<i32> { Ok(self.data.read_i32::<BE>()?) }
+
+    pub fn read_u64(&mut self) -> Result<u64> { Ok(self.data.read_u64::<BE>()?) }
+
+    pub fn read_i64(&mut self) -> Result<i64> { Ok(self.data.read_i64::<BE>()?) }
+
+    pub fn read_f32(&mut self) -> Result<f32> { Ok(self.data.read_f32::<BE>()?) }
+
+    pub fn read_f64(&mut self) -> Result<f64> { Ok(self.data.read_f64::<BE>()?) }
+
+    pub fn read_bool(&mut self) -> Result<bool> { Ok(self.read_u8()? == 1) }
+
+    pub fn read_varint(&mut self) -> Result<VarInt> { Ok(varint::decode_sync(&mut self.data)?) }
+
     pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>> {
         let mut bytes = vec![0; amount];
         self.data.read_exact(bytes.as_mut_slice())?;
         Ok(bytes)
     }
+
     pub fn read_to_end(&mut self) -> Result<Vec<u8>> {
         let mut bytes = vec![];
         self.data.read_to_end(&mut bytes)?;
         Ok(bytes)
     }
-    pub fn read_string(&mut self) -> Result<String> {
-        Ok(string::decode_sync(&mut self.data)?)
-    }
+
+    pub fn read_string(&mut self) -> Result<String> { Ok(string::decode_sync(&mut self.data)?) }
+
     pub fn read_uuid(&mut self) -> Result<Uuid> {
         Ok(Uuid::from_slice(self.read_bytes(16)?.as_slice())?)
     }
@@ -153,8 +120,7 @@ pub mod varint {
     use anyhow::{Error, Result};
     use byteorder::ReadBytesExt;
     use std::io::{Cursor, Read};
-    use tokio::prelude::io::AsyncReadExt;
-    use tokio::prelude::AsyncRead;
+    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub fn encode(int: VarInt) -> Vec<u8> {
         let mut val: u32 = int as u32;
@@ -172,7 +138,7 @@ pub mod varint {
         }
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<VarInt> {
+    pub async fn decode_async<T: AsyncRead+Unpin>(stream: &mut T) -> Result<VarInt> {
         let mut num_read: i32 = 0;
         let mut result = 0i32;
         let mut read;
@@ -191,7 +157,7 @@ pub mod varint {
         }
         Ok(result)
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<VarInt> {
+    pub fn decode_sync<T: Read+Unpin>(stream: &mut T) -> Result<VarInt> {
         let mut num_read = 0;
         let mut result = 0i32;
         let mut read;
@@ -220,8 +186,7 @@ pub mod string {
     use anyhow::Result;
     use byteorder::ReadBytesExt;
     use std::io::Read;
-    use tokio::prelude::io::AsyncReadExt;
-    use tokio::prelude::AsyncRead;
+    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub fn encode(string: &str) -> Vec<u8> {
         let mut data = vec![];
@@ -231,7 +196,7 @@ pub mod string {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<String> {
+    pub async fn decode_async<T: AsyncRead+Unpin>(stream: &mut T) -> Result<String> {
         let size = varint::decode_async(stream).await?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 
@@ -241,7 +206,7 @@ pub mod string {
 
         return Ok(String::from_utf8_lossy(&data).into());
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<String> {
+    pub fn decode_sync<T: Read+Unpin>(stream: &mut T) -> Result<String> {
         let size = varint::decode_sync(stream)?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 
