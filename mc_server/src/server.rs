@@ -24,39 +24,37 @@ use tokio::{
 use uuid::Uuid;
 use tokio::join;
 use tokio::time::Instant;
+use noise::{NoiseFn, Perlin};
 
 struct Generator {
-    one: ChunkData,
-    two: ChunkData,
+    noise: Perlin,
 }
 impl Generator {
     pub fn new() -> Self {
         Self {
-            one: Self::get_chunk(1),
-            two: Self::get_chunk(3),
+            noise: Perlin::new()
         }
-    }
-
-    fn get_chunk(block: u16) -> ChunkData {
-        let mut data = ChunkData::new();
-        for x in 0..16 {
-            for z in 0..16 {
-                for y in 0..=100 {
-                    data.set_block(x, y, z, block);
-                }
-            }
-        }
-        data
     }
 }
 #[async_trait]
 impl ChunkGenerator for Generator {
-    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> ChunkData {
-        if (x+z) % 2 == 0 {
-            self.one.clone()
+    async fn generate_chunk_data(&mut self, chunk_x: i32, chunk_z: i32) -> ChunkData {
+        let mut data = ChunkData::new();
+        let block = if (chunk_x + chunk_z) % 2 == 0 {
+            1
         } else {
-            self.two.clone()
+            2
+        };
+        for local_x in 0..16 {
+            let global_x = chunk_x * 16 + local_x;
+            for local_z in 0..16 {
+                let global_z = chunk_z * 16 + local_z;
+                for y in 0..=(100.0 + (self.noise.get([global_x as f64 / 15.0, global_z as f64 / 15.0]) * 10.0 - 5.0)) as u8 {
+                    data.set_block(local_x as u8, y, local_z as u8, block);
+                }
+            }
         }
+        data
     }
 }
 
