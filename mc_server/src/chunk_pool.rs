@@ -63,8 +63,11 @@ impl<T: ChunkGenerator> ChunkPool<T> {
 
     async fn update_player_view_position(&mut self, player_id: i32, chunk_x: i32, chunk_z: i32) -> Result<()> {
         let player = Arc::clone(&self.players[&player_id]);
-        for dx in (-self.view_distance / 2)..self.view_distance / 2 {
-            for dz in (-self.view_distance / 2)..self.view_distance / 2 {
+        for dx in -self.view_distance..self.view_distance {
+            for dz in -self.view_distance..self.view_distance {
+                if dx*dx + dz*dz > self.view_distance*self.view_distance {
+                    continue;
+                }
                 if player
                     .read()
                     .await
@@ -95,9 +98,8 @@ impl<T: ChunkGenerator> ChunkPool<T> {
         }
         let loaded_chunks = player.read().await.as_player()?.loaded_chunks.clone();
         for chunk in loaded_chunks {
-            if (chunk.0 - chunk_x).abs() >= self.view_distance / 2
-                || (chunk.1 - chunk_z).abs() >= self.view_distance / 2
-            {
+            let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
+            if dx*dx + dz*dz >= self.view_distance*self.view_distance {
                 player
                     .read()
                     .await

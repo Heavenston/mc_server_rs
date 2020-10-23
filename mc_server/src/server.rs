@@ -37,7 +37,9 @@ impl ChunkGenerator for Generator {
         };
         for x in 0..16 {
             for z in 0..16 {
-                data.set_block(x, 5, z, block);
+                for y in 0..=100 {
+                    data.set_block(x, y, z, block);
+                }
             }
         }
         data
@@ -66,7 +68,7 @@ impl Server {
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: Location {
                 x: 0.0,
-                y: 6.0,
+                y: 101.0,
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0,
@@ -581,9 +583,9 @@ impl Server {
                         if !*finished.read().await {
                             warn!("Tick took more than 500ms !");
                         }
-                        tokio::time::delay_for(Duration::from_millis(1500)).await;
+                        tokio::time::delay_for(Duration::from_millis(4500)).await;
                         if !*finished.read().await {
-                            warn!("A tick took more than 2s, closing server");
+                            warn!("A tick took more than 5s, closing server");
                             std::process::exit(0);
                         }
                     }
@@ -593,7 +595,7 @@ impl Server {
                 *ticks.write().await += 1;
                 *finished.write().await = true;
 
-                tps_interval.next().await;
+                tps_interval.tick().await;
             }
         });
     }
