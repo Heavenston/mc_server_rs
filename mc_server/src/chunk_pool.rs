@@ -1,11 +1,12 @@
 use crate::{chunk::Chunk, entity::BoxedEntity};
 use mc_utils::ChunkData;
+use crate::entity_manager::{PlayerManager, PlayerWrapper};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use crate::entity_manager::{PlayerManager, PlayerWrapper};
+use log::*;
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -19,6 +20,7 @@ pub struct ChunkPool<T: ChunkGenerator> {
     pub view_distance: i32,
     chunk_generator: T,
     chunks: HashMap<(i32, i32), Arc<RwLock<Chunk>>>,
+    chunks_to_update: Vec<(i32, i32)>,
     players: PlayerManager,
     synced_player_chunks: HashMap<i32, (i32, i32)>,
 }
@@ -29,6 +31,7 @@ impl<T: ChunkGenerator> ChunkPool<T> {
             view_distance,
             chunk_generator,
             chunks: HashMap::new(),
+            chunks_to_update: vec![],
             players: PlayerManager::new(),
             synced_player_chunks: HashMap::new(),
         }
@@ -46,6 +49,9 @@ impl<T: ChunkGenerator> ChunkPool<T> {
     }
     pub fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
         self.chunks.get(&(x, z)).cloned()
+    }
+    pub fn update_chunk(&mut self, x: i32, z: i32) {
+        self.chunks_to_update.push((x, z));
     }
 
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
@@ -133,6 +139,15 @@ impl<T: ChunkGenerator> ChunkPool<T> {
         for (eid, player) in players {
             let position = player.read().await.location().clone();
             let current_chunk = (position.chunk_x(), position.chunk_z());
+            for chunk in self.chunks_to_update.iter().cloned() {
+                if player.read().await.as_player().unwrap().loaded_chunks.contains(&chunk) {
+                    if let Some(chunk) = self.get_chunk(chunk.0, chunk.1) {
+                        player
+                            .send_packet(&chunk.read().await.encode(false))
+                            .await?;
+                    }
+                }
+            }
             let synced_chunk = self.synced_player_chunks.get(&eid);
             if synced_chunk
                 .cloned()
@@ -143,6 +158,7 @@ impl<T: ChunkGenerator> ChunkPool<T> {
                 self.synced_player_chunks.insert(eid, current_chunk);
             }
         }
+        self.chunks_to_update.clear();
         Ok(())
     }
 }

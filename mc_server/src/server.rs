@@ -425,6 +425,18 @@ impl Server {
                         let current_gamemode = player.read().await.as_player().unwrap().gamemode;
                         player.set_gamemode(if current_gamemode == 1 { 0 } else { 1 }).await;
                     }
+                    else if message == "clear" {
+                        let location = player.read().await.location().clone();
+                        let chunk = chunk_pool.write().await.ensure_chunk(location.chunk_x(), location.chunk_z()).await;
+                        chunk.write().await.data = {
+                            let mut data = Box::new(ChunkData::new());
+                            for y in 0..16 {
+                                data.get_section_mut(y);
+                            }
+                            data
+                        };
+                        chunk_pool.write().await.update_chunk(location.chunk_x(), location.chunk_z());
+                    }
                     else {
                         server
                             .read()
