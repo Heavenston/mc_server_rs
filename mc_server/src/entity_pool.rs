@@ -30,7 +30,6 @@ impl EntityPool {
         let second_location = self.entities[&second].read().await.location().clone();
         first_location.distance2(&second_location) < (self.view_distance.pow(2) as f64)
     }
-
     pub async fn broadcast(&self, packet: &impl ClientBoundPacket) -> Result<()> {
         for entity in self.players.values() {
             let entity = entity.read().await;
@@ -39,7 +38,6 @@ impl EntityPool {
         }
         Ok(())
     }
-
     pub async fn send_to_player(
         &self,
         player_id: i32,
@@ -59,7 +57,6 @@ impl EntityPool {
 
         Ok(())
     }
-
     pub async fn get_filtered_players(
         &self,
         filter: impl Fn(&Player) -> bool,
@@ -77,7 +74,6 @@ impl EntityPool {
         }
         players
     }
-
     /// Get all players in view distance of an entity
     pub async fn get_players_around(&self, eid: i32) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
         let mut players = HashMap::new();
@@ -92,7 +88,6 @@ impl EntityPool {
         }
         players
     }
-
     pub async fn tick(&mut self) {
         /*
         Update entities visibilities
@@ -313,37 +308,29 @@ impl EntityPool {
 
         self.synced_entities_location[&eid].clone()
     }
-
     pub fn get_players(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.players }
 
     pub fn has_player(&self, player_id: i32) -> bool { self.players.contains_key(&player_id) }
-
     pub fn get_player(&self, player_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.players.get(&player_id).cloned()
     }
-
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
         let entity_id = player.read().await.entity_id();
         self.players.insert(entity_id, player);
     }
-
     pub fn remove_player(&mut self, player_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.players.remove(&player_id)
     }
 
     pub fn get_entities(&self) -> &HashMap<i32, Arc<RwLock<BoxedEntity>>> { &self.entities }
-
     pub fn has_entity(&self, entity_id: i32) -> bool { self.entities.contains_key(&entity_id) }
-
     pub fn get_entity(&self, entity_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.entities.get(&entity_id).cloned()
     }
-
     pub async fn add_entity(&mut self, entity: Arc<RwLock<BoxedEntity>>) {
         let entity_id = entity.read().await.entity_id();
         self.entities.insert(entity_id, entity);
     }
-
     pub fn remove_entity(&mut self, entity_id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.entities.remove(&entity_id)
     }
@@ -384,7 +371,6 @@ impl EntityPool {
             .unwrap();
         }
     }
-
     pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
         let entity = self.get_entity(entity_id).ok_or(Error::msg("Invalid "))?;
         let metadata = entity.read().await.metadata();

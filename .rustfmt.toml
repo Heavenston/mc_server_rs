@@ -4,6 +4,5 @@ fn_single_line = true
 format_strings = true
 merge_imports = true
 newline_style = "Unix"
-reorder_impl_items = true
 type_punctuation_density = "Compressed"
 use_try_shorthand = true
