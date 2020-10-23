@@ -30,9 +30,14 @@ struct Generator;
 impl ChunkGenerator for Generator {
     async fn generate_chunk_data(&mut self, x: i32, z: i32) -> ChunkData {
         let mut data = ChunkData::new();
+        let block = if (x+z) % 2 == 0 {
+            1
+        } else {
+            3
+        };
         for x in 0..16 {
             for z in 0..16 {
-                data.set_block(x, 5, z, 1);
+                data.set_block(x, 5, z, block);
             }
         }
         data
