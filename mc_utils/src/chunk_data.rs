@@ -63,7 +63,6 @@ impl ChunkData {
 
     /// Get a reference to a section, returns None id it doesn't exist
     pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> { self.sections.get(&y) }
-
     /// Get a mutable reference to a section, create the section if it doesn't exist
     pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
         if !self.sections.contains_key(&y) {
@@ -77,7 +76,6 @@ impl ChunkData {
         let section = self.get_section_mut(y / 16);
         section.set_block(x, y.rem_euclid(16), z, block);
     }
-
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
         self.get_section(y / 16)
             .map(|s| s.get_block(x, y.rem_euclid(16), z))
