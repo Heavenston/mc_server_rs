@@ -28,11 +28,13 @@ use noise::{NoiseFn, Perlin};
 
 struct Generator {
     noise: Perlin,
+    noise_scale: f64,
 }
 impl Generator {
     pub fn new() -> Self {
         Self {
-            noise: Perlin::new()
+            noise: Perlin::new(),
+            noise_scale: 1.0 / 15.0,
         }
     }
 }
@@ -40,18 +42,26 @@ impl Generator {
 impl ChunkGenerator for Generator {
     async fn generate_chunk_data(&mut self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
         let mut data = Box::new(ChunkData::new());
-        let block = if (chunk_x + chunk_z) % 2 == 0 {
-            1
-        } else {
-            3
-        };
         for local_x in 0..16 {
             let global_x = chunk_x * 16 + local_x;
+            let noise_x = global_x as f64 * self.noise_scale;
             for local_z in 0..16 {
                 let global_z = chunk_z * 16 + local_z;
-                for y in 0..=(100.0 + (self.noise.get([global_x as f64 / 15.0, global_z as f64 / 15.0]) * 10.0 - 5.0)) as u8 {
+                let noise_z = global_z as f64 * self.noise_scale;
+                let height = (100.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0)) as u8;
+                for y in 0..(height - 5) {
+                    let block = if self.noise.get([noise_x, y as f64 * self.noise_scale, noise_z]) > 0.5 {
+                        1
+                    }
+                    else {
+                        3
+                    };
                     data.set_block(local_x as u8, y, local_z as u8, block);
                 }
+                for y in (height - 5)..height {
+                    data.set_block(local_x as u8, y, local_z as u8, 10);
+                }
+                data.set_block(local_x as u8, height, local_z as u8, 9);
             }
         }
         data
