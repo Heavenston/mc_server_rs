@@ -51,7 +51,7 @@ impl ChunkDataSection {
 
 #[derive(Clone)]
 pub struct ChunkData {
-    sections: HashMap<u8, Box<ChunkDataSection>>,
+    sections: HashMap<u8, ChunkDataSection>,
     // TODO: Make biomes mutable
     biomes: [i32; 1024],
 }
@@ -64,11 +64,11 @@ impl ChunkData {
     }
 
     /// Get a reference to a section, returns None id it doesn't exist
-    pub fn get_section(&self, y: u8) -> Option<&Box<ChunkDataSection>> { self.sections.get(&y) }
+    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> { self.sections.get(&y) }
     /// Get a mutable reference to a section, create the section if it doesn't exist
     pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
         if !self.sections.contains_key(&y) {
-            self.sections.insert(y, Box::new(ChunkDataSection::new()));
+            self.sections.insert(y, ChunkDataSection::new());
         }
 
         self.sections.get_mut(&y).unwrap()
