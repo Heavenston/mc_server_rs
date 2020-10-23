@@ -4,14 +4,14 @@ use mc_utils::ChunkData;
 pub struct Chunk {
     pub x: i32,
     pub z: i32,
-    pub data: ChunkData,
+    pub data: Box<ChunkData>,
 }
 impl Chunk {
     pub fn new(x: i32, z: i32) -> Self {
         Self {
             x,
             z,
-            data: ChunkData::new(),
+            data: Box::new(ChunkData::new()),
         }
     }
 

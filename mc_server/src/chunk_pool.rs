@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 #[async_trait]
 pub trait ChunkGenerator {
-    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> ChunkData;
+    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> Box<ChunkData>;
 }
 
 /// Manage chunks loading

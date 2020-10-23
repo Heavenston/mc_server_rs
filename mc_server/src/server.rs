@@ -38,8 +38,8 @@ impl Generator {
 }
 #[async_trait]
 impl ChunkGenerator for Generator {
-    async fn generate_chunk_data(&mut self, chunk_x: i32, chunk_z: i32) -> ChunkData {
-        let mut data = ChunkData::new();
+    async fn generate_chunk_data(&mut self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
+        let mut data = Box::new(ChunkData::new());
         let block = if (chunk_x + chunk_z) % 2 == 0 {
             1
         } else {
