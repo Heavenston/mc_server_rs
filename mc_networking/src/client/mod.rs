@@ -1,6 +1,6 @@
 pub mod client_event;
 
-use crate::packets::{client_bound::*, server_bound::*, RawPacket};
+use crate::packets::{client_bound::*, server_bound::*, RawPacket, PacketCompression};
 use client_event::*;
 
 use crate::data_types::Angle;
@@ -31,6 +31,7 @@ pub enum ClientState {
 }
 
 pub struct Client {
+    compression: Arc<RwLock<PacketCompression>>,
     write: Arc<Mutex<OwnedWriteHalf>>,
     state: Arc<RwLock<ClientState>>,
     #[allow(dead_code)]
@@ -43,13 +44,16 @@ impl Client {
         let write = Arc::new(Mutex::new(write));
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
         let (event_sender, event_receiver) = mpsc::channel(100);
+        let compression = Arc::default();
 
         tokio::spawn({
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
             let mut listener_sender = event_sender.clone();
+            let compression = Arc::clone(&compression);
             async move {
                 if let Err(e) = listen_client_packets(
+                    compression,
                     read,
                     Arc::clone(&write),
                     listener_sender.clone(),
@@ -85,6 +89,7 @@ impl Client {
 
         (
             Client {
+                compression,
                 write,
                 state,
                 event_sender,
@@ -100,7 +105,7 @@ impl Client {
         self.write
             .lock()
             .await
-            .write_all(&raw_packet.encode())
+            .write_all(&raw_packet.encode(*self.compression.read().await))
             .await?;
         Ok(())
     }
@@ -159,6 +164,7 @@ impl Client {
 }
 
 struct KeepAliveData {
+    pub compression: Arc<RwLock<PacketCompression>>,
     pub has_responded: bool,
     pub last_id: i64,
     pub sent_at: Instant,
@@ -179,10 +185,11 @@ async fn handle_keep_alive(
             data.write().await.last_id = id;
             data.write().await.has_responded = false;
             data.write().await.sent_at = Instant::now();
+            let packet_compression = *data.read().await.compression.read().await;
             write
                 .lock()
                 .await
-                .write_all(C1FKeepAlive { id }.to_rawpacket().encode().as_ref())
+                .write_all(C1FKeepAlive { id }.to_rawpacket().encode(packet_compression).as_ref())
                 .await
                 .unwrap();
             debug!("Sent keep alive");
@@ -195,6 +202,7 @@ async fn handle_keep_alive(
             if *state.read().await == ClientState::Disconnected {
                 break;
             }
+            let packet_compression = *data.read().await.compression.read().await;
             if !data.read().await.has_responded {
                 if data.read().await.sent_at.elapsed().as_millis() >= (KEEP_ALIVE_TIMEOUT as u128) {
                     debug!("Keep alive timeout, closing");
@@ -217,7 +225,7 @@ async fn handle_keep_alive(
                                 id: data.read().await.last_id,
                             }
                             .to_rawpacket()
-                            .encode()
+                            .encode(packet_compression)
                             .as_ref(),
                         )
                         .await
@@ -233,12 +241,14 @@ async fn handle_keep_alive(
 }
 
 async fn listen_client_packets(
+    compression: Arc<RwLock<PacketCompression>>,
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
     mut event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
     let keep_alive_data = Arc::new(RwLock::new(KeepAliveData {
+        compression: Arc::clone(&compression),
         has_responded: false,
         sent_at: Instant::now(),
         last_id: 0,
@@ -251,7 +261,8 @@ async fn listen_client_packets(
         }
 
         //debug!("Reading packet, State({:?})", state.read().await.clone());
-        let raw_packet = RawPacket::decode_async(&mut read).await?;
+        let packet_compression = *compression.read().await;
+        let raw_packet = RawPacket::decode_async(&mut read, packet_compression).await?;
         /*debug!(
             "Received packet 0x{:x} with data of length {}",
             raw_packet.packet_id,
@@ -288,7 +299,7 @@ async fn listen_client_packets(
                     write
                         .lock()
                         .await
-                        .write_all(response.encode().as_ref())
+                        .write_all(response.encode(*compression.read().await).as_ref())
                         .await?;
                 }
                 else if raw_packet.packet_id == S01Ping::packet_id() {
@@ -297,7 +308,7 @@ async fn listen_client_packets(
                         payload: packet.payload,
                     }
                     .to_rawpacket();
-                    write.lock().await.write_all(pong.encode().as_ref()).await?;
+                    write.lock().await.write_all(pong.encode(*compression.read().await).as_ref()).await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
                     break;
@@ -310,6 +321,19 @@ async fn listen_client_packets(
             ClientState::Login => {
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     let login_state = S00LoginStart::decode(raw_packet)?;
+
+                    let new_compression = 1;
+                    write
+                        .lock()
+                        .await
+                        .write_all(C03SetCompression{
+                            threshold: new_compression
+                        }.to_rawpacket().encode(
+                            PacketCompression::default()
+                        ).as_ref())
+                        .await?;
+                    *compression.write().await = PacketCompression::new(new_compression);
+
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
                         event_sender.try_send(ClientEvent::LoginStart {
@@ -324,7 +348,9 @@ async fn listen_client_packets(
                             write
                                 .lock()
                                 .await
-                                .write_all(login_success.encode().as_ref())
+                                .write_all(login_success.encode(
+                                    *compression.read().await
+                                ).as_ref())
                                 .await?;
                             *(state.write().await) = ClientState::Play;
                         }
@@ -336,7 +362,7 @@ async fn listen_client_packets(
                             write
                                 .lock()
                                 .await
-                                .write_all(disconnect.encode().as_ref())
+                                .write_all(disconnect.encode(*compression.read().await).as_ref())
                                 .await?;
                             read.as_ref().shutdown(Shutdown::Both)?;
                             *(state.write().await) = ClientState::Disconnected;

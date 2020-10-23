@@ -259,6 +259,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "fern",
+ "flate2",
  "hematite-nbt",
  "log",
  "serde",
