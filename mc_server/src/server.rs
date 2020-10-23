@@ -1,3 +1,4 @@
+use crate::chunk_pool::{ChunkGenerator, ChunkPool};
 use crate::entity::player::Player;
 use crate::entity::BoxedEntity;
 use crate::entity_pool::EntityPool;
@@ -6,9 +7,9 @@ use mc_networking::client::Client;
 use mc_networking::map;
 use mc_networking::packets::client_bound::*;
 use mc_utils::{ChunkData, Location};
-use crate::chunk_pool::{ChunkPool, ChunkGenerator};
 
-use anyhow::{Error, Result};
+use anyhow::Result;
+use async_trait::async_trait;
 use log::*;
 use serde_json::json;
 use std::sync::Arc;
@@ -17,7 +18,6 @@ use tokio::stream::StreamExt;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::Duration;
 use uuid::Uuid;
-use async_trait::async_trait;
 
 struct Generator;
 #[async_trait]
@@ -329,7 +329,10 @@ impl Server {
                         .add_player(Arc::clone(player))
                         .await;
 
-                    chunk_pool.write().await.add_player(Arc::clone(player))
+                    chunk_pool
+                        .write()
+                        .await
+                        .add_player(Arc::clone(player))
                         .await;
 
                     // Send server brand
@@ -409,20 +412,19 @@ impl Server {
                             )
                             .await
                             .unwrap();
-                    }
-                    else {
+                    } else {
                         entity_pool
                             .read()
                             .await
                             .broadcast(&C0EChatMessage {
                                 json_data: json!({
-                                "text":
-                                    format!(
-                                        "<{}> {}",
-                                        player.read().await.as_player().unwrap().username,
-                                        message
-                                    )
-                            }),
+                                    "text":
+                                        format!(
+                                            "<{}> {}",
+                                            player.read().await.as_player().unwrap().username,
+                                            message
+                                        )
+                                }),
                                 position: 0,
                                 sender: Some(player.read().await.uuid().clone()),
                             })
@@ -578,19 +580,24 @@ impl Server {
     pub async fn tick(&mut self) {
         self.chunk_pool.write().await.tick().await.unwrap();
         self.entity_pool.write().await.tick().await;
-        self.entity_pool.read().await.broadcast(&C53PlayerListHeaderAndFooter {
-            header: json!({
-                "text": "\nHeavenstone\n",
-                "color": "blue"
-            }),
-            footer: json!({
-                "text": "TPS: ",
-                "color": "white",
-                "extra": [ {
-                    "text": format!("{}", self.tps),
-                    "color": "green"
-                } ]
+        self.entity_pool
+            .read()
+            .await
+            .broadcast(&C53PlayerListHeaderAndFooter {
+                header: json!({
+                    "text": "\nHeavenstone\n",
+                    "color": "blue"
+                }),
+                footer: json!({
+                    "text": "TPS: ",
+                    "color": "white",
+                    "extra": [ {
+                        "text": format!("{}", self.tps),
+                        "color": "green"
+                    } ]
+                }),
             })
-        }).await.unwrap();
+            .await
+            .unwrap();
     }
 }

@@ -1,12 +1,12 @@
 use crate::chunk::Chunk;
-use mc_utils::ChunkData;
 use crate::entity::BoxedEntity;
+use mc_utils::ChunkData;
 
 use anyhow::Result;
-use std::collections::HashMap;
-use tokio::sync::RwLock;
-use std::sync::Arc;
 use async_trait::async_trait;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -70,26 +70,73 @@ impl<T: ChunkGenerator> ChunkPool<T> {
             let position = player.read().await.location().clone();
             let current_chunk = (position.chunk_x(), position.chunk_z());
             let synced_chunk = self.synced_player_chunks.get(&eid);
-            if synced_chunk.cloned().map(|s| s != current_chunk).unwrap_or(true) {
-                for dx in (-self.view_distance/2)..self.view_distance/2 {
-                    for dz in (-self.view_distance/2)..self.view_distance/2 {
-                        if player.read().await.as_player()?.loaded_chunks.contains(&(current_chunk.0 + dx, current_chunk.1 + dz)) {
+            if synced_chunk
+                .cloned()
+                .map(|s| s != current_chunk)
+                .unwrap_or(true)
+            {
+                for dx in (-self.view_distance / 2)..self.view_distance / 2 {
+                    for dz in (-self.view_distance / 2)..self.view_distance / 2 {
+                        if player
+                            .read()
+                            .await
+                            .as_player()?
+                            .loaded_chunks
+                            .contains(&(current_chunk.0 + dx, current_chunk.1 + dz))
+                        {
                             continue;
                         }
-                        let chunk = self.ensure_chunk(current_chunk.0 + dx, current_chunk.1 + dz).await;
-                        player.read().await.as_player()?.client.lock().await.send_packet(&chunk.read().await.encode()).await?;
-                        player.write().await.as_player_mut()?.loaded_chunks.insert((current_chunk.0 + dx, current_chunk.1 + dz));
+                        let chunk = self
+                            .ensure_chunk(current_chunk.0 + dx, current_chunk.1 + dz)
+                            .await;
+                        player
+                            .read()
+                            .await
+                            .as_player()?
+                            .client
+                            .lock()
+                            .await
+                            .send_packet(&chunk.read().await.encode())
+                            .await?;
+                        player
+                            .write()
+                            .await
+                            .as_player_mut()?
+                            .loaded_chunks
+                            .insert((current_chunk.0 + dx, current_chunk.1 + dz));
                     }
                 }
                 let loaded_chunks = player.read().await.as_player()?.loaded_chunks.clone();
                 for chunk in loaded_chunks {
-                    if (chunk.0 - current_chunk.0).abs() >= self.view_distance/2
-                    || (chunk.1 - current_chunk.1).abs() >= self.view_distance/2 {
-                        player.read().await.as_player()?.client.lock().await.unload_chunk(chunk.0, chunk.1).await?;
-                        player.write().await.as_player_mut()?.loaded_chunks.remove(&chunk);
+                    if (chunk.0 - current_chunk.0).abs() >= self.view_distance / 2
+                        || (chunk.1 - current_chunk.1).abs() >= self.view_distance / 2
+                    {
+                        player
+                            .read()
+                            .await
+                            .as_player()?
+                            .client
+                            .lock()
+                            .await
+                            .unload_chunk(chunk.0, chunk.1)
+                            .await?;
+                        player
+                            .write()
+                            .await
+                            .as_player_mut()?
+                            .loaded_chunks
+                            .remove(&chunk);
                     }
                 }
-                player.read().await.as_player()?.client.lock().await.update_view_position(current_chunk.0, current_chunk.1).await?;
+                player
+                    .read()
+                    .await
+                    .as_player()?
+                    .client
+                    .lock()
+                    .await
+                    .update_view_position(current_chunk.0, current_chunk.1)
+                    .await?;
                 self.synced_player_chunks.insert(eid, current_chunk);
             }
         }

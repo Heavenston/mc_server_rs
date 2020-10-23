@@ -1,8 +1,8 @@
+mod chunk;
+mod chunk_pool;
 mod entity;
 mod entity_pool;
 mod server;
-mod chunk_pool;
-mod chunk;
 
 use server::Server;
 

@@ -1,5 +1,5 @@
-use mc_utils::ChunkData;
 use mc_networking::packets::client_bound::C20ChunkData;
+use mc_utils::ChunkData;
 
 pub struct Chunk {
     pub x: i32,
@@ -9,8 +9,9 @@ pub struct Chunk {
 impl Chunk {
     pub fn new(x: i32, z: i32) -> Self {
         Self {
-            x, z,
-            data: ChunkData::new()
+            x,
+            z,
+            data: ChunkData::new(),
         }
     }
 
