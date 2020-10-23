@@ -322,7 +322,7 @@ async fn listen_client_packets(
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     let login_state = S00LoginStart::decode(raw_packet)?;
 
-                    let new_compression = 1;
+                    let new_compression = 20;
                     write
                         .lock()
                         .await

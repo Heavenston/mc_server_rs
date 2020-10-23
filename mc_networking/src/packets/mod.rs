@@ -88,17 +88,23 @@ impl RawPacket {
         if *compression > 0 {
             let packet_length = varint::decode_async(stream).await?;
             let mut taker = stream.take(packet_length as u64);
-            let _data_length = varint::decode_async(&mut taker).await?;
+            let is_compressed = varint::decode_async(&mut taker).await? != 0;
 
-            let mut data_decoder = ZlibDecoder::new({
+            let mut data = {
                 let mut data = vec![];
                 while let Ok(b) = taker.read_u8().await {
                     data.push(b);
                 }
                 Cursor::new(data)
-            });
+            };
 
-            Self::decode(&mut data_decoder)
+            if is_compressed {
+                let mut data_decoder = ZlibDecoder::new(data);
+                Self::decode(&mut data_decoder)
+            }
+            else {
+                Self::decode(&mut data)
+            }
         }
         else {
             let length = varint::decode_async(stream).await?;
