@@ -43,7 +43,7 @@ impl ChunkGenerator for Generator {
         let block = if (chunk_x + chunk_z) % 2 == 0 {
             1
         } else {
-            2
+            3
         };
         for local_x in 0..16 {
             let global_x = chunk_x * 16 + local_x;
