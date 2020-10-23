@@ -51,11 +51,81 @@ impl<T: ChunkGenerator> ChunkPool<T> {
     pub fn has_player(&self, id: i32) -> bool { self.players.contains_key(&id) }
     pub async fn add_player(&mut self, player: Arc<RwLock<BoxedEntity>>) {
         let eid = player.read().await.entity_id();
-        self.players.insert(eid, player);
+        self.players.insert(eid, Arc::clone(&player));
+        let location = player.read().await.location().clone();
+        self.update_player_view_position(eid, location.chunk_x(), location.chunk_z()).await.unwrap();
+        self.synced_player_chunks.insert(eid, (location.chunk_x(), location.chunk_z()));
     }
     pub fn remove_player(&mut self, id: i32) -> Option<Arc<RwLock<BoxedEntity>>> {
         self.synced_player_chunks.remove(&id);
         self.players.remove(&id)
+    }
+
+    async fn update_player_view_position(&mut self, player_id: i32, chunk_x: i32, chunk_z: i32) -> Result<()> {
+        println!("UPDATE {}", player_id);
+        let player = Arc::clone(&self.players[&player_id]);
+        for dx in (-self.view_distance / 2)..self.view_distance / 2 {
+            for dz in (-self.view_distance / 2)..self.view_distance / 2 {
+                if player
+                    .read()
+                    .await
+                    .as_player()?
+                    .loaded_chunks
+                    .contains(&(chunk_x + dx, chunk_z + dz)) {
+                    continue;
+                }
+                let chunk = self
+                    .ensure_chunk(chunk_x + dx, chunk_z + dz)
+                    .await;
+                player
+                    .read()
+                    .await
+                    .as_player()?
+                    .client
+                    .lock()
+                    .await
+                    .send_packet(&chunk.read().await.encode())
+                    .await?;
+                player
+                    .write()
+                    .await
+                    .as_player_mut()?
+                    .loaded_chunks
+                    .insert((chunk_x + dx, chunk_z + dz));
+            }
+        }
+        let loaded_chunks = player.read().await.as_player()?.loaded_chunks.clone();
+        for chunk in loaded_chunks {
+            if (chunk.0 - chunk_x).abs() >= self.view_distance / 2
+                || (chunk.1 - chunk_z).abs() >= self.view_distance / 2
+            {
+                player
+                    .read()
+                    .await
+                    .as_player()?
+                    .client
+                    .lock()
+                    .await
+                    .unload_chunk(chunk.0, chunk.1)
+                    .await?;
+                player
+                    .write()
+                    .await
+                    .as_player_mut()?
+                    .loaded_chunks
+                    .remove(&chunk);
+            }
+        }
+        player
+            .read()
+            .await
+            .as_player()?
+            .client
+            .lock()
+            .await
+            .update_view_position(chunk_x, chunk_z)
+            .await?;
+        Ok(())
     }
 
     pub async fn tick(&mut self) -> Result<()> {
@@ -69,68 +139,7 @@ impl<T: ChunkGenerator> ChunkPool<T> {
                 .map(|s| s != current_chunk)
                 .unwrap_or(true)
             {
-                for dx in (-self.view_distance / 2)..self.view_distance / 2 {
-                    for dz in (-self.view_distance / 2)..self.view_distance / 2 {
-                        if player
-                            .read()
-                            .await
-                            .as_player()?
-                            .loaded_chunks
-                            .contains(&(current_chunk.0 + dx, current_chunk.1 + dz))
-                        {
-                            continue;
-                        }
-                        let chunk = self
-                            .ensure_chunk(current_chunk.0 + dx, current_chunk.1 + dz)
-                            .await;
-                        player
-                            .read()
-                            .await
-                            .as_player()?
-                            .client
-                            .lock()
-                            .await
-                            .send_packet(&chunk.read().await.encode())
-                            .await?;
-                        player
-                            .write()
-                            .await
-                            .as_player_mut()?
-                            .loaded_chunks
-                            .insert((current_chunk.0 + dx, current_chunk.1 + dz));
-                    }
-                }
-                let loaded_chunks = player.read().await.as_player()?.loaded_chunks.clone();
-                for chunk in loaded_chunks {
-                    if (chunk.0 - current_chunk.0).abs() >= self.view_distance / 2
-                        || (chunk.1 - current_chunk.1).abs() >= self.view_distance / 2
-                    {
-                        player
-                            .read()
-                            .await
-                            .as_player()?
-                            .client
-                            .lock()
-                            .await
-                            .unload_chunk(chunk.0, chunk.1)
-                            .await?;
-                        player
-                            .write()
-                            .await
-                            .as_player_mut()?
-                            .loaded_chunks
-                            .remove(&chunk);
-                    }
-                }
-                player
-                    .read()
-                    .await
-                    .as_player()?
-                    .client
-                    .lock()
-                    .await
-                    .update_view_position(current_chunk.0, current_chunk.1)
-                    .await?;
+                self.update_player_view_position(eid, current_chunk.0, current_chunk.1).await?;
                 self.synced_player_chunks.insert(eid, current_chunk);
             }
         }
