@@ -389,11 +389,31 @@ impl Server {
 
                 ClientEvent::ChatMessage { message } => {
                     let player = player.as_ref().unwrap();
-                    entity_pool
-                        .read()
-                        .await
-                        .broadcast(&C0EChatMessage {
-                            json_data: json!({
+                    if message == "fly" {
+                        player.write().await.as_player_mut().unwrap().can_fly = true;
+                        let player = player.read().await;
+                        let player = player.as_player().unwrap();
+
+                        client
+                            .lock()
+                            .await
+                            .send_player_abilities(
+                                player.invulnerable,
+                                player.is_flying,
+                                player.can_fly,
+                                player.gamemode == 1,
+                                player.flying_speed,
+                                player.fov_modifier,
+                            )
+                            .await
+                            .unwrap();
+                    }
+                    else {
+                        entity_pool
+                            .read()
+                            .await
+                            .broadcast(&C0EChatMessage {
+                                json_data: json!({
                                 "text":
                                     format!(
                                         "<{}> {}",
@@ -401,11 +421,12 @@ impl Server {
                                         message
                                     )
                             }),
-                            position: 0,
-                            sender: Some(player.read().await.uuid().clone()),
-                        })
-                        .await
-                        .unwrap();
+                                position: 0,
+                                sender: Some(player.read().await.uuid().clone()),
+                            })
+                            .await
+                            .unwrap();
+                    }
                 }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let mut player = player.as_ref().unwrap().write().await;
