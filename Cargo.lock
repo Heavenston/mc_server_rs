@@ -447,6 +447,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mc_maze_server"
+version = "0.1.0"
+
+[[package]]
 name = "mc_networking"
 version = "0.1.0"
 dependencies = [
