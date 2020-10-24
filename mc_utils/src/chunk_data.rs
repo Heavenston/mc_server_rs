@@ -122,7 +122,12 @@ impl ChunkData {
             chunk_x,
             chunk_z,
             full_chunk: full,
-            biomes: if full { Some(self.biomes.to_vec()) } else { None },
+            biomes: if full {
+                Some(self.biomes.to_vec())
+            }
+            else {
+                None
+            },
             primary_bit_mask,
             heightmaps: {
                 let mut heightmaps = nbt::Blob::new();

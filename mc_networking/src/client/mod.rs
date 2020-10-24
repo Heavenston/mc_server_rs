@@ -1,6 +1,6 @@
 pub mod client_event;
 
-use crate::packets::{client_bound::*, server_bound::*, RawPacket, PacketCompression};
+use crate::packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket};
 use client_event::*;
 
 use crate::data_types::Angle;
@@ -189,7 +189,12 @@ async fn handle_keep_alive(
             write
                 .lock()
                 .await
-                .write_all(C1FKeepAlive { id }.to_rawpacket().encode(packet_compression).as_ref())
+                .write_all(
+                    C1FKeepAlive { id }
+                        .to_rawpacket()
+                        .encode(packet_compression)
+                        .as_ref(),
+                )
                 .await
                 .unwrap();
             debug!("Sent keep alive");
@@ -308,7 +313,11 @@ async fn listen_client_packets(
                         payload: packet.payload,
                     }
                     .to_rawpacket();
-                    write.lock().await.write_all(pong.encode(*compression.read().await).as_ref()).await?;
+                    write
+                        .lock()
+                        .await
+                        .write_all(pong.encode(*compression.read().await).as_ref())
+                        .await?;
                     read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
                     break;
@@ -326,11 +335,14 @@ async fn listen_client_packets(
                     write
                         .lock()
                         .await
-                        .write_all(C03SetCompression{
-                            threshold: new_compression
-                        }.to_rawpacket().encode(
-                            PacketCompression::default()
-                        ).as_ref())
+                        .write_all(
+                            C03SetCompression {
+                                threshold: new_compression,
+                            }
+                            .to_rawpacket()
+                            .encode(PacketCompression::default())
+                            .as_ref(),
+                        )
                         .await?;
                     *compression.write().await = PacketCompression::new(new_compression);
 
@@ -348,9 +360,7 @@ async fn listen_client_packets(
                             write
                                 .lock()
                                 .await
-                                .write_all(login_success.encode(
-                                    *compression.read().await
-                                ).as_ref())
+                                .write_all(login_success.encode(*compression.read().await).as_ref())
                                 .await?;
                             *(state.write().await) = ClientState::Play;
                         }

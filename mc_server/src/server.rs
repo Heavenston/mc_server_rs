@@ -3,27 +3,27 @@ use mc_networking::{
     map,
     packets::client_bound::*,
 };
+use mc_server_lib::{
+    chunk_pool::{ChunkGenerator, ChunkPool},
+    entity::{player::Player, BoxedEntity},
+    entity_manager::{PlayerManager, PlayerWrapper},
+    entity_pool::EntityPool,
+};
 use mc_utils::{ChunkData, Location};
-use mc_server_lib::chunk_pool::{ChunkGenerator, ChunkPool};
-use mc_server_lib::entity_pool::EntityPool;
-use mc_server_lib::entity_manager::{PlayerManager, PlayerWrapper};
-use mc_server_lib::entity::BoxedEntity;
-use mc_server_lib::entity::player::Player;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use log::*;
+use noise::{NoiseFn, Perlin};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::{
+    join,
     net::{TcpListener, ToSocketAddrs},
     sync::{Mutex, RwLock},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use uuid::Uuid;
-use tokio::join;
-use tokio::time::Instant;
-use noise::{NoiseFn, Perlin};
 
 struct Generator {
     noise: Perlin,
@@ -49,7 +49,11 @@ impl ChunkGenerator for Generator {
                 let noise_z = global_z as f64 * self.noise_scale;
                 let height = (100.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0)) as u8;
                 for y in 0..(height - 5) {
-                    let block = if self.noise.get([noise_x, y as f64 * self.noise_scale, noise_z]) > 0.5 {
+                    let block = if self
+                        .noise
+                        .get([noise_x, y as f64 * self.noise_scale, noise_z])
+                        > 0.5
+                    {
                         1
                     }
                     else {
@@ -333,7 +337,8 @@ impl Server {
                     // Send to all his player info
                     server
                         .read()
-                        .await.players
+                        .await
+                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![my_player_info],
                         })
@@ -341,16 +346,23 @@ impl Server {
                         .unwrap();
 
                     player.update_abilities().await.unwrap();
-                    server.write().await.players.add_entity(Arc::clone(&player)).await;
+                    server
+                        .write()
+                        .await
+                        .players
+                        .add_entity(Arc::clone(&player))
+                        .await;
 
                     entity_pool
                         .write()
-                        .await.entities
+                        .await
+                        .entities
                         .add_entity(Arc::clone(player))
                         .await;
                     entity_pool
                         .write()
-                        .await.players
+                        .await
+                        .players
                         .add_entity(Arc::clone(player))
                         .await;
 
@@ -365,7 +377,8 @@ impl Server {
                         let brand = server.read().await.brand.clone();
                         server
                             .read()
-                            .await.players
+                            .await
+                            .players
                             .send_to_player(player_eid, &{
                                 let mut builder =
                                     C17PluginMessageBuilder::new("minecraft:brand".to_string());
@@ -392,7 +405,8 @@ impl Server {
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
                         .read()
-                        .await.players
+                        .await
+                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
                         })
@@ -407,7 +421,8 @@ impl Server {
                     let uuid = player.read().await.as_player().unwrap().uuid.clone();
                     server
                         .read()
-                        .await.players
+                        .await
+                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
                                 uuid: uuid.clone(),
@@ -422,11 +437,17 @@ impl Server {
                     let player = player.as_ref().unwrap();
                     if message == "gm" {
                         let current_gamemode = player.read().await.as_player().unwrap().gamemode;
-                        player.set_gamemode(if current_gamemode == 1 { 0 } else { 1 }).await;
+                        player
+                            .set_gamemode(if current_gamemode == 1 { 0 } else { 1 })
+                            .await;
                     }
                     else if message == "clear" {
                         let location = player.read().await.location().clone();
-                        let chunk = chunk_pool.write().await.ensure_chunk(location.chunk_x(), location.chunk_z()).await;
+                        let chunk = chunk_pool
+                            .write()
+                            .await
+                            .ensure_chunk(location.chunk_x(), location.chunk_z())
+                            .await;
                         chunk.write().await.data = {
                             let mut data = Box::new(ChunkData::new());
                             for y in 0..16 {
@@ -434,12 +455,16 @@ impl Server {
                             }
                             data
                         };
-                        chunk_pool.write().await.update_chunk(location.chunk_x(), location.chunk_z());
+                        chunk_pool
+                            .write()
+                            .await
+                            .update_chunk(location.chunk_x(), location.chunk_z());
                     }
                     else {
                         server
                             .read()
-                            .await.players
+                            .await
+                            .players
                             .broadcast(&C0EChatMessage {
                                 json_data: json!({
                                     "text":

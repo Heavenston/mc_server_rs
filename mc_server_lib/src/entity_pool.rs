@@ -1,7 +1,9 @@
-use crate::entity::{player::Player, BoxedEntity};
+use crate::{
+    entity::{player::Player, BoxedEntity},
+    entity_manager::{BoxedEntityManager, PlayerManager},
+};
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
-use crate::entity_manager::{BoxedEntityManager, PlayerManager};
 
 use anyhow::{Error, Result};
 use std::{collections::HashMap, sync::Arc};
@@ -75,20 +77,21 @@ impl EntityPool {
                     match &*entity.read().await {
                         // TODO: Implement it in the entity trait... somehow
                         BoxedEntity::Player(entity) => {
-                            self.players.send_to_player(
-                                player_eid,
-                                &C04SpawnPlayer {
-                                    entity_id: eid,
-                                    uuid: entity.uuid.clone(),
-                                    x: synced_entity_location.x,
-                                    y: synced_entity_location.y,
-                                    z: synced_entity_location.z,
-                                    yaw: synced_entity_location.yaw_angle(),
-                                    pitch: synced_entity_location.pitch_angle(),
-                                },
-                            )
-                            .await
-                            .unwrap();
+                            self.players
+                                .send_to_player(
+                                    player_eid,
+                                    &C04SpawnPlayer {
+                                        entity_id: eid,
+                                        uuid: entity.uuid.clone(),
+                                        x: synced_entity_location.x,
+                                        y: synced_entity_location.y,
+                                        z: synced_entity_location.z,
+                                        yaw: synced_entity_location.yaw_angle(),
+                                        pitch: synced_entity_location.pitch_angle(),
+                                    },
+                                )
+                                .await
+                                .unwrap();
                         }
                         _ => unimplemented!(),
                     }
@@ -99,26 +102,28 @@ impl EntityPool {
                         .unwrap()
                         .loaded_entities
                         .insert(eid);
-                    self.players.send_to_player(
-                        player_eid,
-                        &C3AEntityHeadLook {
-                            entity_id: eid,
-                            head_yaw: entity.read().await.location().yaw_angle(),
-                        },
-                    )
-                    .await
-                    .unwrap();
+                    self.players
+                        .send_to_player(
+                            player_eid,
+                            &C3AEntityHeadLook {
+                                entity_id: eid,
+                                head_yaw: entity.read().await.location().yaw_angle(),
+                            },
+                        )
+                        .await
+                        .unwrap();
                 }
                 if is_loaded && !should_be_loaded {
                     // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
-                    self.players.send_to_player(
-                        player_eid,
-                        &C36DestroyEntities {
-                            entities: vec![eid],
-                        },
-                    )
-                    .await
-                    .unwrap();
+                    self.players
+                        .send_to_player(
+                            player_eid,
+                            &C36DestroyEntities {
+                                entities: vec![eid],
+                            },
+                        )
+                        .await
+                        .unwrap();
                     player
                         .write()
                         .await
@@ -139,7 +144,8 @@ impl EntityPool {
                 .as_player()
                 .unwrap()
                 .loaded_entities
-                .iter().cloned()
+                .iter()
+                .cloned()
             {
                 if !self.entities.has_entity(eid) {
                     to_destroy.push(eid);
@@ -153,14 +159,15 @@ impl EntityPool {
                 }
             }
             if !to_destroy.is_empty() {
-                self.players.send_to_player(
-                    player_eid,
-                    &C36DestroyEntities {
-                        entities: to_destroy,
-                    },
-                )
-                .await
-                .unwrap();
+                self.players
+                    .send_to_player(
+                        player_eid,
+                        &C36DestroyEntities {
+                            entities: to_destroy,
+                        },
+                    )
+                    .await
+                    .unwrap();
             }
         }
 
@@ -289,8 +296,11 @@ impl EntityPool {
         )
         .await;
         if let Ok(player) = self.entities[id].read().await.as_player() {
-            player.client.read().await.send_packet(
-                &C34PlayerPositionAndLook {
+            player
+                .client
+                .read()
+                .await
+                .send_packet(&C34PlayerPositionAndLook {
                     x: location.x,
                     y: location.y,
                     z: location.z,
@@ -298,14 +308,16 @@ impl EntityPool {
                     pitch: location.pitch,
                     flags: 0,
                     teleport_id: 0,
-                },
-            )
-            .await
-            .unwrap();
+                })
+                .await
+                .unwrap();
         }
     }
     pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
-        let entity = self.entities.get_entity(entity_id).ok_or(Error::msg("Invalid entity id"))?;
+        let entity = self
+            .entities
+            .get_entity(entity_id)
+            .ok_or(Error::msg("Invalid entity id"))?;
         let metadata = entity.read().await.metadata();
 
         broadcast_to(
