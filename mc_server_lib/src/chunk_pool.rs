@@ -5,7 +5,7 @@ use crate::entity_manager::{PlayerManager, PlayerWrapper};
 use anyhow::Result;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{RwLock, Mutex};
+use tokio::sync::RwLock;
 
 #[async_trait]
 pub trait ChunkGenerator: Send + Sync {
@@ -87,12 +87,6 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
                 match chunks.read().await.get(&(chunk_x + dx, chunk_z + dz)) {
                     Some(chunk) => {
                         player
-                            .read()
-                            .await
-                            .as_player().unwrap()
-                            .client
-                            .lock()
-                            .await
                             .send_packet(&chunk.read().await.encode(true))
                             .await.unwrap();
                         player
@@ -134,7 +128,7 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
                     .await
                     .as_player().unwrap()
                     .client
-                    .lock()
+                    .read()
                     .await
                     .unload_chunk(chunk.0, chunk.1)
                     .await.unwrap();
@@ -151,7 +145,7 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
             .await
             .as_player().unwrap()
             .client
-            .lock()
+            .read()
             .await
             .update_view_position(chunk_x, chunk_z)
             .await.unwrap();

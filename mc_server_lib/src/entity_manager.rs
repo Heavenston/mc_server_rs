@@ -5,7 +5,7 @@ use crate::entity::player::Player;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::HashMap;
-use std::ops::{Deref, Index, IndexMut};
+use std::ops::{Deref, Index};
 use anyhow::{Result, Error};
 
 #[derive(Clone)]
@@ -23,7 +23,7 @@ impl PlayerWrapper {
     }
 
     pub async fn send_packet(&self, packet: &impl ClientBoundPacket) -> Result<()> {
-        self.read().await.as_player().unwrap().client.lock().await.send_packet(packet).await?;
+        self.read().await.as_player().unwrap().client.read().await.send_packet(packet).await?;
         Ok(())
     }
     pub async fn entity_id(&self) -> i32 {
@@ -53,7 +53,7 @@ impl PlayerWrapper {
         let player = self.entity.read().await;
         let player = player.as_player().unwrap();
         player.client
-            .lock()
+            .read()
             .await
             .send_player_abilities(
                 player.invulnerable,

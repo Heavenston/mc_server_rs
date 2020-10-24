@@ -10,14 +10,14 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
-use tokio::sync::Mutex;
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 pub struct Player {
     pub username: String,
     pub entity_id: i32,
     pub uuid: Uuid,
-    pub client: Arc<Mutex<Client>>,
+    pub client: Arc<RwLock<Client>>,
 
     pub location: Location,
     pub ping: i32,
@@ -36,7 +36,7 @@ pub struct Player {
     pub loaded_chunks: HashSet<(i32, i32)>,
 }
 impl Player {
-    pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Arc<Mutex<Client>>) -> Self {
+    pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Arc<RwLock<Client>>) -> Self {
         Self {
             username,
             entity_id,

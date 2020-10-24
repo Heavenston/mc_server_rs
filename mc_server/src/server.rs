@@ -82,12 +82,12 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Self {
-            entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
-            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 10))),
+            entity_pool: Arc::new(RwLock::new(EntityPool::new(5 * 16))),
+            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 5))),
             players: PlayerManager::new(),
             entity_id_counter: 0,
             max_players: 10,
-            view_distance: 10,
+            view_distance: 5,
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: Location {
                 x: 0.0,
@@ -105,7 +105,7 @@ impl Server {
         loop {
             let (socket, ..) = listener.accept().await?;
             let (client, event_receiver) = Client::new(socket);
-            let client = Arc::new(Mutex::new(client));
+            let client = Arc::new(RwLock::new(client));
 
             tokio::task::spawn({
                 let server = Arc::clone(&server);
@@ -121,7 +121,7 @@ impl Server {
 
     async fn handle_client(
         server: Arc<RwLock<Server>>,
-        client: Arc<Mutex<Client>>,
+        client: Arc<RwLock<Client>>,
         mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
         let mut player: Option<PlayerWrapper> = None;
@@ -193,7 +193,7 @@ impl Server {
 
                     // Join Game
                     client
-                        .lock()
+                        .read()
                         .await
                         .send_packet(&{
                             let server = server.read().await;
@@ -324,7 +324,7 @@ impl Server {
                             players
                         };
                         client
-                            .lock()
+                            .read()
                             .await
                             .send_packet(&C32PlayerInfo { players })
                             .await

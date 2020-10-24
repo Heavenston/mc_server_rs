@@ -289,7 +289,7 @@ impl EntityPool {
         )
         .await;
         if let Ok(player) = self.entities[id].read().await.as_player() {
-            player.client.lock().await.send_packet(
+            player.client.read().await.send_packet(
                 &C34PlayerPositionAndLook {
                     x: location.x,
                     y: location.y,
@@ -330,7 +330,7 @@ pub async fn broadcast_to(
         let player = entity.downcast_ref::<Player>().unwrap();
         player
             .client
-            .lock()
+            .read()
             .await
             .send_packet(packet)
             .await
