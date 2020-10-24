@@ -303,11 +303,11 @@ mod play {
     ///
     /// https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29
     #[derive(Clone, Debug)]
-    pub struct C05KeepAlive {
+    pub struct C05EntityAnimation {
         pub entity_id: VarInt,
         pub animation: u8,
     }
-    impl ClientBoundPacket for C05KeepAlive {
+    impl ClientBoundPacket for C05EntityAnimation {
         fn packet_id() -> i32 { 0x05 }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
