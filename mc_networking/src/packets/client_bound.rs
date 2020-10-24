@@ -299,6 +299,23 @@ mod play {
         }
     }
 
+    /// Sent whenever an entity should change animation.
+    ///
+    /// https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29
+    #[derive(Clone, Debug)]
+    pub struct C05KeepAlive {
+        pub entity_id: VarInt,
+        pub animation: u8,
+    }
+    impl ClientBoundPacket for C05KeepAlive {
+        fn packet_id() -> i32 { 0x05 }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_u8(self.animation);
+        }
+    }
+
     /// Identifying the difference between Chat/System Message is important as
     /// it helps respect the user's chat visibility options.
     /// See processing chat for more info about these positions.
