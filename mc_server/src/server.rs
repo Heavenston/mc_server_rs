@@ -578,6 +578,12 @@ impl Server {
                         .await
                         .unwrap();
                 }
+                ClientEvent::Animation { hand } => {
+                    server.read().await.players.broadcast(&C05EntityAnimation {
+                        entity_id: player_eid,
+                        animation: if hand == 0 { 0 } else { 3 }
+                    }).await.unwrap();
+                }
             }
         }
 
