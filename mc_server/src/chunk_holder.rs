@@ -1,6 +1,6 @@
 use crate::{
     chunk::Chunk,
-    entity_manager::{PlayerManager, PlayerWrapper},
+    entity_manager::PlayerWrapper,
 };
 use mc_utils::ChunkData;
 
@@ -36,9 +36,6 @@ impl<T: 'static+ChunkGenerator+ Send + Sync> ChunkHolder<T> {
         let chunk = Arc::new(RwLock::new(chunk));
         self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
         chunk
-    }
-    pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
-        self.chunks.read().await.get(&(x, z)).cloned()
     }
 
     pub async fn update_player_view_position(&self, view_distance: i32, player: PlayerWrapper, chunk_x: i32, chunk_z: i32) {

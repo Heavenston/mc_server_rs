@@ -18,7 +18,6 @@ use noise::{NoiseFn, Perlin};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::{
-    join,
     net::{TcpListener, ToSocketAddrs},
     sync::RwLock,
     time::{Duration, Instant},

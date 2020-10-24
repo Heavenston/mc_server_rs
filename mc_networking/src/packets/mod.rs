@@ -9,7 +9,6 @@ use flate2::{
     read::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use log::*;
 use std::{
     io::{Cursor, Read},
     ops::Deref,
