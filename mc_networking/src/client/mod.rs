@@ -455,6 +455,12 @@ async fn listen_client_packets(
                         is_flying: player_abilities.flags & 0x02 == 0x02,
                     })?;
                 }
+                else if raw_packet.packet_id == S2CAnimation::packet_id() {
+                    let animation = S2CAnimation::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::Animation {
+                        hand: animation.hand
+                    })?;
+                }
             }
 
             ClientState::Disconnected => {

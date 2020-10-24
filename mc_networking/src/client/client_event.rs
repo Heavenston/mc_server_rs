@@ -53,4 +53,7 @@ pub enum ClientEvent {
     PlayerAbilities {
         is_flying: bool,
     },
+    Animation {
+        hand: i32
+    }
 }
