@@ -39,7 +39,7 @@ impl Generator {
 }
 #[async_trait]
 impl ChunkGenerator for Generator {
-    async fn generate_chunk_data(&mut self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
+    async fn generate_chunk_data(&self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
         let mut data = Box::new(ChunkData::new());
         for local_x in 0..16 {
             let global_x = chunk_x * 16 + local_x;

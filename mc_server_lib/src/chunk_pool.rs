@@ -9,7 +9,7 @@ use tokio::sync::{RwLock, Mutex};
 
 #[async_trait]
 pub trait ChunkGenerator: Send + Sync {
-    async fn generate_chunk_data(&mut self, x: i32, z: i32) -> Box<ChunkData>;
+    async fn generate_chunk_data(&self, x: i32, z: i32) -> Box<ChunkData>;
 }
 
 /// Manage chunks loading
@@ -17,7 +17,7 @@ pub trait ChunkGenerator: Send + Sync {
 /// A player cannot be in multiple chunk_pool
 pub struct ChunkPool<T: ChunkGenerator> {
     pub view_distance: i32,
-    chunk_generator: Arc<Mutex<T>>,
+    chunk_generator: Arc<T>,
     chunks: Arc<RwLock<HashMap<(i32, i32), Arc<RwLock<Chunk>>>>>,
     chunks_to_update: Vec<(i32, i32)>,
     players: PlayerManager,
@@ -28,7 +28,7 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
     pub fn new(chunk_generator: T, view_distance: i32) -> Self {
         Self {
             view_distance,
-            chunk_generator: Arc::new(Mutex::new(chunk_generator)),
+            chunk_generator: Arc::new(chunk_generator),
             chunks: Arc::new(RwLock::new(HashMap::new())),
             chunks_to_update: vec![],
             players: PlayerManager::new(),
@@ -41,7 +41,7 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
             return Arc::clone(chunk);
         }
         let mut chunk = Chunk::new(x, z);
-        chunk.data = self.chunk_generator.lock().await.generate_chunk_data(x, z).await;
+        chunk.data = self.chunk_generator.generate_chunk_data(x, z).await;
         let chunk = Arc::new(RwLock::new(chunk));
         self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
         chunk
@@ -108,7 +108,7 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
                         let player = player.clone();
                         tokio::task::spawn(async move {
                             let mut chunk = Chunk::new(chunk_x + dx, chunk_z + dz);
-                            chunk.data = chunk_generator.lock().await.generate_chunk_data(chunk_x + dx, chunk_z + dz).await;
+                            chunk.data = chunk_generator.generate_chunk_data(chunk_x + dx, chunk_z + dz).await;
                             let chunk = Arc::new(RwLock::new(chunk));
                             chunks.write().await.insert((chunk_x + dx, chunk_z + dz), Arc::clone(&chunk));
                             player
