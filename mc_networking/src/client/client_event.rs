@@ -54,6 +54,6 @@ pub enum ClientEvent {
         is_flying: bool,
     },
     Animation {
-        hand: i32
-    }
+        hand: i32,
+    },
 }

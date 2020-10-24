@@ -1,13 +1,13 @@
-use mc_networking::{
-    client::{client_event::*, Client},
-    map,
-    packets::client_bound::*,
-};
 use crate::{
     chunk_holder::{ChunkGenerator, ChunkHolder},
     entity::{player::Player, BoxedEntity},
     entity_manager::{PlayerManager, PlayerWrapper},
     entity_pool::EntityPool,
+};
+use mc_networking::{
+    client::{client_event::*, Client},
+    map,
+    packets::client_bound::*,
 };
 use mc_utils::{ChunkData, Location};
 
@@ -367,11 +367,14 @@ impl Server {
 
                     let spawn_location = server.read().await.spawn_location.clone();
 
-                    chunk_holder.update_player_view_position(
-                        server.read().await.view_distance as i32,
-                        player.clone(),
-                        spawn_location.chunk_x(), spawn_location.chunk_z()
-                    ).await;
+                    chunk_holder
+                        .update_player_view_position(
+                            server.read().await.view_distance as i32,
+                            player.clone(),
+                            spawn_location.chunk_x(),
+                            spawn_location.chunk_z(),
+                        )
+                        .await;
 
                     // Send server brand
                     {
@@ -474,13 +477,16 @@ impl Server {
                     player.write().await.set_on_ground(on_ground);
                     player.write().await.set_location(new_location.clone());
                     if new_location.chunk_x() != last_location.chunk_x()
-                        || new_location.chunk_z() != last_location.chunk_z() {
-                        chunk_holder.update_player_view_position(
-                            server.read().await.view_distance as i32,
-                            player.clone(),
-                            new_location.chunk_x(),
-                            new_location.chunk_z(),
-                        ).await;
+                        || new_location.chunk_z() != last_location.chunk_z()
+                    {
+                        chunk_holder
+                            .update_player_view_position(
+                                server.read().await.view_distance as i32,
+                                player.clone(),
+                                new_location.chunk_x(),
+                                new_location.chunk_z(),
+                            )
+                            .await;
                     }
                 }
                 ClientEvent::PlayerPositionAndRotation {
@@ -503,13 +509,16 @@ impl Server {
                     player.write().await.set_on_ground(on_ground);
                     player.write().await.set_location(new_location.clone());
                     if new_location.chunk_x() != last_location.chunk_x()
-                        || new_location.chunk_z() != last_location.chunk_z() {
-                        chunk_holder.update_player_view_position(
-                            server.read().await.view_distance as i32,
-                            player.clone(),
-                            new_location.chunk_x(),
-                            new_location.chunk_z(),
-                        ).await;
+                        || new_location.chunk_z() != last_location.chunk_z()
+                    {
+                        chunk_holder
+                            .update_player_view_position(
+                                server.read().await.view_distance as i32,
+                                player.clone(),
+                                new_location.chunk_x(),
+                                new_location.chunk_z(),
+                            )
+                            .await;
                     }
                 }
                 ClientEvent::PlayerRotation {
@@ -579,10 +588,16 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::Animation { hand } => {
-                    server.read().await.players.broadcast(&C05EntityAnimation {
-                        entity_id: player_eid,
-                        animation: if hand == 0 { 0 } else { 3 }
-                    }).await.unwrap();
+                    server
+                        .read()
+                        .await
+                        .players
+                        .broadcast(&C05EntityAnimation {
+                            entity_id: player_eid,
+                            animation: if hand == 0 { 0 } else { 3 },
+                        })
+                        .await
+                        .unwrap();
                 }
             }
         }

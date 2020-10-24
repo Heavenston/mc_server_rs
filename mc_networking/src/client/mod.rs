@@ -458,7 +458,7 @@ async fn listen_client_packets(
                 else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::Animation {
-                        hand: animation.hand
+                        hand: animation.hand,
                     })?;
                 }
             }

@@ -1,7 +1,4 @@
-use crate::{
-    chunk::Chunk,
-    entity_manager::PlayerWrapper,
-};
+use crate::{chunk::Chunk, entity_manager::PlayerWrapper};
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
@@ -14,12 +11,12 @@ pub trait ChunkGenerator {
 }
 
 /// Manage chunks loading
-pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
+pub struct ChunkHolder<T: ChunkGenerator+Send+Sync> {
     chunk_generator: T,
     chunks: RwLock<HashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
 }
 
-impl<T: 'static+ChunkGenerator+ Send + Sync> ChunkHolder<T> {
+impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
     pub fn new(chunk_generator: T) -> Self {
         Self {
             chunk_generator,
@@ -38,7 +35,13 @@ impl<T: 'static+ChunkGenerator+ Send + Sync> ChunkHolder<T> {
         chunk
     }
 
-    pub async fn update_player_view_position(&self, view_distance: i32, player: PlayerWrapper, chunk_x: i32, chunk_z: i32) {
+    pub async fn update_player_view_position(
+        &self,
+        view_distance: i32,
+        player: PlayerWrapper,
+        chunk_x: i32,
+        chunk_z: i32,
+    ) {
         for dx in -view_distance..view_distance {
             for dz in -view_distance..view_distance {
                 if dx * dx + dz * dz > view_distance * view_distance {
