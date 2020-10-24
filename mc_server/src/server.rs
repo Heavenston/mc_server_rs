@@ -83,12 +83,12 @@ pub struct Server {
 impl Server {
     pub fn new() -> Self {
         Self {
-            entity_pool: Arc::new(RwLock::new(EntityPool::new(5 * 16))),
-            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 5))),
+            entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
+            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 10))),
             players: PlayerManager::new(),
             entity_id_counter: 0,
             max_players: 10,
-            view_distance: 5,
+            view_distance: 10,
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: Location {
                 x: 0.0,
