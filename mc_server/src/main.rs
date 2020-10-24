@@ -1,6 +1,6 @@
 mod server;
 mod chunk;
-mod chunk_pool;
+mod chunk_holder;
 mod entity;
 mod entity_manager;
 mod entity_pool;

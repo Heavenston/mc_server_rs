@@ -4,7 +4,7 @@ use mc_networking::{
     packets::client_bound::*,
 };
 use crate::{
-    chunk_pool::{ChunkGenerator, ChunkPool},
+    chunk_holder::{ChunkGenerator, ChunkHolder},
     entity::{player::Player, BoxedEntity},
     entity_manager::{PlayerManager, PlayerWrapper},
     entity_pool::EntityPool,
@@ -73,7 +73,7 @@ impl ChunkGenerator for Generator {
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
-    chunk_pool: Arc<RwLock<ChunkPool<Generator>>>,
+    chunk_holder: Arc<ChunkHolder<Generator>>,
     players: PlayerManager,
     entity_id_counter: i32,
     max_players: u16,
@@ -87,7 +87,7 @@ impl Server {
     pub fn new() -> Self {
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(5 * 16))),
-            chunk_pool: Arc::new(RwLock::new(ChunkPool::new(Generator::new(), 5))),
+            chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
             players: PlayerManager::new(),
             entity_id_counter: 0,
             max_players: 10,
@@ -131,7 +131,7 @@ impl Server {
         let mut player: Option<PlayerWrapper> = None;
         let mut player_eid = -1i32;
         let entity_pool = Arc::clone(&server.read().await.entity_pool);
-        let chunk_pool = Arc::clone(&server.read().await.chunk_pool);
+        let chunk_holder = Arc::clone(&server.read().await.chunk_holder);
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -366,11 +366,13 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
-                    chunk_pool
-                        .write()
-                        .await
-                        .add_player(Arc::clone(player))
-                        .await;
+                    let spawn_location = server.read().await.spawn_location.clone();
+
+                    chunk_holder.update_player_view_position(
+                        server.read().await.view_distance as i32,
+                        player.clone(),
+                        spawn_location.chunk_x(), spawn_location.chunk_z()
+                    ).await;
 
                     // Send server brand
                     {
@@ -389,7 +391,6 @@ impl Server {
                             .unwrap();
                     }
 
-                    let spawn_location = server.read().await.spawn_location.clone();
                     // Update position
                     entity_pool
                         .read()
@@ -401,7 +402,6 @@ impl Server {
                     server.write().await.players.remove_entity(player_eid);
                     entity_pool.write().await.entities.remove_entity(player_eid);
                     entity_pool.write().await.players.remove_entity(player_eid);
-                    chunk_pool.write().await.remove_player(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
                         .read()
@@ -441,25 +441,6 @@ impl Server {
                             .set_gamemode(if current_gamemode == 1 { 0 } else { 1 })
                             .await;
                     }
-                    else if message == "clear" {
-                        let location = player.read().await.location().clone();
-                        let chunk = chunk_pool
-                            .write()
-                            .await
-                            .ensure_chunk(location.chunk_x(), location.chunk_z())
-                            .await;
-                        chunk.write().await.data = {
-                            let mut data = Box::new(ChunkData::new());
-                            for y in 0..16 {
-                                data.get_section_mut(y);
-                            }
-                            data
-                        };
-                        chunk_pool
-                            .write()
-                            .await
-                            .update_chunk(location.chunk_x(), location.chunk_z());
-                    }
                     else {
                         server
                             .read()
@@ -482,16 +463,26 @@ impl Server {
                     }
                 }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
-                    let mut player = player.as_ref().unwrap().write().await;
+                    let player = player.as_ref().unwrap();
+                    let last_location = player.read().await.location().clone();
                     let new_location = Location {
                         x,
                         y,
                         z,
-                        yaw: player.location().yaw,
-                        pitch: player.location().pitch,
+                        yaw: last_location.yaw,
+                        pitch: last_location.pitch,
                     };
-                    player.set_on_ground(on_ground);
-                    player.set_location(new_location.clone());
+                    player.write().await.set_on_ground(on_ground);
+                    player.write().await.set_location(new_location.clone());
+                    if new_location.chunk_x() != last_location.chunk_x()
+                        || new_location.chunk_z() != last_location.chunk_z() {
+                        chunk_holder.update_player_view_position(
+                            server.read().await.view_distance as i32,
+                            player.clone(),
+                            new_location.chunk_x(),
+                            new_location.chunk_z(),
+                        ).await;
+                    }
                 }
                 ClientEvent::PlayerPositionAndRotation {
                     x,
@@ -501,6 +492,8 @@ impl Server {
                     pitch,
                     on_ground,
                 } => {
+                    let player = player.as_ref().unwrap();
+                    let last_location = player.read().await.location().clone();
                     let new_location = Location {
                         x,
                         y,
@@ -508,9 +501,17 @@ impl Server {
                         yaw,
                         pitch,
                     };
-                    let mut player = player.as_ref().unwrap().write().await;
-                    player.set_on_ground(on_ground);
-                    player.set_location(new_location.clone());
+                    player.write().await.set_on_ground(on_ground);
+                    player.write().await.set_location(new_location.clone());
+                    if new_location.chunk_x() != last_location.chunk_x()
+                        || new_location.chunk_z() != last_location.chunk_z() {
+                        chunk_holder.update_player_view_position(
+                            server.read().await.view_distance as i32,
+                            player.clone(),
+                            new_location.chunk_x(),
+                            new_location.chunk_z(),
+                        ).await;
+                    }
                 }
                 ClientEvent::PlayerRotation {
                     yaw,
@@ -643,19 +644,8 @@ impl Server {
     }
 
     pub async fn tick(&mut self) {
-        let chunk_tick = {
-            let chunk_pool = Arc::clone(&self.chunk_pool);
-            async move {
-                chunk_pool.write().await.tick().await.unwrap();
-            }
-        };
-        let entity_tick = {
-            let entity_pool = Arc::clone(&self.entity_pool);
-            async move {
-                entity_pool.write().await.tick().await;
-            }
-        };
-        join!(chunk_tick, entity_tick);
+        self.entity_pool.write().await.tick().await;
+        self.chunk_holder.tick().await;
         self.players
             .broadcast(&C53PlayerListHeaderAndFooter {
                 header: json!({
