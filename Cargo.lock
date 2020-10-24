@@ -426,25 +426,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d947cbb889ed21c2a84be6ffbaebf5b4e0f4340638cba0444907e38b56be084"
 
 [[package]]
-name = "mc_networking"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "byteorder",
- "bytes",
- "fern",
- "flate2",
- "hematite-nbt",
- "log",
- "serde",
- "serde_json",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "mc_server"
+name = "mc_example_server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -458,6 +440,24 @@ dependencies = [
  "mc_networking",
  "mc_utils",
  "noise",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "mc_networking"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "byteorder",
+ "bytes",
+ "fern",
+ "flate2",
+ "hematite-nbt",
+ "log",
  "serde",
  "serde_json",
  "tokio",
