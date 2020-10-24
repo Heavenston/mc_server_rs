@@ -456,27 +456,6 @@ dependencies = [
  "hematite-nbt",
  "log",
  "mc_networking",
- "mc_server_lib",
- "mc_utils",
- "noise",
- "serde",
- "serde_json",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "mc_server_lib"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "downcast-rs",
- "fern",
- "hematite-nbt",
- "log",
- "mc_networking",
  "mc_utils",
  "noise",
  "serde",

@@ -2,8 +2,7 @@
 members = [
     "mc_networking",
     "mc_server",
-    "mc_utils",
-    "mc_server_lib"
+    "mc_utils"
 ]
 
 [profile.dev]

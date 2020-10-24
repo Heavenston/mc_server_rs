@@ -3,7 +3,7 @@ use mc_networking::{
     map,
     packets::client_bound::*,
 };
-use mc_server_lib::{
+use crate::{
     chunk_pool::{ChunkGenerator, ChunkPool},
     entity::{player::Player, BoxedEntity},
     entity_manager::{PlayerManager, PlayerWrapper},
@@ -20,7 +20,7 @@ use std::sync::Arc;
 use tokio::{
     join,
     net::{TcpListener, ToSocketAddrs},
-    sync::{Mutex, RwLock},
+    sync::RwLock,
     time::{Duration, Instant},
 };
 use uuid::Uuid;
