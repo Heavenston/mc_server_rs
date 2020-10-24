@@ -6,7 +6,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use log::*;
 
 #[async_trait]
 pub trait ChunkGenerator {

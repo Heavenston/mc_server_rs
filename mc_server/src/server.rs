@@ -1,15 +1,14 @@
-use crate::{
-    chunk_pool::{ChunkGenerator, ChunkPool},
-    entity::{player::Player, BoxedEntity},
-    entity_pool::EntityPool,
-};
 use mc_networking::{
     client::{client_event::*, Client},
     map,
     packets::client_bound::*,
 };
 use mc_utils::{ChunkData, Location};
-use crate::entity_manager::{PlayerManager, PlayerWrapper};
+use mc_server_lib::chunk_pool::{ChunkGenerator, ChunkPool};
+use mc_server_lib::entity_pool::EntityPool;
+use mc_server_lib::entity_manager::{PlayerManager, PlayerWrapper};
+use mc_server_lib::entity::BoxedEntity;
+use mc_server_lib::entity::player::Player;
 
 use anyhow::Result;
 use async_trait::async_trait;
