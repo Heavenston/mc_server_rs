@@ -69,81 +69,92 @@ impl<T: 'static + ChunkGenerator> ChunkPool<T> {
         let view_distance = self.view_distance;
         let chunks = Arc::clone(&self.chunks);
         let chunk_generator = Arc::clone(&self.chunk_generator);
-        let player = Arc::clone(&self.players[player_id]);
-        tokio::task::spawn(async move {
-            for dx in -view_distance..view_distance {
-                for dz in -view_distance..view_distance {
-                    if dx*dx + dz*dz > view_distance*view_distance {
-                        continue;
+        let player: PlayerWrapper = self.players[player_id].clone();
+
+        for dx in -view_distance..view_distance {
+            for dz in -view_distance..view_distance {
+                if dx*dx + dz*dz > view_distance*view_distance {
+                    continue;
+                }
+                if player
+                    .read()
+                    .await
+                    .as_player().unwrap()
+                    .loaded_chunks
+                    .contains(&(chunk_x + dx, chunk_z + dz)) {
+                    continue;
+                }
+                match chunks.read().await.get(&(chunk_x + dx, chunk_z + dz)) {
+                    Some(chunk) => {
+                        player
+                            .read()
+                            .await
+                            .as_player().unwrap()
+                            .client
+                            .lock()
+                            .await
+                            .send_packet(&chunk.read().await.encode(true))
+                            .await.unwrap();
+                        player
+                            .write()
+                            .await
+                            .as_player_mut().unwrap()
+                            .loaded_chunks
+                            .insert((chunk_x + dx, chunk_z + dz));
                     }
-                    if player
-                        .read()
-                        .await
-                        .as_player().unwrap()
-                        .loaded_chunks
-                        .contains(&(chunk_x + dx, chunk_z + dz)) {
-                        continue;
-                    }
-                    let chunk = {
-                        if chunks.read().await.contains_key(&(chunk_x + dx, chunk_z + dz)) {
-                            Arc::clone(&chunks.read().await[&(chunk_x + dx, chunk_z + dz)])
-                        }
-                        else {
+                    None => {
+                        let chunks = Arc::clone(&chunks);
+                        let chunk_generator = Arc::clone(&chunk_generator);
+                        let player = player.clone();
+                        tokio::task::spawn(async move {
                             let mut chunk = Chunk::new(chunk_x + dx, chunk_z + dz);
                             chunk.data = chunk_generator.lock().await.generate_chunk_data(chunk_x + dx, chunk_z + dz).await;
                             let chunk = Arc::new(RwLock::new(chunk));
                             chunks.write().await.insert((chunk_x + dx, chunk_z + dz), Arc::clone(&chunk));
-                            chunk
-                        }
-                    };
-                    player
-                        .read()
-                        .await
-                        .as_player().unwrap()
-                        .client
-                        .lock()
-                        .await
-                        .send_packet(&chunk.read().await.encode(true))
-                        .await.unwrap();
-                    player
-                        .write()
-                        .await
-                        .as_player_mut().unwrap()
-                        .loaded_chunks
-                        .insert((chunk_x + dx, chunk_z + dz));
+                            player
+                                .send_packet(&chunk.read().await.encode(true))
+                                .await.unwrap();
+                            player
+                                .write()
+                                .await
+                                .as_player_mut().unwrap()
+                                .loaded_chunks
+                                .insert((chunk_x + dx, chunk_z + dz));
+                        });
+                    }
                 }
             }
-            let loaded_chunks = player.read().await.as_player().unwrap().loaded_chunks.clone();
-            for chunk in loaded_chunks {
-                let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
-                if dx*dx + dz*dz >= view_distance*view_distance {
-                    player
-                        .read()
-                        .await
-                        .as_player().unwrap()
-                        .client
-                        .lock()
-                        .await
-                        .unload_chunk(chunk.0, chunk.1)
-                        .await.unwrap();
-                    player
-                        .write()
-                        .await
-                        .as_player_mut().unwrap()
-                        .loaded_chunks
-                        .remove(&chunk);
-                }
+        }
+        let loaded_chunks = player.read().await.as_player().unwrap().loaded_chunks.clone();
+        for chunk in loaded_chunks {
+            let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
+            if dx*dx + dz*dz >= view_distance*view_distance {
+                player
+                    .read()
+                    .await
+                    .as_player().unwrap()
+                    .client
+                    .lock()
+                    .await
+                    .unload_chunk(chunk.0, chunk.1)
+                    .await.unwrap();
+                player
+                    .write()
+                    .await
+                    .as_player_mut().unwrap()
+                    .loaded_chunks
+                    .remove(&chunk);
             }
-            player
-                .read()
-                .await
-                .as_player().unwrap()
-                .client
-                .lock()
-                .await
-                .update_view_position(chunk_x, chunk_z)
-                .await.unwrap();
-        });
+        }
+        player
+            .read()
+            .await
+            .as_player().unwrap()
+            .client
+            .lock()
+            .await
+            .update_view_position(chunk_x, chunk_z)
+            .await.unwrap();
     }
 
     pub async fn tick(&mut self) -> Result<()> {
