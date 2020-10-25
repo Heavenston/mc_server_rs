@@ -1,6 +1,6 @@
 use crate::{chunk::Chunk, entity_manager::PlayerWrapper};
+use mc_networking::packets::client_bound::{C1CUnloadChunk, C40UpdateViewPosition};
 use mc_utils::ChunkData;
-use mc_networking::packets::client_bound::{C40UpdateViewPosition, C1CUnloadChunk};
 
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -82,10 +82,13 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
         for chunk in loaded_chunks {
             let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
             if dx * dx + dz * dz >= view_distance * view_distance {
-                player.send_packet(&C1CUnloadChunk {
-                    chunk_x: chunk.0,
-                    chunk_z: chunk.1,
-                }).await.unwrap();
+                player
+                    .send_packet(&C1CUnloadChunk {
+                        chunk_x: chunk.0,
+                        chunk_z: chunk.1,
+                    })
+                    .await
+                    .unwrap();
                 player
                     .write()
                     .await
@@ -95,9 +98,10 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
                     .remove(&chunk);
             }
         }
-        player.send_packet(&C40UpdateViewPosition {
-            chunk_x, chunk_z
-        }).await.unwrap();
+        player
+            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .await
+            .unwrap();
     }
 
     pub async fn tick(&self) {

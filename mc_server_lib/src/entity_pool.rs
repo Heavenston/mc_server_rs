@@ -1,10 +1,9 @@
 use crate::{
     entity::BoxedEntity,
-    entity_manager::{BoxedEntityManager, PlayerManager},
+    entity_manager::{BoxedEntityManager, EntityManager, PlayerManager},
 };
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
-use crate::entity_manager::EntityManager;
 
 use anyhow::{Error, Result};
 use std::{collections::HashMap, sync::Arc};

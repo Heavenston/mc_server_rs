@@ -15,9 +15,7 @@ impl Chunk {
         }
     }
 
-    pub fn encode(&self) -> C20ChunkData {
-        self.data.encode_full(self.x, self.z, true, !0)
-    }
+    pub fn encode(&self) -> C20ChunkData { self.data.encode_full(self.x, self.z, true, !0) }
     pub fn encode_partial(&self, sections: u16) -> C20ChunkData {
         self.data.encode_full(self.x, self.z, false, sections)
     }

@@ -84,7 +84,13 @@ impl ChunkData {
             .unwrap_or(0)
     }
 
-    pub fn encode_full(&self, chunk_x: i32, chunk_z: i32, full: bool, sections: u16) -> C20ChunkData {
+    pub fn encode_full(
+        &self,
+        chunk_x: i32,
+        chunk_z: i32,
+        full: bool,
+        sections: u16,
+    ) -> C20ChunkData {
         let primary_bit_mask = {
             let mut primary_bit_mask = 0;
             for section in 0..16 {

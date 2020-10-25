@@ -1,31 +1,32 @@
+use mc_networking::{
+    client::{client_event::*, Client},
+    map,
+    packets::client_bound::*,
+};
 use mc_server_lib::{
     chunk_holder::{ChunkGenerator, ChunkHolder},
     entity::{player::Player, BoxedEntity},
     entity_manager::{PlayerManager, PlayerWrapper},
     entity_pool::EntityPool,
 };
-use mc_networking::{
-    client::{client_event::*, Client},
-    map,
-    packets::client_bound::*,
-};
 use mc_utils::{ChunkData, Location};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use log::*;
+use mc_server_lib::entity_manager::EntityManager;
 use noise::{NoiseFn, Perlin};
 use serde_json::json;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicI32, Ordering},
+    Arc,
+};
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
-    sync::RwLock,
+    sync::{Barrier, RwLock},
     time::{Duration, Instant},
 };
-use tokio::sync::Barrier;
 use uuid::Uuid;
-use std::sync::atomic::{AtomicI32, Ordering};
-use mc_server_lib::entity_manager::EntityManager;
 
 struct Generator {
     noise: Perlin,
@@ -154,9 +155,7 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::LoginStart { response, username } => {
-                    if (server.max_players as usize)
-                        <= server.players.read().await.size()
-                    {
+                    if (server.max_players as usize) <= server.players.read().await.size() {
                         response
                             .send(LoginStartResult::Disconnect {
                                 reason: "The server is full :(".to_string(),
@@ -597,14 +596,20 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::Animation { hand } => {
-                    let servers = server.players.read().await.get_filtered_players(|p| p.entity_id != player_eid).await;
+                    let servers = server
+                        .players
+                        .read()
+                        .await
+                        .get_filtered_players(|p| p.entity_id != player_eid)
+                        .await;
                     EntityManager::broadcast_to(
                         &C05EntityAnimation {
                             entity_id: player_eid,
                             animation: if hand == 0 { 0 } else { 3 },
                         },
-                        servers
-                    ).await;
+                        servers,
+                    )
+                    .await;
                 }
             }
         }
@@ -676,7 +681,9 @@ impl Server {
     pub async fn tick(&self) {
         self.entity_pool.write().await.tick().await;
         self.chunk_holder.tick().await;
-        self.players.write().await
+        self.players
+            .write()
+            .await
             .broadcast(&C53PlayerListHeaderAndFooter {
                 header: json!({
                     "text": "\nHeavenstone\n",
