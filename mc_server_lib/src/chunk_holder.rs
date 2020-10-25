@@ -29,9 +29,9 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
         if let Some(chunk) = self.chunks.read().await.get(&(x, z)) {
             return Arc::clone(chunk);
         }
-        let mut chunk = Chunk::new(x, z);
-        chunk.data = self.chunk_generator.generate_chunk_data(x, z).await;
-        let chunk = Arc::new(RwLock::new(chunk));
+        let chunk = Arc::new(RwLock::new(
+            Chunk::new(x, z, self.chunk_generator.generate_chunk_data(x, z).await)
+        ));
         self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
         chunk
     }

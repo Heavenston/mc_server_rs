@@ -7,11 +7,11 @@ pub struct Chunk {
     pub data: Box<ChunkData>,
 }
 impl Chunk {
-    pub fn new(x: i32, z: i32) -> Self {
+    pub fn new(x: i32, z: i32, data: Box<ChunkData>) -> Self {
         Self {
             x,
             z,
-            data: Box::new(ChunkData::new()),
+            data,
         }
     }
 
