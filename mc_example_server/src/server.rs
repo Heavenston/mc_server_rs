@@ -24,6 +24,7 @@ use tokio::{
 };
 use tokio::sync::Barrier;
 use uuid::Uuid;
+use std::sync::atomic::{AtomicI32, Ordering};
 
 struct Generator {
     noise: Perlin,
@@ -74,13 +75,13 @@ impl ChunkGenerator for Generator {
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
-    players: PlayerManager,
-    entity_id_counter: i32,
+    players: RwLock<PlayerManager>,
+    entity_id_counter: AtomicI32,
+    spawn_location: RwLock<Location>,
+    tps: RwLock<f64>,
     max_players: u16,
     view_distance: u16,
     brand: String,
-    spawn_location: Location,
-    tps: f64,
 }
 
 impl Server {
@@ -88,23 +89,23 @@ impl Server {
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
-            players: PlayerManager::new(),
-            entity_id_counter: 0,
+            players: RwLock::new(PlayerManager::new()),
+            entity_id_counter: AtomicI32::new(0),
             max_players: 10,
             view_distance: 10,
             brand: "BEST SERVER EVER".to_string(),
-            spawn_location: Location {
+            spawn_location: RwLock::new(Location {
                 x: 0.0,
                 y: 101.0,
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0,
-            },
-            tps: 20.0,
+            }),
+            tps: RwLock::new(20.0),
         }
     }
 
-    pub async fn listen(server: Arc<RwLock<Server>>, addr: impl ToSocketAddrs) -> Result<()> {
+    pub async fn listen(server: Arc<Server>, addr: impl ToSocketAddrs) -> Result<()> {
         let mut listener = TcpListener::bind(addr).await?;
         loop {
             let (socket, ..) = listener.accept().await?;
@@ -124,14 +125,14 @@ impl Server {
     }
 
     async fn handle_client(
-        server: Arc<RwLock<Server>>,
+        server: Arc<Server>,
         client: Arc<RwLock<Client>>,
         mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
         let mut player: Option<PlayerWrapper> = None;
         let mut player_eid = -1i32;
-        let entity_pool = Arc::clone(&server.read().await.entity_pool);
-        let chunk_holder = Arc::clone(&server.read().await.chunk_holder);
+        let entity_pool = Arc::clone(&server.entity_pool);
+        let chunk_holder = Arc::clone(&server.chunk_holder);
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -143,8 +144,8 @@ impl Server {
                                 "protocol": 753
                             },
                             "players": {
-                                "max": server.read().await.max_players,
-                                "online": server.read().await.players.size(),
+                                "max": server.max_players,
+                                "online": server.max_players,
                                 "sample": []
                             },
                             "description": "Hi"
@@ -152,8 +153,8 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::LoginStart { response, username } => {
-                    if (server.read().await.max_players as usize)
-                        <= server.read().await.players.size()
+                    if (server.max_players as usize)
+                        <= server.players.read().await.size()
                     {
                         response
                             .send(LoginStartResult::Disconnect {
@@ -162,16 +163,14 @@ impl Server {
                             .unwrap();
                     }
                     else {
-                        let mut server_write = server.write().await;
-                        server_write.entity_id_counter += 1;
-                        player_eid = server_write.entity_id_counter;
+                        player_eid = server.entity_id_counter.fetch_add(1, Ordering::Relaxed);
                         let uuid = Uuid::new_v3(
                             &Uuid::new_v4(),
                             format!("OfflinePlayer:{}", username).as_bytes(),
                         );
                         let entity = Arc::new(RwLock::new(BoxedEntity::new(Player::new(
                             username.clone(),
-                            server_write.entity_id_counter,
+                            player_eid,
                             uuid.clone(),
                             Arc::clone(&client),
                         ))));
@@ -200,7 +199,6 @@ impl Server {
                         .read()
                         .await
                         .send_packet(&{
-                            let server = server.read().await;
                             let player = player.read().await;
                             let player = player.as_player().unwrap();
 
@@ -313,7 +311,7 @@ impl Server {
                     {
                         let players = {
                             let mut players = vec![my_player_info.clone()];
-                            for player in server.read().await.players.entities() {
+                            for player in server.players.read().await.entities() {
                                 let player = player.read().await;
                                 let player = player.as_player().unwrap();
                                 players.push(C32PlayerInfoPlayerUpdate::AddPlayer {
@@ -336,9 +334,9 @@ impl Server {
                     }
                     // Send to all his player info
                     server
+                        .players
                         .read()
                         .await
-                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![my_player_info],
                         })
@@ -347,9 +345,9 @@ impl Server {
 
                     player.update_abilities().await.unwrap();
                     server
+                        .players
                         .write()
                         .await
-                        .players
                         .add_entity(Arc::clone(&player))
                         .await;
 
@@ -366,11 +364,11 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
-                    let spawn_location = server.read().await.spawn_location.clone();
+                    let spawn_location = server.spawn_location.read().await.clone();
 
                     chunk_holder
                         .update_player_view_position(
-                            server.read().await.view_distance as i32,
+                            server.view_distance as i32,
                             player.clone(),
                             spawn_location.chunk_x(),
                             spawn_location.chunk_z(),
@@ -379,15 +377,14 @@ impl Server {
 
                     // Send server brand
                     {
-                        let brand = server.read().await.brand.clone();
                         server
+                            .players
                             .read()
                             .await
-                            .players
                             .send_to_player(player_eid, &{
                                 let mut builder =
                                     C17PluginMessageBuilder::new("minecraft:brand".to_string());
-                                builder.encoder.write_string(&brand);
+                                builder.encoder.write_string(&server.brand);
                                 builder.build()
                             })
                             .await
@@ -402,14 +399,14 @@ impl Server {
                         .await;
                 }
                 ClientEvent::Logout => {
-                    server.write().await.players.remove_entity(player_eid);
+                    server.players.write().await.remove_entity(player_eid);
                     entity_pool.write().await.entities.remove_entity(player_eid);
                     entity_pool.write().await.players.remove_entity(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
+                        .players
                         .read()
                         .await
-                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
                         })
@@ -423,9 +420,9 @@ impl Server {
                     player.write().await.as_player_mut().unwrap().ping = delay as i32;
                     let uuid = player.read().await.as_player().unwrap().uuid.clone();
                     server
+                        .players
                         .read()
                         .await
-                        .players
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
                                 uuid: uuid.clone(),
@@ -446,9 +443,9 @@ impl Server {
                     }
                     else {
                         server
+                            .players
                             .read()
                             .await
-                            .players
                             .broadcast(&C0EChatMessage {
                                 json_data: json!({
                                     "text":
@@ -482,7 +479,7 @@ impl Server {
                     {
                         chunk_holder
                             .update_player_view_position(
-                                server.read().await.view_distance as i32,
+                                server.view_distance as i32,
                                 player.clone(),
                                 new_location.chunk_x(),
                                 new_location.chunk_z(),
@@ -514,7 +511,7 @@ impl Server {
                     {
                         chunk_holder
                             .update_player_view_position(
-                                server.read().await.view_distance as i32,
+                                server.view_distance as i32,
                                 player.clone(),
                                 new_location.chunk_x(),
                                 new_location.chunk_z(),
@@ -590,9 +587,9 @@ impl Server {
                 }
                 ClientEvent::Animation { hand } => {
                     server
+                        .players
                         .read()
                         .await
-                        .players
                         .broadcast(&C05EntityAnimation {
                             entity_id: player_eid,
                             animation: if hand == 0 { 0 } else { 3 },
@@ -606,7 +603,7 @@ impl Server {
         Ok(())
     }
 
-    pub async fn start_ticker(server: Arc<RwLock<Server>>) {
+    pub async fn start_ticker(server: Arc<Server>) {
         tokio::task::spawn(async move {
             let mut tps_interval = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
             let ticks = Arc::new(RwLock::new(0i32));
@@ -621,7 +618,7 @@ impl Server {
                         tokio::time::delay_for(Duration::from_secs(10)).await;
                         let n = (*ticks.read().await as f64) / 10f64;
                         *ticks.write().await = 0;
-                        server.write().await.tps = n;
+                        *server.tps.write().await = n;
                         info!("{} TPS (~{}ms)", n, *times.read().await / 10);
                         *times.write().await = 0;
                     }
@@ -655,7 +652,7 @@ impl Server {
                 tps_interval.tick().await;
 
                 let start = Instant::now();
-                server.write().await.tick().await;
+                server.tick().await;
                 let elapsed = start.elapsed().as_millis();
                 if elapsed > 100 {
                     debug!("Tick took {}ms", elapsed);
@@ -667,10 +664,10 @@ impl Server {
         });
     }
 
-    pub async fn tick(&mut self) {
+    pub async fn tick(&self) {
         self.entity_pool.write().await.tick().await;
         self.chunk_holder.tick().await;
-        self.players
+        self.players.write().await
             .broadcast(&C53PlayerListHeaderAndFooter {
                 header: json!({
                     "text": "\nHeavenstone\n",
@@ -680,7 +677,7 @@ impl Server {
                     "text": "TPS: ",
                     "color": "white",
                     "extra": [ {
-                        "text": format!("{}", self.tps),
+                        "text": format!("{}", *self.tps.read().await),
                         "color": "green"
                     } ]
                 }),

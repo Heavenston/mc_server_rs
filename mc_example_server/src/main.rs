@@ -4,7 +4,6 @@ use server::Server;
 
 use fern::colors::{Color, ColoredLevelConfig};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 fn setup_logger() {
     let colors_line = ColoredLevelConfig::new()
@@ -36,7 +35,7 @@ fn setup_logger() {
 #[tokio::main]
 async fn main() {
     setup_logger();
-    let server = Arc::new(RwLock::new(Server::new()));
+    let server = Arc::new(Server::new());
     Server::start_ticker(Arc::clone(&server)).await;
     Server::listen(Arc::clone(&server), "0.0.0.0:25565")
         .await
