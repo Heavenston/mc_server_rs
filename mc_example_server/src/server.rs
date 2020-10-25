@@ -477,14 +477,19 @@ impl Server {
                     if new_location.chunk_x() != last_location.chunk_x()
                         || new_location.chunk_z() != last_location.chunk_z()
                     {
-                        chunk_holder
-                            .update_player_view_position(
-                                server.view_distance as i32,
-                                player.clone(),
-                                new_location.chunk_x(),
-                                new_location.chunk_z(),
-                            )
-                            .await;
+                        let view_distance = server.view_distance;
+                        let chunk_holder = Arc::clone(&chunk_holder);
+                        let player = player.clone();
+                        tokio::task::spawn(async move {
+                            chunk_holder
+                                .update_player_view_position(
+                                    view_distance as i32,
+                                    player,
+                                    new_location.chunk_x(),
+                                    new_location.chunk_z(),
+                                )
+                                .await;
+                        });
                     }
                 }
                 ClientEvent::PlayerPositionAndRotation {
@@ -509,14 +514,19 @@ impl Server {
                     if new_location.chunk_x() != last_location.chunk_x()
                         || new_location.chunk_z() != last_location.chunk_z()
                     {
-                        chunk_holder
-                            .update_player_view_position(
-                                server.view_distance as i32,
-                                player.clone(),
-                                new_location.chunk_x(),
-                                new_location.chunk_z(),
-                            )
-                            .await;
+                        let view_distance = server.view_distance;
+                        let chunk_holder = Arc::clone(&chunk_holder);
+                        let player = player.clone();
+                        tokio::task::spawn(async move {
+                            chunk_holder
+                                .update_player_view_position(
+                                    view_distance as i32,
+                                    player,
+                                    new_location.chunk_x(),
+                                    new_location.chunk_z(),
+                                )
+                                .await;
+                        });
                     }
                 }
                 ClientEvent::PlayerRotation {
