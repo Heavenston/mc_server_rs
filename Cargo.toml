@@ -2,7 +2,6 @@
 members = [
     "mc_networking",
     "mc_example_server",
-    "mc_maze_server",
     "mc_utils"
 ]
 
