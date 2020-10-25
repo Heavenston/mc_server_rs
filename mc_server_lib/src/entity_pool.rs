@@ -1,14 +1,14 @@
 use crate::{
-    entity::{player::Player, BoxedEntity},
+    entity::BoxedEntity,
     entity_manager::{BoxedEntityManager, PlayerManager},
 };
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
+use crate::entity_manager::EntityManager;
 
 use anyhow::{Error, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use crate::entity_manager::EntityManager;
 
 pub struct EntityPool {
     pub view_distance: u16,
