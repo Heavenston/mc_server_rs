@@ -1,4 +1,4 @@
-use crate::{
+use mc_server_lib::{
     chunk_holder::{ChunkGenerator, ChunkHolder},
     entity::{player::Player, BoxedEntity},
     entity_manager::{PlayerManager, PlayerWrapper},

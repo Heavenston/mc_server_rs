@@ -1,5 +1,5 @@
 [package]
-name = "mc_example_server"
+name = "mc_server_lib"
 version = "0.1.0"
 authors = ["Heavenstone <malolegendrelemaire@gmail.com>"]
 edition = "2018"
@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 mc_networking = { path = "../mc_networking" }
 mc_utils = { path = "../mc_utils" }
-mc_server_lib = { path = "../mc_server_lib" }
 tokio = { version = "0.2", features = ["full"] }
 byteorder = "1.3.4"
 anyhow = "1.0.32"
