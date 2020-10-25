@@ -146,6 +146,22 @@ impl PlayerManager {
         }
         Ok(())
     }
+    pub async fn broadcast_to(
+        packet: &impl ClientBoundPacket,
+        players: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
+    ) {
+        for (.., entity) in players {
+            let entity = entity.read().await;
+            let player = entity.downcast_ref::<Player>().unwrap();
+            player
+                .client
+                .read()
+                .await
+                .send_packet(packet)
+                .await
+                .unwrap();
+        }
+    }
     pub async fn send_to_player(
         &self,
         player_id: i32,

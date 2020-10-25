@@ -8,6 +8,7 @@ use mc_utils::Location;
 use anyhow::{Error, Result};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
+use crate::entity_manager::EntityManager;
 
 pub struct EntityPool {
     pub view_distance: u16,
@@ -191,7 +192,7 @@ impl EntityPool {
             let players = self.get_players_around(eid).await;
 
             if has_rotation_changed {
-                broadcast_to(
+                EntityManager::broadcast_to(
                     &C3AEntityHeadLook {
                         entity_id: eid,
                         head_yaw: new_location.yaw_angle(),
@@ -202,7 +203,7 @@ impl EntityPool {
             }
 
             if previous_location.distance2(&new_location) > 8.0 * 8.0 {
-                broadcast_to(
+                EntityManager::broadcast_to(
                     &C56EntityTeleport {
                         entity_id: eid,
                         x: new_location.x,
@@ -217,7 +218,7 @@ impl EntityPool {
                 .await;
             }
             else if has_position_changed && has_rotation_changed {
-                broadcast_to(
+                EntityManager::broadcast_to(
                     &C28EntityPositionAndRotation {
                         entity_id: eid,
                         delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64)
@@ -235,7 +236,7 @@ impl EntityPool {
                 .await;
             }
             else if has_position_changed {
-                broadcast_to(
+                EntityManager::broadcast_to(
                     &C27EntityPosition {
                         entity_id: eid,
                         delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64) * 128f64)
@@ -251,7 +252,7 @@ impl EntityPool {
                 .await;
             }
             else if has_rotation_changed {
-                broadcast_to(
+                EntityManager::broadcast_to(
                     &C29EntityRotation {
                         entity_id: eid,
                         yaw: new_location.yaw_angle(),
@@ -263,7 +264,7 @@ impl EntityPool {
                 .await;
             }
             else {
-                broadcast_to(&C2AEntityMovement { entity_id: eid }, players).await;
+                EntityManager::broadcast_to(&C2AEntityMovement { entity_id: eid }, players).await;
             }
         }
     }
@@ -282,7 +283,7 @@ impl EntityPool {
             .write()
             .await
             .set_location(location.clone());
-        broadcast_to(
+        EntityManager::broadcast_to(
             &C56EntityTeleport {
                 entity_id: id,
                 x: location.x,
@@ -320,7 +321,7 @@ impl EntityPool {
             .ok_or(Error::msg("Invalid entity id"))?;
         let metadata = entity.read().await.metadata();
 
-        broadcast_to(
+        EntityManager::broadcast_to(
             &C44EntityMetadata {
                 entity_id,
                 metadata,
@@ -330,22 +331,5 @@ impl EntityPool {
         .await;
 
         Ok(())
-    }
-}
-
-pub async fn broadcast_to(
-    packet: &impl ClientBoundPacket,
-    players: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
-) {
-    for (.., entity) in players {
-        let entity = entity.read().await;
-        let player = entity.downcast_ref::<Player>().unwrap();
-        player
-            .client
-            .read()
-            .await
-            .send_packet(packet)
-            .await
-            .unwrap();
     }
 }
