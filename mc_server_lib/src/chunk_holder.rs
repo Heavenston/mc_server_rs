@@ -60,7 +60,7 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
                 }
                 let chunk = self.ensure_chunk(chunk_x + dx, chunk_z + dz).await;
                 player
-                    .send_packet(&chunk.read().await.encode(true))
+                    .send_packet(&chunk.read().await.encode())
                     .await
                     .unwrap();
                 player
