@@ -8,7 +8,7 @@ members = [
 
 [profile.dev]
 opt-level = 3
+incremental = true
 
 [profile.release]
-lto = true
-debug = true
+incremental = true
