@@ -22,6 +22,7 @@ use tokio::{
     sync::RwLock,
     time::{Duration, Instant},
 };
+use tokio::sync::Barrier;
 use uuid::Uuid;
 
 struct Generator {
@@ -610,6 +611,7 @@ impl Server {
             let mut tps_interval = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
             let ticks = Arc::new(RwLock::new(0i32));
             let times = Arc::new(RwLock::new(0u128));
+            // TPS Calculator
             tokio::task::spawn({
                 let ticks = Arc::clone(&ticks);
                 let server = Arc::clone(&server);
@@ -626,14 +628,15 @@ impl Server {
                 }
             });
 
-            loop {
-                tps_interval.tick().await;
-
-                let finished = Arc::new(RwLock::new(false));
-                let start = Instant::now();
-                tokio::task::spawn({
-                    let finished = Arc::clone(&finished);
-                    async move {
+            let barrier = Arc::new(Barrier::new(2));
+            let finished = Arc::new(RwLock::new(false));
+            // Infinite tick check
+            tokio::task::spawn({
+                let barrier = Arc::clone(&barrier);
+                let finished = Arc::clone(&finished);
+                async move {
+                    loop {
+                        barrier.wait().await;
                         tokio::time::delay_for(Duration::from_millis(500)).await;
                         if !*finished.read().await {
                             warn!("Tick takes more than 500ms !");
@@ -643,11 +646,18 @@ impl Server {
                             warn!("A tick take more than 10s, closing server");
                             std::process::exit(0);
                         }
+                        *finished.write().await = true;
                     }
-                });
+                }
+            });
+
+            loop {
+                tps_interval.tick().await;
+
+                let start = Instant::now();
                 server.write().await.tick().await;
                 let elapsed = start.elapsed().as_millis();
-                if elapsed > 200 {
+                if elapsed > 100 {
                     debug!("Tick took {}ms", elapsed);
                 }
                 *times.write().await += elapsed;
