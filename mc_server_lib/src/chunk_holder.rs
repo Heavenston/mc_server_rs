@@ -8,6 +8,11 @@ use tokio::sync::RwLock;
 
 #[async_trait]
 pub trait ChunkGenerator {
+    /// If true is returned, the chunk is ignored and nothing is sent to the client
+    /// in that case, he chunk should probably be empty
+    /// if it's really needed, the chunk should be handled be handled by another ChunHolder
+    async fn should_ignore(&self, x: i32, z: i32) -> bool { false }
+    /// Generate a new chunk data
     async fn generate_chunk_data(&self, x: i32, z: i32) -> Box<ChunkData>;
 }
 
@@ -25,15 +30,15 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
         }
     }
 
-    pub async fn ensure_chunk(&self, x: i32, z: i32) -> Arc<RwLock<Chunk>> {
-        if let Some(chunk) = self.chunks.read().await.get(&(x, z)) {
-            return Arc::clone(chunk);
+    pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
+        if !self.chunks.read().await.contains_key(&(x, z))
+            && !self.chunk_generator.should_ignore(x, z).await {
+            let chunk = Arc::new(RwLock::new(
+                Chunk::new(x, z, self.chunk_generator.generate_chunk_data(x, z).await)
+            ));
+            self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
         }
-        let chunk = Arc::new(RwLock::new(
-            Chunk::new(x, z, self.chunk_generator.generate_chunk_data(x, z).await)
-        ));
-        self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
-        chunk
+        self.chunks.read().await.get(&(x, z)).cloned()
     }
 
     pub async fn update_player_view_position(
@@ -58,18 +63,19 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
                 {
                     continue;
                 }
-                let chunk = self.ensure_chunk(chunk_x + dx, chunk_z + dz).await;
-                player
-                    .send_packet(&chunk.read().await.encode())
-                    .await
-                    .unwrap();
-                player
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .unwrap()
-                    .loaded_chunks
-                    .insert((chunk_x + dx, chunk_z + dz));
+                if let Some(chunk) = self.get_chunk(chunk_x + dx, chunk_z + dz).await {
+                    player
+                        .send_packet(&chunk.read().await.encode())
+                        .await
+                        .unwrap();
+                    player
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .unwrap()
+                        .loaded_chunks
+                        .insert((chunk_x + dx, chunk_z + dz));
+                }
             }
         }
         let loaded_chunks = player
