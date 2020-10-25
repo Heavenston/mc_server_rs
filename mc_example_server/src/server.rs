@@ -147,7 +147,7 @@ impl Server {
                             },
                             "players": {
                                 "max": server.max_players,
-                                "online": server.max_players,
+                                "online": server.players.read().await.size(),
                                 "sample": []
                             },
                             "description": "Hi"

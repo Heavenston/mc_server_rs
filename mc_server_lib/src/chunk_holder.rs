@@ -10,8 +10,8 @@ use tokio::sync::RwLock;
 pub trait ChunkGenerator {
     /// If true is returned, the chunk is ignored and nothing is sent to the client
     /// in that case, he chunk should probably be empty
-    /// if it's really needed, the chunk should be handled be handled by another ChunHolder
-    async fn should_ignore(&self, x: i32, z: i32) -> bool { false }
+    /// if it's really needed, the chunk should be handled be handled by another ChunkHolder
+    async fn should_ignore(&self, _x: i32, _z: i32) -> bool { false }
     /// Generate a new chunk data
     async fn generate_chunk_data(&self, x: i32, z: i32) -> Box<ChunkData>;
 }
