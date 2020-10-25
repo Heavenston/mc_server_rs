@@ -50,21 +50,11 @@ impl ChunkGenerator for Generator {
             for local_z in 0..16 {
                 let global_z = chunk_z * 16 + local_z;
                 let noise_z = global_z as f64 * self.noise_scale;
-                let height = (100.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0)) as u8;
-                for y in 0..(height - 5) {
-                    let block = if self
-                        .noise
-                        .get([noise_x, y as f64 * self.noise_scale, noise_z])
-                        > 0.5
-                    {
-                        1
-                    }
-                    else {
-                        3
-                    };
-                    data.set_block(local_x as u8, y, local_z as u8, block);
+                let height = (50.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0)) as u8;
+                for y in 0..(height - 2) {
+                    data.set_block(local_x as u8, y, local_z as u8, 1);
                 }
-                for y in (height - 5)..height {
+                for y in (height - 2)..height {
                     data.set_block(local_x as u8, y, local_z as u8, 10);
                 }
                 data.set_block(local_x as u8, height, local_z as u8, 9);
@@ -98,7 +88,7 @@ impl Server {
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: RwLock::new(Location {
                 x: 0.0,
-                y: 101.0,
+                y: 51.0,
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0,
