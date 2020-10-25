@@ -25,6 +25,7 @@ use tokio::{
 use tokio::sync::Barrier;
 use uuid::Uuid;
 use std::sync::atomic::{AtomicI32, Ordering};
+use mc_server_lib::entity_manager::EntityManager;
 
 struct Generator {
     noise: Perlin,
@@ -596,16 +597,14 @@ impl Server {
                         .unwrap();
                 }
                 ClientEvent::Animation { hand } => {
-                    server
-                        .players
-                        .read()
-                        .await
-                        .broadcast(&C05EntityAnimation {
+                    let servers = server.players.read().await.get_filtered_players(|p| p.entity_id != player_eid).await;
+                    EntityManager::broadcast_to(
+                        &C05EntityAnimation {
                             entity_id: player_eid,
                             animation: if hand == 0 { 0 } else { 3 },
-                        })
-                        .await
-                        .unwrap();
+                        },
+                        servers
+                    ).await;
                 }
             }
         }
