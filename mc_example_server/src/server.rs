@@ -27,6 +27,7 @@ use tokio::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+use mc_server_lib::chat_manager::ChatManager;
 
 struct Generator {
     noise: Perlin,
@@ -67,6 +68,7 @@ impl ChunkGenerator for Generator {
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
+    chat_manager: Arc<ChatManager>,
     players: RwLock<PlayerManager>,
     entity_id_counter: AtomicI32,
     spawn_location: RwLock<Location>,
@@ -81,6 +83,7 @@ impl Server {
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
+            chat_manager: Arc::new(ChatManager::new()),
             players: RwLock::new(PlayerManager::new()),
             entity_id_counter: AtomicI32::new(0),
             max_players: 10,
@@ -125,6 +128,7 @@ impl Server {
         let mut player_eid = -1i32;
         let entity_pool = Arc::clone(&server.entity_pool);
         let chunk_holder = Arc::clone(&server.chunk_holder);
+        let chat_manager = Arc::clone(&server.chat_manager);
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -354,6 +358,9 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
+                    chat_manager.players.write().await.add_entity(Arc::clone(player))
+                        .await;
+
                     let spawn_location = server.spawn_location.read().await.clone();
 
                     chunk_holder
@@ -392,6 +399,7 @@ impl Server {
                     server.players.write().await.remove_entity(player_eid);
                     entity_pool.write().await.entities.remove_entity(player_eid);
                     entity_pool.write().await.players.remove_entity(player_eid);
+                    chat_manager.players.write().await.remove_entity(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
                         .players
@@ -425,32 +433,10 @@ impl Server {
 
                 ClientEvent::ChatMessage { message } => {
                     let player = player.as_ref().unwrap();
-                    if message == "gm" {
-                        let current_gamemode = player.read().await.as_player().unwrap().gamemode;
-                        player
-                            .set_gamemode(if current_gamemode == 1 { 0 } else { 1 })
-                            .await;
-                    }
-                    else {
-                        server
-                            .players
-                            .read()
-                            .await
-                            .broadcast(&C0EChatMessage {
-                                json_data: json!({
-                                    "text":
-                                        format!(
-                                            "<{}> {}",
-                                            player.read().await.as_player().unwrap().username,
-                                            message
-                                        )
-                                }),
-                                position: 0,
-                                sender: Some(player.read().await.uuid().clone()),
-                            })
-                            .await
-                            .unwrap();
-                    }
+                    server.chat_manager.player_message(
+                        player.clone().into(),
+                        message
+                    ).await;
                 }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();
