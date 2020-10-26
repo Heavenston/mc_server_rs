@@ -143,7 +143,7 @@ pub use login::*;
 mod play {
     use super::ClientBoundPacket;
     use crate::{
-        data_types::{Angle, MetadataValue, Position, Slot, VarInt},
+        data_types::{Angle, MetadataValue, Position, Slot, VarInt, command_data},
         nbt_map::NBTMap,
     };
 
@@ -152,6 +152,7 @@ mod play {
     use serde::Serialize;
     use std::collections::HashMap;
     use uuid::Uuid;
+    use std::rc::Rc;
 
     /// Sent by the server when a vehicle or other non-living entity is created.
     ///
@@ -343,6 +344,31 @@ mod play {
                     encoder.write_u64(0);
                 }
             }
+        }
+    }
+
+    /// Lists all of the commands on the server, and how they are parsed.
+    /// This is a directed graph, with one root node.
+    /// Each redirect or child node must refer only to nodes that have already been declared.
+    ///
+    /// https://wiki.vg/Protocol#Declare_Commands
+    #[derive(Clone)]
+    pub struct C10DeclareCommands {
+        pub root_node: Rc<command_data::RootNode>,
+    }
+    impl ClientBoundPacket for C10DeclareCommands {
+        fn packet_id() -> i32 { 0x10 }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            let mut graph_encoder = command_data::GraphEncoder::new();
+            let root_index = graph_encoder.add_node(self.root_node.clone());
+            let nodes = graph_encoder.encode();
+
+            encoder.write_varint(nodes.len() as VarInt);
+            for node in nodes.iter() {
+                encoder.write_bytes(node);
+            }
+            encoder.write_varint(root_index);
         }
     }
 
