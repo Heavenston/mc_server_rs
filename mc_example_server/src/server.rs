@@ -11,6 +11,7 @@ use mc_server_lib::{
     entity_pool::EntityPool,
 };
 use mc_utils::Location;
+use crate::commands::GamemodeCommand;
 
 use anyhow::Result;
 use log::*;
@@ -41,11 +42,13 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
+        let chat_manager = Arc::new(ChatManager::new());
+        chat_manager.register_command(Arc::new(GamemodeCommand)).await;
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
-            chat_manager: Arc::new(ChatManager::new()),
+            chat_manager,
             players: RwLock::new(PlayerManager::new()),
             entity_id_counter: AtomicI32::new(0),
             max_players: 10,

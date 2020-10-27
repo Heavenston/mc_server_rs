@@ -1,5 +1,6 @@
 mod generator;
 mod server;
+mod commands;
 
 use server::Server;
 
@@ -36,7 +37,7 @@ fn setup_logger() {
 #[tokio::main]
 async fn main() {
     setup_logger();
-    let server = Arc::new(Server::new());
+    let server = Arc::new(Server::new().await);
     Server::start_ticker(Arc::clone(&server)).await;
     Server::listen(Arc::clone(&server), "0.0.0.0:25565")
         .await
