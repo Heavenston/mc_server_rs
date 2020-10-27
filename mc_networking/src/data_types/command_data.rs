@@ -2,7 +2,7 @@ use crate::data_types::{encoder::PacketEncoder, VarInt};
 
 use std::sync::Arc;
 
-pub trait Node {
+pub trait Node: Send + Sync {
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8>;
 }
 
