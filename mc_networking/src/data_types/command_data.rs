@@ -1,6 +1,7 @@
 use crate::data_types::{encoder::PacketEncoder, VarInt};
 
 use std::sync::Arc;
+use log::*;
 
 pub trait Node: Send+Sync {
     fn name(&self) -> String;
@@ -135,6 +136,8 @@ impl GraphEncoder {
 
     /// Adds a node to the node list and returns its index
     pub fn add_node(&mut self, node: Arc<dyn Node>) -> i32 {
+        // TODO: Remove
+        debug!("Node {} is {}", node.name(), self.nodes.len());
         self.nodes.push(node.clone());
         let encoded = node.encode(self);
         self.encoded.push(encoded);
