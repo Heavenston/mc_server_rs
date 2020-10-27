@@ -110,13 +110,21 @@ impl Node for ArgumentNode {
 #[derive(Clone)]
 pub struct GraphEncoder {
     nodes: Vec<Arc<dyn Node>>,
+    encoded: Vec<Vec<u8>>,
 }
 impl GraphEncoder {
-    pub fn new() -> Self { Self { nodes: vec![] } }
+    pub fn new() -> Self {
+        Self {
+            nodes: vec![],
+            encoded: vec![],
+        }
+    }
 
     /// Adds a node to the node list and returns its index
     pub fn add_node(&mut self, node: Arc<dyn Node>) -> i32 {
-        self.nodes.push(node);
+        self.nodes.push(node.clone());
+        let encoded = node.encode(self);
+        self.encoded.push(encoded);
         self.nodes.len() as i32 - 1
     }
     /// Get the Index at which a node is, return -1 if not found
@@ -136,12 +144,7 @@ impl GraphEncoder {
         }
     }
 
-    pub fn encode(mut self) -> Vec<Vec<u8>> {
-        let mut array = vec![];
-        let nodes = self.nodes.clone();
-        for node in nodes {
-            array.push(node.encode(&mut self));
-        }
-        array
+    pub fn encode(self) -> Vec<Vec<u8>> {
+        self.encoded
     }
 }
