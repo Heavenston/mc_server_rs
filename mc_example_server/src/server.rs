@@ -14,7 +14,7 @@ use mc_utils::{ChunkData, Location};
 use anyhow::Result;
 use async_trait::async_trait;
 use log::*;
-use mc_server_lib::entity_manager::EntityManager;
+use mc_server_lib::{chat_manager::ChatManager, entity_manager::EntityManager};
 use noise::{NoiseFn, Perlin};
 use serde_json::json;
 use std::sync::{
@@ -27,7 +27,6 @@ use tokio::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
-use mc_server_lib::chat_manager::ChatManager;
 
 struct Generator {
     noise: Perlin,
@@ -358,7 +357,11 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
-                    chat_manager.players.write().await.add_entity(Arc::clone(player))
+                    chat_manager
+                        .players
+                        .write()
+                        .await
+                        .add_entity(Arc::clone(player))
                         .await;
                     chat_manager.declare_commands_to_player(player_eid).await;
 
@@ -434,10 +437,10 @@ impl Server {
 
                 ClientEvent::ChatMessage { message } => {
                     let player = player.as_ref().unwrap();
-                    server.chat_manager.player_message(
-                        player.clone().into(),
-                        message
-                    ).await;
+                    server
+                        .chat_manager
+                        .player_message(player.clone().into(), message)
+                        .await;
                 }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();

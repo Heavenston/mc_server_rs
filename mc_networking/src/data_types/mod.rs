@@ -4,8 +4,8 @@ use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 use uuid::Uuid;
 
 pub mod bitbuffer;
-pub mod encoder;
 pub mod command_data;
+pub mod encoder;
 
 pub type VarInt = i32;
 pub type Angle = u8;

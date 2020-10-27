@@ -1,22 +1,30 @@
-use crate::entity_manager::{PlayerManager, PlayerWrapper};
-use crate::entity::BoxedEntity;
-use mc_networking::packets::client_bound::{C0EChatMessage, C10DeclareCommands};
-use mc_networking::data_types::command_data::{LiteralNode, RootNode, Node};
+use crate::{
+    entity::BoxedEntity,
+    entity_manager::{PlayerManager, PlayerWrapper},
+};
+use mc_networking::{
+    data_types::command_data::{LiteralNode, Node, RootNode},
+    packets::client_bound::{C0EChatMessage, C10DeclareCommands},
+};
 
-use tokio::sync::RwLock;
-use std::sync::Arc;
-use async_trait::async_trait;
-use serde_json::json;
-use std::collections::HashMap;
-use log::*;
 use anyhow::Result;
+use async_trait::async_trait;
+use log::*;
+use serde_json::json;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::RwLock;
 
 #[async_trait]
-pub trait CommandExecutor: Send + Sync {
+pub trait CommandExecutor: Send+Sync {
     fn names(&self) -> Vec<String>;
     fn graph(&self) -> Vec<Arc<LiteralNode>>;
 
-    async fn on_command(&self, executor: Arc<RwLock<BoxedEntity>>, command: String, args: Vec<String>) -> Result<()>;
+    async fn on_command(
+        &self,
+        executor: Arc<RwLock<BoxedEntity>>,
+        command: String,
+        args: Vec<String>,
+    ) -> Result<()>;
 }
 
 pub struct ChatManager {
@@ -31,7 +39,7 @@ impl ChatManager {
             commands: RwLock::default(),
             commands_mapping: RwLock::default(),
 
-            players: RwLock::new(PlayerManager::new())
+            players: RwLock::new(PlayerManager::new()),
         }
     }
 
@@ -39,7 +47,7 @@ impl ChatManager {
         let mut root = RootNode {
             is_executable: false,
             children_nodes: vec![],
-            redirect_node: None
+            redirect_node: None,
         };
         for command in self.commands.read().await.iter() {
             for node in command.graph() {
@@ -47,20 +55,30 @@ impl ChatManager {
             }
         }
         C10DeclareCommands {
-            root_node: Arc::new(root)
+            root_node: Arc::new(root),
         }
     }
 
     /// Should be executed when a player join
     pub async fn declare_commands_to_player(&self, player_id: i32) {
-        self.players.read().await.get_entity(player_id).unwrap().send_packet(&self.get_declare_commands().await).await.unwrap();
+        self.players
+            .read()
+            .await
+            .get_entity(player_id)
+            .unwrap()
+            .send_packet(&self.get_declare_commands().await)
+            .await
+            .unwrap();
     }
 
     pub async fn register_command(&self, command: Arc<dyn CommandExecutor>) {
         let names = command.names();
         self.commands.write().await.push(Arc::clone(&command));
         for name in names {
-            self.commands_mapping.write().await.insert(name.to_lowercase(), Arc::clone(&command));
+            self.commands_mapping
+                .write()
+                .await
+                .insert(name.to_lowercase(), Arc::clone(&command));
         }
     }
 
@@ -73,7 +91,10 @@ impl ChatManager {
             let args: Vec<_> = args.map(|s| s.to_string()).collect();
             match self.commands_mapping.read().await.get(&command_name) {
                 Some(command) => {
-                    if let Err(error) = command.on_command(sender.clone().into(), command_name.clone(), args).await {
+                    if let Err(error) = command
+                        .on_command(sender.clone().into(), command_name.clone(), args)
+                        .await
+                    {
                         self.send_message(sender.entity_id().await, json!({
                             "text": format!("An unexpected error occurred while executing command"),
                             "color": "red"
@@ -82,39 +103,58 @@ impl ChatManager {
                     }
                 }
                 None => {
-                    self.send_message(sender.entity_id().await, json!({
-                        "text": format!("Unknown command name '{}'", command_name),
-                        "color": "red"
-                    })).await;
+                    self.send_message(
+                        sender.entity_id().await,
+                        json!({
+                            "text": format!("Unknown command name '{}'", command_name),
+                            "color": "red"
+                        }),
+                    )
+                    .await;
                 }
             }
         }
         else {
             let username = sender.read().await.as_player().unwrap().username.clone();
-            self.players.read().await.broadcast(&C0EChatMessage {
-                json_data: json!({
-                "text": format!("<{}> {}", username, message)
-            }),
-                position: 0, // Chat box
-                sender: Some(sender.read().await.uuid().clone())
-            }).await.unwrap();
+            self.players
+                .read()
+                .await
+                .broadcast(&C0EChatMessage {
+                    json_data: json!({ "text": format!("<{}> {}", username, message) }),
+                    position: 0, // Chat box
+                    sender: Some(sender.read().await.uuid().clone()),
+                })
+                .await
+                .unwrap();
         }
     }
 
     /// Sends a message to all players
     pub async fn broadcast(&self, message: serde_json::Value) {
-        self.players.read().await.broadcast(&C0EChatMessage {
-            json_data: message,
-            position: 1, // System message
-            sender: None
-        }).await.unwrap();
+        self.players
+            .read()
+            .await
+            .broadcast(&C0EChatMessage {
+                json_data: message,
+                position: 1, // System message
+                sender: None,
+            })
+            .await
+            .unwrap();
     }
     /// Sends a message to one player
     pub async fn send_message(&self, target: i32, message: serde_json::Value) {
-        self.players.read().await.get_entity(target).unwrap().send_packet(&C0EChatMessage {
-            json_data: message,
-            position: 1, // System message
-            sender: None
-        }).await.unwrap();
+        self.players
+            .read()
+            .await
+            .get_entity(target)
+            .unwrap()
+            .send_packet(&C0EChatMessage {
+                json_data: message,
+                position: 1, // System message
+                sender: None,
+            })
+            .await
+            .unwrap();
     }
 }

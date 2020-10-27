@@ -143,16 +143,16 @@ pub use login::*;
 mod play {
     use super::ClientBoundPacket;
     use crate::{
-        data_types::{Angle, MetadataValue, Position, Slot, VarInt, command_data},
+        data_types::{
+            command_data, encoder::PacketEncoder, Angle, MetadataValue, Position, Slot, VarInt,
+        },
         nbt_map::NBTMap,
     };
-    use crate::data_types::encoder::PacketEncoder;
 
     use anyhow::Result;
     use serde::Serialize;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
     use uuid::Uuid;
-    use std::sync::Arc;
 
     /// Sent by the server when a vehicle or other non-living entity is created.
     ///
