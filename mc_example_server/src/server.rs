@@ -360,6 +360,7 @@ impl Server {
 
                     chat_manager.players.write().await.add_entity(Arc::clone(player))
                         .await;
+                    chat_manager.declare_commands_to_player(player_eid).await;
 
                     let spawn_location = server.spawn_location.read().await.clone();
 

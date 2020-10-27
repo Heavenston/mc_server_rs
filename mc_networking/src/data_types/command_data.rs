@@ -118,7 +118,7 @@ impl GraphEncoder {
         self.nodes.push(node);
         self.nodes.len() as i32 - 1
     }
-    /// Get the Index at wich a node is, return -1 if not found
+    /// Get the Index at which a node is, return -1 if not found
     pub fn get_node_index(&self, node: &Rc<dyn Node>) -> i32 {
         self.nodes.iter().enumerate()
             .find(|(_, c_node)| Rc::ptr_eq(c_node, &node))
@@ -135,7 +135,8 @@ impl GraphEncoder {
 
     pub fn encode(mut self) -> Vec<Vec<u8>> {
         let mut array = vec![];
-        for node in self.nodes {
+        let nodes = self.nodes.clone();
+        for node in nodes {
             array.push(node.encode(&mut self));
         }
         array
