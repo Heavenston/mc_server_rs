@@ -86,7 +86,7 @@ impl ChatManager {
     /// It will interpret commands and call the command_executor
     pub async fn player_message(&self, sender: PlayerWrapper, message: String) {
         if message.starts_with("/") {
-            let mut args = message.split(" ");
+            let mut args = message.trim_start_matches("/").split(" ");
             let command_name = args.next().unwrap_or("").to_lowercase();
             let args: Vec<_> = args.map(|s| s.to_string()).collect();
             match self.commands_mapping.read().await.get(&command_name) {
