@@ -1,3 +1,4 @@
+mod generator;
 mod server;
 
 use server::Server;
