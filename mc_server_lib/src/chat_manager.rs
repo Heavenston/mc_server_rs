@@ -4,18 +4,17 @@ use mc_networking::packets::client_bound::{C0EChatMessage, C10DeclareCommands};
 use mc_networking::data_types::command_data::{LiteralNode, RootNode, Node};
 
 use tokio::sync::RwLock;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use async_trait::async_trait;
 use serde_json::json;
 use std::collections::HashMap;
-use std::rc::Rc;
 use log::*;
 use anyhow::Result;
 
 #[async_trait]
 pub trait CommandExecutor: Send + Sync {
     fn names(&self) -> Vec<String>;
-    fn graph(&self) -> Vec<Rc<LiteralNode>>;
+    fn graph(&self) -> Vec<Arc<LiteralNode>>;
 
     async fn on_command(&self, executor: Arc<RwLock<BoxedEntity>>, command: String, args: Vec<String>) -> Result<()>;
 }
@@ -44,11 +43,11 @@ impl ChatManager {
         };
         for command in self.commands.read().await.iter() {
             for node in command.graph() {
-                root.children_nodes.push(node as Rc<dyn Node>);
+                root.children_nodes.push(node as Arc<dyn Node>);
             }
         }
         C10DeclareCommands {
-            root_node: Rc::new(root)
+            root_node: Arc::new(root)
         }
     }
 

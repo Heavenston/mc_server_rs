@@ -146,13 +146,13 @@ mod play {
         data_types::{Angle, MetadataValue, Position, Slot, VarInt, command_data},
         nbt_map::NBTMap,
     };
-
     use crate::data_types::encoder::PacketEncoder;
+
     use anyhow::Result;
     use serde::Serialize;
     use std::collections::HashMap;
     use uuid::Uuid;
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     /// Sent by the server when a vehicle or other non-living entity is created.
     ///
@@ -354,7 +354,7 @@ mod play {
     /// https://wiki.vg/Protocol#Declare_Commands
     #[derive(Clone)]
     pub struct C10DeclareCommands {
-        pub root_node: Rc<command_data::RootNode>,
+        pub root_node: Arc<command_data::RootNode>,
     }
     impl ClientBoundPacket for C10DeclareCommands {
         fn packet_id() -> i32 { 0x10 }

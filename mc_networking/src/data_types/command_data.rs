@@ -1,7 +1,7 @@
 use crate::data_types::VarInt;
 use crate::data_types::encoder::PacketEncoder;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub trait Node {
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8>;
@@ -10,8 +10,8 @@ pub trait Node {
 #[derive(Clone)]
 pub struct RootNode {
     pub is_executable: bool,
-    pub children_nodes: Vec<Rc<dyn Node>>,
-    pub redirect_node: Option<Rc<dyn Node>>,
+    pub children_nodes: Vec<Arc<dyn Node>>,
+    pub redirect_node: Option<Arc<dyn Node>>,
 }
 impl Node for RootNode {
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
@@ -37,8 +37,8 @@ impl Node for RootNode {
 #[derive(Clone)]
 pub struct LiteralNode {
     pub is_executable: bool,
-    pub children_nodes: Vec<Rc<dyn Node>>,
-    pub redirect_node: Option<Rc<dyn Node>>,
+    pub children_nodes: Vec<Arc<dyn Node>>,
+    pub redirect_node: Option<Arc<dyn Node>>,
     pub name: String,
 }
 impl Node for LiteralNode {
@@ -66,8 +66,8 @@ impl Node for LiteralNode {
 #[derive(Clone)]
 pub struct ArgumentNode {
     pub is_executable: bool,
-    pub children_nodes: Vec<Rc<dyn Node>>,
-    pub redirect_node: Option<Rc<dyn Node>>,
+    pub children_nodes: Vec<Arc<dyn Node>>,
+    pub redirect_node: Option<Arc<dyn Node>>,
     pub name: String,
     pub parser: String,
     /// Content depends on parser: https://wiki.vg/Command_Data#Parsers
@@ -104,7 +104,7 @@ impl Node for ArgumentNode {
 
 #[derive(Clone)]
 pub struct GraphEncoder {
-    nodes: Vec<Rc<dyn Node>>,
+    nodes: Vec<Arc<dyn Node>>,
 }
 impl GraphEncoder {
     pub fn new() -> Self {
@@ -114,19 +114,19 @@ impl GraphEncoder {
     }
 
     /// Adds a node to the node list and returns its index
-    pub fn add_node(&mut self, node: Rc<dyn Node>) -> i32 {
+    pub fn add_node(&mut self, node: Arc<dyn Node>) -> i32 {
         self.nodes.push(node);
         self.nodes.len() as i32 - 1
     }
     /// Get the Index at which a node is, return -1 if not found
-    pub fn get_node_index(&self, node: &Rc<dyn Node>) -> i32 {
+    pub fn get_node_index(&self, node: &Arc<dyn Node>) -> i32 {
         self.nodes.iter().enumerate()
-            .find(|(_, c_node)| Rc::ptr_eq(c_node, &node))
+            .find(|(_, c_node)| Arc::ptr_eq(c_node, &node))
             .map(|found| found.0 as i32)
             .unwrap_or(-1)
     }
     /// Get the index of a node, adds it if it is not found
-    pub fn get_node(&mut self, node: &Rc<dyn Node>) -> i32 {
+    pub fn get_node(&mut self, node: &Arc<dyn Node>) -> i32 {
         match self.get_node_index(node) {
             -1 => self.add_node(node.clone()),
             index => index
