@@ -1,7 +1,7 @@
 use crate::data_types::{encoder::PacketEncoder, VarInt};
 
-use std::sync::Arc;
 use log::*;
+use std::sync::Arc;
 
 pub trait Node: Send+Sync {
     fn name(&self) -> String;
@@ -15,9 +15,7 @@ pub struct RootNode {
     pub redirect_node: Option<Arc<dyn Node>>,
 }
 impl Node for RootNode {
-    fn name(&self) -> String {
-        "root".to_string()
-    }
+    fn name(&self) -> String { "root".to_string() }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
         let mut encoder = PacketEncoder::new();
@@ -49,9 +47,7 @@ pub struct LiteralNode {
     pub name: String,
 }
 impl Node for LiteralNode {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
+    fn name(&self) -> String { self.name.clone() }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
         let mut encoder = PacketEncoder::new();
@@ -88,9 +84,7 @@ pub struct ArgumentNode {
     pub suggestions_type: Option<String>,
 }
 impl Node for ArgumentNode {
-    fn name(&self) -> String {
-        self.name.clone()
-    }
+    fn name(&self) -> String { self.name.clone() }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
         let mut encoder = PacketEncoder::new();
@@ -153,12 +147,10 @@ impl GraphEncoder {
                 let encoded = node.encode(self);
                 self.encoded.push(encoded);
                 self.nodes.len() as i32 - 1
-            },
+            }
             index => index,
         }
     }
 
-    pub fn encode(self) -> Vec<Vec<u8>> {
-        self.encoded
-    }
+    pub fn encode(self) -> Vec<Vec<u8>> { self.encoded }
 }

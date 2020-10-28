@@ -1,6 +1,6 @@
+mod commands;
 mod generator;
 mod server;
-mod commands;
 
 use server::Server;
 

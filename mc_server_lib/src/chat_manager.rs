@@ -47,12 +47,19 @@ impl ChatManager {
         C10DeclareCommands {
             root_node: Arc::new(RootNode {
                 is_executable: false,
-                children_nodes: self.commands.read().await.iter()
+                children_nodes: self
+                    .commands
+                    .read()
+                    .await
+                    .iter()
                     .flat_map(|command| {
-                        command.graph().into_iter()
+                        command
+                            .graph()
+                            .into_iter()
                             .map(|n| n as Arc<dyn Node>)
                             .collect::<Vec<_>>()
-                    }).collect(),
+                    })
+                    .collect(),
                 redirect_node: None,
             }),
         }

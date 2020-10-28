@@ -1,4 +1,4 @@
-use crate::generator::Generator;
+use crate::{commands::GamemodeCommand, generator::Generator};
 use mc_networking::{
     client::{client_event::*, Client},
     map,
@@ -11,7 +11,6 @@ use mc_server_lib::{
     entity_pool::EntityPool,
 };
 use mc_utils::Location;
-use crate::commands::GamemodeCommand;
 
 use anyhow::Result;
 use log::*;
@@ -44,7 +43,9 @@ pub struct Server {
 impl Server {
     pub async fn new() -> Self {
         let chat_manager = Arc::new(ChatManager::new());
-        chat_manager.register_command(Arc::new(GamemodeCommand)).await;
+        chat_manager
+            .register_command(Arc::new(GamemodeCommand))
+            .await;
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
