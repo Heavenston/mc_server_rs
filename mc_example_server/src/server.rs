@@ -43,7 +43,11 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
-        let chunk_holder = Arc::new(ChunkHolder::new(Generator::new(true)));
+        let view_distance = 10u16;
+        let chunk_holder = Arc::new(ChunkHolder::new(
+            Generator::new(true),
+            view_distance as i32
+        ));
 
         let chat_manager = Arc::new(ChatManager::new());
         chat_manager
@@ -61,7 +65,7 @@ impl Server {
             players: RwLock::new(PlayerManager::new()),
             entity_id_counter: AtomicI32::new(0),
             max_players: 10,
-            view_distance: 10,
+            view_distance,
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: RwLock::new(Location {
                 x: 0.0,
@@ -332,6 +336,9 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
+                    chunk_holder.players.write().await.add_entity(Arc::clone(player))
+                        .await;
+
                     chat_manager
                         .players
                         .write()
@@ -344,8 +351,7 @@ impl Server {
 
                     chunk_holder
                         .update_player_view_position(
-                            server.view_distance as i32,
-                            player.clone(),
+                            player_eid,
                             spawn_location.chunk_x(),
                             spawn_location.chunk_z(),
                         )
@@ -378,6 +384,7 @@ impl Server {
                     server.players.write().await.remove_entity(player_eid);
                     entity_pool.write().await.entities.remove_entity(player_eid);
                     entity_pool.write().await.players.remove_entity(player_eid);
+                    chunk_holder.players.write().await.remove_entity(player_eid);
                     chat_manager.players.write().await.remove_entity(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
@@ -432,14 +439,11 @@ impl Server {
                     if new_location.chunk_x() != last_location.chunk_x()
                         || new_location.chunk_z() != last_location.chunk_z()
                     {
-                        let view_distance = server.view_distance;
                         let chunk_holder = Arc::clone(&chunk_holder);
-                        let player = player.clone();
                         tokio::task::spawn(async move {
                             chunk_holder
                                 .update_player_view_position(
-                                    view_distance as i32,
-                                    player,
+                                    player_eid,
                                     new_location.chunk_x(),
                                     new_location.chunk_z(),
                                 )
@@ -469,14 +473,11 @@ impl Server {
                     if new_location.chunk_x() != last_location.chunk_x()
                         || new_location.chunk_z() != last_location.chunk_z()
                     {
-                        let view_distance = server.view_distance;
                         let chunk_holder = Arc::clone(&chunk_holder);
-                        let player = player.clone();
                         tokio::task::spawn(async move {
                             chunk_holder
                                 .update_player_view_position(
-                                    view_distance as i32,
-                                    player,
+                                    player_eid,
                                     new_location.chunk_x(),
                                     new_location.chunk_z(),
                                 )

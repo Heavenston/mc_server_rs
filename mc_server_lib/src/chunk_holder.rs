@@ -1,6 +1,7 @@
-use crate::{chunk::Chunk, entity_manager::PlayerWrapper};
+use crate::chunk::Chunk;
 use mc_networking::packets::client_bound::{C1CUnloadChunk, C40UpdateViewPosition};
 use mc_utils::ChunkData;
+use crate::entity_manager::PlayerManager;
 
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
@@ -20,13 +21,17 @@ pub trait ChunkGenerator {
 pub struct ChunkHolder<T: ChunkGenerator+Send+Sync> {
     chunk_generator: T,
     chunks: RwLock<HashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
+    view_distance: i32,
+    pub players: RwLock<PlayerManager>,
 }
 
 impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
-    pub fn new(chunk_generator: T) -> Self {
+    pub fn new(chunk_generator: T, view_distance: i32) -> Self {
         Self {
             chunk_generator,
+            view_distance,
             chunks: RwLock::new(HashMap::new()),
+            players: RwLock::new(PlayerManager::new()),
         }
     }
 
@@ -48,6 +53,16 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
                 );
             }
         }
+        for player in self.players.read().await.entities() {
+            player.send_packet(&C1CUnloadChunk {
+                chunk_x: x,
+                chunk_z: z
+            }).await.unwrap();
+            player.write().await.as_player_mut().unwrap().loaded_chunks.remove(&(x, z));
+            let eid = player.entity_id().await;
+            let location = player.read().await.location().clone();
+            self.update_player_view_position(eid, location.chunk_x(), location.chunk_z()).await;
+        }
     }
 
     pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
@@ -66,11 +81,12 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
 
     pub async fn update_player_view_position(
         &self,
-        view_distance: i32,
-        player: PlayerWrapper,
+        player_id: i32,
         chunk_x: i32,
         chunk_z: i32,
     ) {
+        let player = self.players.read().await.get_entity(player_id).unwrap().clone();
+        let view_distance = self.view_distance;
         for dx in -view_distance..view_distance {
             for dz in -view_distance..view_distance {
                 if dx * dx + dz * dz > view_distance * view_distance {
