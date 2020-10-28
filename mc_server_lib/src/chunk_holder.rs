@@ -35,6 +35,7 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
         }
     }
 
+    /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
     pub async fn generate_chunk(&self, x: i32, z: i32, chunk_generator: impl ChunkGenerator) {
         let data = chunk_generator.generate_chunk_data(x, z).await;
         let chunk = self.chunks.read().await.get(&(x, z)).cloned();
