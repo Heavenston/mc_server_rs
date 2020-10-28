@@ -1,6 +1,5 @@
 use crate::data_types::{encoder::PacketEncoder, VarInt};
 
-use log::*;
 use std::sync::Arc;
 
 pub trait Node: Send+Sync {
@@ -142,12 +141,12 @@ impl GraphEncoder {
     pub fn add_node(&mut self, node: &Arc<dyn Node>) -> i32 {
         match self.get_node_index(node) {
             -1 => {
-                let index = self.nodes.len() as i32;
-                debug!("Node {} index is {}", node.name(), index);
+                let index = self.nodes.len();
                 self.nodes.push(node.clone());
+                self.encoded.push(vec![]);
                 let encoded = node.encode(self);
-                self.encoded.push(encoded);
-                index
+                self.encoded[index] = encoded;
+                index as i32
             }
             index => index,
         }
