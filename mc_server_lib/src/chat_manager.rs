@@ -3,7 +3,7 @@ use crate::{
     entity_manager::{PlayerManager, PlayerWrapper},
 };
 use mc_networking::{
-    data_types::command_data::{LiteralNode, Node, RootNode},
+    data_types::command_data::{Node, RootNode},
     packets::client_bound::{C0EChatMessage, C10DeclareCommands},
 };
 
@@ -17,7 +17,7 @@ use tokio::sync::RwLock;
 #[async_trait]
 pub trait CommandExecutor: Send+Sync {
     fn names(&self) -> Vec<String>;
-    fn graph(&self) -> Vec<Arc<LiteralNode>>;
+    fn graph(&self) -> Vec<Arc<dyn Node>>;
 
     async fn on_command(
         &self,
@@ -52,13 +52,7 @@ impl ChatManager {
                     .read()
                     .await
                     .iter()
-                    .flat_map(|command| {
-                        command
-                            .graph()
-                            .into_iter()
-                            .map(|n| n as Arc<dyn Node>)
-                            .collect::<Vec<_>>()
-                    })
+                    .flat_map(|command| command.graph())
                     .collect(),
                 redirect_node: None,
             }),
