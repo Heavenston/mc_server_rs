@@ -63,7 +63,7 @@ impl CommandExecutor for GamemodeCommand {
         args: Vec<String>,
     ) -> Result<()> {
         if let BoxedEntity::Player(player) = &*executor.read().await {
-            info!("{} executed {}", player.username, command);
+            info!("{} executed /{} {:?}", player.username, command, args);
         }
         Ok(())
     }
