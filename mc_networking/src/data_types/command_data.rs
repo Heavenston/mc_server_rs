@@ -142,11 +142,12 @@ impl GraphEncoder {
     pub fn add_node(&mut self, node: &Arc<dyn Node>) -> i32 {
         match self.get_node_index(node) {
             -1 => {
-                info!("Node {} index is {}", node.name(), self.nodes.len());
+                let index = self.nodes.len() as i32;
+                debug!("Node {} index is {}", node.name(), index);
                 self.nodes.push(node.clone());
                 let encoded = node.encode(self);
                 self.encoded.push(encoded);
-                self.nodes.len() as i32 - 1
+                index
             }
             index => index,
         }
