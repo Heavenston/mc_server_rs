@@ -26,6 +26,7 @@ use tokio::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
+use crate::commands::RegenCommand;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -42,13 +43,20 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
+        let chunk_holder = Arc::new(ChunkHolder::new(Generator::new(true)));
+
         let chat_manager = Arc::new(ChatManager::new());
         chat_manager
             .register_command(Arc::new(GamemodeCommand))
             .await;
+        chat_manager
+            .register_command(Arc::new(RegenCommand {
+                chunk_holder: Arc::clone(&chunk_holder)
+            }))
+            .await;
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
-            chunk_holder: Arc::new(ChunkHolder::new(Generator::new())),
+            chunk_holder,
             chat_manager,
             players: RwLock::new(PlayerManager::new()),
             entity_id_counter: AtomicI32::new(0),

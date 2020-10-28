@@ -5,12 +5,14 @@ use async_trait::async_trait;
 use noise::{NoiseFn, Perlin};
 
 pub struct Generator {
+    grass: bool,
     noise: Perlin,
     noise_scale: f64,
 }
 impl Generator {
-    pub fn new() -> Self {
+    pub fn new(grass: bool) -> Self {
         Self {
+            grass,
             noise: Perlin::new(),
             noise_scale: 1.0 / 15.0,
         }
@@ -30,10 +32,12 @@ impl ChunkGenerator for Generator {
                 for y in 0..(height - 2) {
                     data.set_block(local_x as u8, y, local_z as u8, 1);
                 }
-                for y in (height - 2)..height {
-                    data.set_block(local_x as u8, y, local_z as u8, 10);
+                if self.grass {
+                    for y in (height - 2)..height {
+                        data.set_block(local_x as u8, y, local_z as u8, 10);
+                    }
+                    data.set_block(local_x as u8, height, local_z as u8, 9);
                 }
-                data.set_block(local_x as u8, height, local_z as u8, 9);
             }
         }
         data

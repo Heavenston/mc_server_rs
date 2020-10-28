@@ -30,6 +30,26 @@ impl<T: 'static+ChunkGenerator+Send+Sync> ChunkHolder<T> {
         }
     }
 
+    pub async fn generate_chunk(&self, x: i32, z: i32, chunk_generator: impl ChunkGenerator) {
+        let data = chunk_generator.generate_chunk_data(x, z).await;
+        let chunk = self.chunks.read().await.get(&(x, z)).cloned();
+        match chunk {
+            Some(chunk) => {
+                chunk.write().await.data = data;
+            }
+            None => {
+                self.chunks.write().await.insert(
+                    (x, z),
+                    Arc::new(RwLock::new(Chunk::new(
+                        x,
+                        z,
+                        data,
+                    )))
+                );
+            }
+        }
+    }
+
     pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
         if !self.chunks.read().await.contains_key(&(x, z))
             && !self.chunk_generator.should_ignore(x, z).await
