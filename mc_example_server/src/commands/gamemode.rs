@@ -1,4 +1,4 @@
-use mc_networking::data_types::command_data::{LiteralNode, RootNode, Node};
+use mc_networking::data_types::command_data::{LiteralNode, Node};
 use mc_server_lib::chat_manager::CommandExecutor;
 
 use anyhow::Result;
@@ -43,13 +43,13 @@ impl CommandExecutor for GamemodeCommand {
             ],
             redirect_node: None,
             name,
-        });
-        let mut nodes = vec![Arc::clone(&main_node) as Arc<dyn Node>];
+        }) as Arc<dyn Node>;
+        let mut nodes = vec![Arc::clone(&main_node)];
         for alias in aliases {
             nodes.push(Arc::new(LiteralNode {
                 is_executable: false,
                 children_nodes: vec![],
-                redirect_node: None,
+                redirect_node: Some(Arc::clone(&main_node)),
                 name: alias
             }) as Arc<dyn Node>);
         }
