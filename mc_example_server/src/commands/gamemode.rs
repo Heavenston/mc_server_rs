@@ -15,37 +15,47 @@ impl CommandExecutor for GamemodeCommand {
         vec!["gamemode".to_string(), "gm".to_string()]
     }
     fn graph(&self) -> Vec<Arc<LiteralNode>> {
-        let mut literal_node = LiteralNode {
+        let mut names = self.names().into_iter();
+        let name = names.next().unwrap();
+        let aliases: Vec<_> = names.collect();
+        info!("Name: {:?}", name);
+        info!("Aliases: {:?}", aliases);
+
+        let mut main_node = LiteralNode {
             is_executable: false,
             children_nodes: vec![],
             redirect_node: None,
-            name: "".to_string()
+            name
         };
 
-        literal_node.children_nodes.push(Arc::new(LiteralNode {
+        main_node.children_nodes.push(Arc::new(LiteralNode {
             is_executable: true,
             children_nodes: vec![],
             redirect_node: None,
             name: "survival".to_string(),
         }));
-        literal_node.children_nodes.push(Arc::new(LiteralNode {
+        main_node.children_nodes.push(Arc::new(LiteralNode {
             is_executable: true,
             children_nodes: vec![],
             redirect_node: None,
             name: "creative".to_string(),
         }));
-        literal_node.children_nodes.push(Arc::new(LiteralNode {
+        main_node.children_nodes.push(Arc::new(LiteralNode {
             is_executable: true,
             children_nodes: vec![],
             redirect_node: None,
             name: "adventure".to_string(),
         }));
 
-        let mut nodes = vec![];
-        for name in self.names() {
-            let mut n = literal_node.clone();
-            n.name = name;
-            nodes.push(Arc::new(n));
+        let main_node = Arc::new(main_node);
+        let mut nodes = vec![Arc::clone(&main_node)];
+        for alias in aliases {
+            nodes.push(Arc::new(LiteralNode {
+                is_executable: false,
+                children_nodes: vec![],
+                redirect_node: None,
+                name: alias
+            }));
         }
         nodes
     }

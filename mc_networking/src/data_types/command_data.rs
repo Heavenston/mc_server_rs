@@ -30,11 +30,11 @@ impl Node for RootNode {
 
         encoder.write_varint(self.children_nodes.len() as VarInt);
         for child in self.children_nodes.iter() {
-            encoder.write_varint(graph_encoder.get_node(child));
+            encoder.write_varint(graph_encoder.add_node(child));
         }
 
         if let Some(redirect_node) = self.redirect_node.as_ref() {
-            encoder.write_varint(graph_encoder.get_node(redirect_node));
+            encoder.write_varint(graph_encoder.add_node(redirect_node));
         }
 
         encoder.consume()
@@ -64,11 +64,11 @@ impl Node for LiteralNode {
 
         encoder.write_varint(self.children_nodes.len() as VarInt);
         for child in self.children_nodes.iter() {
-            encoder.write_varint(graph_encoder.get_node(child));
+            encoder.write_varint(graph_encoder.add_node(child));
         }
 
         if let Some(redirect_node) = self.redirect_node.as_ref() {
-            encoder.write_varint(graph_encoder.get_node(redirect_node));
+            encoder.write_varint(graph_encoder.add_node(redirect_node));
         }
         encoder.write_string(&self.name);
 
@@ -104,12 +104,13 @@ impl Node for ArgumentNode {
 
         encoder.write_varint(self.children_nodes.len() as VarInt);
         for child in self.children_nodes.iter() {
-            encoder.write_varint(graph_encoder.get_node(child));
+            encoder.write_varint(graph_encoder.add_node(child));
         }
 
         if let Some(redirect_node) = self.redirect_node.as_ref() {
-            encoder.write_varint(graph_encoder.get_node(redirect_node));
+            encoder.write_varint(graph_encoder.add_node(redirect_node));
         }
+
         encoder.write_string(&self.name);
         encoder.write_string(&self.parser);
         encoder.write_bytes(&self.properties);
@@ -134,15 +135,6 @@ impl GraphEncoder {
         }
     }
 
-    /// Adds a node to the node list and returns its index
-    pub fn add_node(&mut self, node: Arc<dyn Node>) -> i32 {
-        // TODO: Remove
-        debug!("Node {} is {}", node.name(), self.nodes.len());
-        self.nodes.push(node.clone());
-        let encoded = node.encode(self);
-        self.encoded.push(encoded);
-        self.nodes.len() as i32 - 1
-    }
     /// Get the Index at which a node is, return -1 if not found
     pub fn get_node_index(&self, node: &Arc<dyn Node>) -> i32 {
         self.nodes
@@ -153,9 +145,15 @@ impl GraphEncoder {
             .unwrap_or(-1)
     }
     /// Get the index of a node, adds it if it is not found
-    pub fn get_node(&mut self, node: &Arc<dyn Node>) -> i32 {
+    pub fn add_node(&mut self, node: &Arc<dyn Node>) -> i32 {
         match self.get_node_index(node) {
-            -1 => self.add_node(node.clone()),
+            -1 => {
+                info!("Node {} index is {}", node.name(), self.nodes.len());
+                self.nodes.push(node.clone());
+                let encoded = node.encode(self);
+                self.encoded.push(encoded);
+                self.nodes.len() as i32 - 1
+            },
             index => index,
         }
     }

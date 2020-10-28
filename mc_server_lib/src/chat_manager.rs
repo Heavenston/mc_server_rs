@@ -44,18 +44,17 @@ impl ChatManager {
     }
 
     async fn get_declare_commands(&self) -> C10DeclareCommands {
-        let mut root = RootNode {
-            is_executable: false,
-            children_nodes: vec![],
-            redirect_node: None,
-        };
-        for command in self.commands.read().await.iter() {
-            for node in command.graph() {
-                root.children_nodes.push(node as Arc<dyn Node>);
-            }
-        }
         C10DeclareCommands {
-            root_node: Arc::new(root),
+            root_node: Arc::new(RootNode {
+                is_executable: false,
+                children_nodes: self.commands.read().await.iter()
+                    .flat_map(|command| {
+                        command.graph().into_iter()
+                            .map(|n| n as Arc<dyn Node>)
+                            .collect::<Vec<_>>()
+                    }).collect(),
+                redirect_node: None,
+            }),
         }
     }
 

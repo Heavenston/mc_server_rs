@@ -361,7 +361,8 @@ mod play {
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             let mut graph_encoder = command_data::GraphEncoder::new();
-            let root_index = graph_encoder.add_node(self.root_node.clone());
+            let root_node = self.root_node.clone() as Arc<dyn command_data::Node>;
+            let root_index = graph_encoder.add_node(&root_node);
             let nodes = graph_encoder.encode();
 
             encoder.write_varint(nodes.len() as VarInt);
