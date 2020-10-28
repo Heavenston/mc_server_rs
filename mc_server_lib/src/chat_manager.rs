@@ -24,7 +24,7 @@ pub trait CommandExecutor: Send+Sync {
         executor: Arc<RwLock<BoxedEntity>>,
         command: String,
         args: Vec<String>,
-    ) -> Result<()>;
+    ) -> Result<bool>;
 }
 
 pub struct ChatManager {
@@ -89,29 +89,37 @@ impl ChatManager {
             let mut args = message.trim_start_matches("/").split(" ");
             let command_name = args.next().unwrap_or("").to_lowercase();
             let args: Vec<_> = args.map(|s| s.to_string()).collect();
+
+            let mut exist = true;
             match self.commands_mapping.read().await.get(&command_name) {
                 Some(command) => {
-                    if let Err(error) = command
-                        .on_command(sender.clone().into(), command_name.clone(), args)
-                        .await
-                    {
-                        self.send_message(sender.entity_id().await, json!({
+                    match command.on_command(sender.clone().into(), command_name.clone(), args).await {
+                        Ok(is_valid) => {
+                            exist = is_valid;
+                        },
+                        Err(error) => {
+                            self.send_message(sender.entity_id().await, json!({
                             "text": format!("An unexpected error occurred while executing command"),
                             "color": "red"
                         })).await;
-                        error!("Error while executing command {}: {}", command_name, error);
+                            error!("Error while executing command {}: {}", command_name, error);
+                        }
                     }
                 }
                 None => {
-                    self.send_message(
-                        sender.entity_id().await,
-                        json!({
+                    exist = false;
+                }
+            }
+
+            if !exist {
+                self.send_message(
+                    sender.entity_id().await,
+                    json!({
                             "text": format!("Unknown command name '{}'", command_name),
                             "color": "red"
                         }),
-                    )
+                )
                     .await;
-                }
             }
         }
         else {

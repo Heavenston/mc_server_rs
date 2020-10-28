@@ -7,6 +7,7 @@ use log::*;
 use mc_server_lib::entity::BoxedEntity;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use mc_server_lib::entity_manager::PlayerWrapper;
 
 pub struct GamemodeCommand;
 #[async_trait]
@@ -16,8 +17,6 @@ impl CommandExecutor for GamemodeCommand {
         let mut names = self.names().into_iter();
         let name = names.next().unwrap();
         let aliases: Vec<_> = names.collect();
-        info!("Name: {:?}", name);
-        info!("Aliases: {:?}", aliases);
 
         let main_node = Arc::new(LiteralNode {
             is_executable: false,
@@ -40,6 +39,12 @@ impl CommandExecutor for GamemodeCommand {
                     redirect_node: None,
                     name: "adventure".to_string(),
                 }),
+                Arc::new(LiteralNode {
+                    is_executable: true,
+                    children_nodes: vec![],
+                    redirect_node: None,
+                    name: "spectator".to_string(),
+                }),
             ],
             redirect_node: None,
             name,
@@ -59,12 +64,38 @@ impl CommandExecutor for GamemodeCommand {
     async fn on_command(
         &self,
         executor: Arc<RwLock<BoxedEntity>>,
-        command: String,
+        _command: String,
         args: Vec<String>,
-    ) -> Result<()> {
-        if let BoxedEntity::Player(player) = &*executor.read().await {
-            info!("{} executed /{} {:?}", player.username, command, args);
+    ) -> Result<bool> {
+        if args.len() != 1 {
+            return Ok(false);
         }
-        Ok(())
+        let target_gamemode = args[0].as_str();
+        let is_player = executor.read().await.is_player();
+        if is_player {
+            let player = PlayerWrapper::from(executor);
+            match target_gamemode {
+                "survival" => {
+                    player.set_gamemode(0).await;
+                    Ok(true)
+                },
+                "creative" => {
+                    player.set_gamemode(1).await;
+                    Ok(true)
+                },
+                "adventure" => {
+                    player.set_gamemode(2).await;
+                    Ok(true)
+                },
+                "spectator" => {
+                    player.set_gamemode(3).await;
+                    Ok(true)
+                },
+                _ => Ok(false)
+            }
+        }
+        else {
+            Ok(false)
+        }
     }
 }

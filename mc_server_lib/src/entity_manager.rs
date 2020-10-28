@@ -37,8 +37,9 @@ impl PlayerWrapper {
     pub async fn set_gamemode(&self, gm: u8) {
         self.entity.write().await.as_player_mut().unwrap().gamemode = gm;
         match gm {
-            0 => {
+            0 => { // Survival
                 self.entity.write().await.as_player_mut().unwrap().can_fly = false;
+                self.entity.write().await.as_player_mut().unwrap().is_flying = false;
                 self.entity
                     .write()
                     .await
@@ -46,7 +47,26 @@ impl PlayerWrapper {
                     .unwrap()
                     .invulnerable = false;
             }
-            1 => {
+            1 => { // Creative
+                self.entity.write().await.as_player_mut().unwrap().can_fly = true;
+                self.entity
+                    .write()
+                    .await
+                    .as_player_mut()
+                    .unwrap()
+                    .invulnerable = true;
+            }
+            2 => { // Adventure
+                self.entity.write().await.as_player_mut().unwrap().can_fly = false;
+                self.entity.write().await.as_player_mut().unwrap().is_flying = false;
+                self.entity
+                    .write()
+                    .await
+                    .as_player_mut()
+                    .unwrap()
+                    .invulnerable = false;
+            }
+            3 => { // Spectator
                 self.entity.write().await.as_player_mut().unwrap().can_fly = true;
                 self.entity
                     .write()
