@@ -33,6 +33,7 @@ pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
     chat_manager: Arc<ChatManager>,
+    resource_manager: Arc<ResourceManager>,
     players: RwLock<PlayerManager>,
     entity_id_counter: AtomicI32,
     spawn_location: RwLock<Location>,
@@ -44,12 +45,12 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
-        let resource_manager = ResourceManager::new();
-        resource_manager.get_from_generator().await.unwrap();
+        let resource_manager = Arc::new(ResourceManager::new());
+        resource_manager.load_from_server_generator().await.unwrap();
 
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(
-            Generator::new(true),
+            Generator::new(true, resource_manager.clone()),
             view_distance as i32
         ));
 
@@ -59,13 +60,15 @@ impl Server {
             .await;
         chat_manager
             .register_command(Arc::new(RegenCommand {
-                chunk_holder: Arc::clone(&chunk_holder)
+                chunk_holder: Arc::clone(&chunk_holder),
+                resource_manager: resource_manager.clone(),
             }))
             .await;
         Self {
             entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
             chunk_holder,
             chat_manager,
+            resource_manager,
             players: RwLock::new(PlayerManager::new()),
             entity_id_counter: AtomicI32::new(0),
             max_players: 10,
