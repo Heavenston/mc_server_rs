@@ -53,7 +53,7 @@ impl ResourceManager {
             .arg("-cp")
             .arg("server.jar")
             .arg("net.minecraft.data.Main")
-            .arg("--all")
+            .arg("--reports")
             .stdout(Stdio::null())
             .spawn()?.await?;
         if !exit_status.success() {
