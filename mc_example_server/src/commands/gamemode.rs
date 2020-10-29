@@ -3,7 +3,6 @@ use mc_server_lib::chat_manager::CommandExecutor;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use log::*;
 use mc_server_lib::entity::BoxedEntity;
 use std::sync::Arc;
 use tokio::sync::RwLock;

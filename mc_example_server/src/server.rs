@@ -27,6 +27,7 @@ use tokio::{
 };
 use uuid::Uuid;
 use crate::commands::RegenCommand;
+use mc_server_lib::resource_manager::ResourceManager;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -43,6 +44,9 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
+        let resource_manager = ResourceManager::new();
+        resource_manager.get_from_generator().await.unwrap();
+
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(
             Generator::new(true),

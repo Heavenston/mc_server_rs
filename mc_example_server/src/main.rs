@@ -29,6 +29,9 @@ fn setup_logger() {
             ))
         })
         .level(log::LevelFilter::Debug)
+        .level_for("hyper", log::LevelFilter::Info)
+        .level_for("reqwest", log::LevelFilter::Info)
+        .level_for("mio", log::LevelFilter::Info)
         .chain(std::io::stdout())
         .apply()
         .unwrap();

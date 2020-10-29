@@ -22,3 +22,4 @@ uuid = { version = "0.8", features = ["v4", "v3"] }
 hematite-nbt = "0.5.0"
 downcast-rs = "1.2.0"
 noise = "0.6.0"
+reqwest = { version = "0.10.8", features = ["default-tls"], default-features = false }
