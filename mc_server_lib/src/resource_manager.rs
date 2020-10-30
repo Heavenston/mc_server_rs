@@ -152,6 +152,7 @@ impl ResourceManager {
             .arg("--reports")
             .stdout(Stdio::null())
             .spawn()?
+            .wait()
             .await?;
         if !exit_status.success() {
             return Err(Error::msg("Java process returned with an error"));

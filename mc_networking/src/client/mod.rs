@@ -15,7 +15,7 @@ use tokio::{
     },
     prelude::io::AsyncWriteExt,
     sync::{mpsc, oneshot, Mutex, RwLock},
-    time::{Duration, Instant},
+    time::{sleep, Duration, Instant},
 };
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
@@ -49,7 +49,7 @@ impl Client {
         tokio::spawn({
             let write = Arc::clone(&write);
             let state = Arc::clone(&state);
-            let mut listener_sender = event_sender.clone();
+            let listener_sender = event_sender.clone();
             let compression = Arc::clone(&compression);
             async move {
                 if let Err(e) = listen_client_packets(
@@ -205,7 +205,7 @@ async fn handle_keep_alive(
             break;
         }
         loop {
-            tokio::time::delay_for(Duration::from_millis(1_000)).await;
+            sleep(Duration::from_millis(1_000)).await;
             if *state.read().await == ClientState::Disconnected {
                 break;
             }
@@ -243,7 +243,7 @@ async fn handle_keep_alive(
                 break;
             }
         }
-        tokio::time::delay_for(Duration::from_millis(KEEP_ALIVE_INTERVAL)).await;
+        sleep(Duration::from_millis(KEEP_ALIVE_INTERVAL)).await;
     }
 }
 
@@ -251,7 +251,7 @@ async fn listen_client_packets(
     compression: Arc<RwLock<PacketCompression>>,
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
-    mut event_sender: mpsc::Sender<ClientEvent>,
+    event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> Result<()> {
     let keep_alive_data = Arc::new(RwLock::new(KeepAliveData {

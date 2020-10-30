@@ -26,7 +26,7 @@ use std::sync::{
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
     sync::{Barrier, RwLock},
-    time::{Duration, Instant},
+    time::{Duration, Instant, sleep},
 };
 use uuid::Uuid;
 
@@ -87,7 +87,7 @@ impl Server {
     }
 
     pub async fn listen(server: Arc<Server>, addr: impl ToSocketAddrs) -> Result<()> {
-        let mut listener = TcpListener::bind(addr).await?;
+        let listener = TcpListener::bind(addr).await?;
         loop {
             let (socket, ..) = listener.accept().await?;
             let (client, event_receiver) = Client::new(socket);
@@ -597,7 +597,7 @@ impl Server {
                 let times = Arc::clone(&times);
                 async move {
                     loop {
-                        tokio::time::delay_for(Duration::from_secs(10)).await;
+                        sleep(Duration::from_secs(10)).await;
                         let n = (*ticks.read().await as f64) / 10f64;
                         *ticks.write().await = 0;
                         *server.tps.write().await = n;
@@ -616,11 +616,11 @@ impl Server {
                 async move {
                     loop {
                         barrier.wait().await;
-                        tokio::time::delay_for(Duration::from_millis(500)).await;
+                        sleep(Duration::from_millis(500)).await;
                         if !*finished.read().await {
                             warn!("Tick takes more than 500ms !");
                         }
-                        tokio::time::delay_for(Duration::from_millis(9500)).await;
+                        sleep(Duration::from_millis(9500)).await;
                         if !*finished.read().await {
                             warn!("A tick take more than 10s, closing server");
                             std::process::exit(0);
