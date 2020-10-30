@@ -15,11 +15,8 @@ anyhow = "1.0.32"
 serde = "1.0"
 serde_json = "1.0"
 log = "0.4"
-fern = { version = "0.5", features = ["colored"] }
-chrono = "0.4"
 async-trait = "0.1.41"
 uuid = { version = "0.8", features = ["v4", "v3"] }
 hematite-nbt = "0.5.0"
 downcast-rs = "1.2.0"
-noise = "0.6.0"
 reqwest = { version = "0.10.8", features = ["default-tls"], default-features = false }
