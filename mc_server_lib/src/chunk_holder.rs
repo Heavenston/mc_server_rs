@@ -24,6 +24,7 @@ pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     chunks: RwLock<HashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
+    synced_player_chunks: RwLock<HashMap<i32, (i32, i32)>>,
 }
 
 impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
@@ -33,6 +34,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             view_distance,
             chunks: RwLock::new(HashMap::new()),
             players: RwLock::new(PlayerManager::new()),
+            synced_player_chunks: RwLock::default(),
         }
     }
 
@@ -87,7 +89,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
         self.chunks.read().await.get(&(x, z)).cloned()
     }
 
-    pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32) {
+    pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32, ) {
         let player = self
             .players
             .read()
@@ -158,7 +160,27 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .unwrap();
     }
 
-    pub async fn tick(&self) {
-        // TODO: Tick all chunks
+    async fn get_synced_player_chunk(&self, player: i32) -> (i32, i32) {
+        if !self.synced_player_chunks.read().await.contains_key(&player) {
+            self.synced_player_chunks.write().await.insert(player, (i32::MAX, i32::MAX));
+        }
+        self.synced_player_chunks.read().await[&player]
+    }
+
+    pub async fn tick(this: Arc<Self>) {
+        let players = this.players.read().await.entities().cloned().collect::<Vec<_>>();
+        for player in players {
+            let id = player.entity_id().await;
+            let location = player.read().await.location().clone();
+            let synced_chunk = this.get_synced_player_chunk(id).await;
+            let current_chunk = (location.chunk_x(), location.chunk_z());
+            if current_chunk != synced_chunk {
+                let this = Arc::clone(&this);
+                this.synced_player_chunks.write().await.insert(id, current_chunk);
+                tokio::task::spawn(async move {
+                    this.update_player_view_position(id, current_chunk.0, current_chunk.1).await
+                });
+            }
+        }
     }
 }

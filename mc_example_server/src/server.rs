@@ -446,29 +446,14 @@ impl Server {
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
                     let player = player.as_ref().unwrap();
                     let last_location = player.read().await.location().clone();
-                    let new_location = Location {
+                    player.write().await.set_on_ground(on_ground);
+                    player.write().await.set_location(Location {
                         x,
                         y,
                         z,
                         yaw: last_location.yaw,
                         pitch: last_location.pitch,
-                    };
-                    player.write().await.set_on_ground(on_ground);
-                    player.write().await.set_location(new_location.clone());
-                    if new_location.chunk_x() != last_location.chunk_x()
-                        || new_location.chunk_z() != last_location.chunk_z()
-                    {
-                        let chunk_holder = Arc::clone(&chunk_holder);
-                        tokio::task::spawn(async move {
-                            chunk_holder
-                                .update_player_view_position(
-                                    player_eid,
-                                    new_location.chunk_x(),
-                                    new_location.chunk_z(),
-                                )
-                                .await;
-                        });
-                    }
+                    });
                 }
                 ClientEvent::PlayerPositionAndRotation {
                     x,
@@ -479,30 +464,14 @@ impl Server {
                     on_ground,
                 } => {
                     let player = player.as_ref().unwrap();
-                    let last_location = player.read().await.location().clone();
-                    let new_location = Location {
+                    player.write().await.set_on_ground(on_ground);
+                    player.write().await.set_location(Location {
                         x,
                         y,
                         z,
                         yaw,
                         pitch,
-                    };
-                    player.write().await.set_on_ground(on_ground);
-                    player.write().await.set_location(new_location.clone());
-                    if new_location.chunk_x() != last_location.chunk_x()
-                        || new_location.chunk_z() != last_location.chunk_z()
-                    {
-                        let chunk_holder = Arc::clone(&chunk_holder);
-                        tokio::task::spawn(async move {
-                            chunk_holder
-                                .update_player_view_position(
-                                    player_eid,
-                                    new_location.chunk_x(),
-                                    new_location.chunk_z(),
-                                )
-                                .await;
-                        });
-                    }
+                    });
                 }
                 ClientEvent::PlayerRotation {
                     yaw,
@@ -655,7 +624,7 @@ impl Server {
 
     pub async fn tick(&self) {
         self.entity_pool.write().await.tick().await;
-        self.chunk_holder.tick().await;
+        ChunkHolder::tick(Arc::clone(&self.chunk_holder)).await;
         self.players
             .write()
             .await
