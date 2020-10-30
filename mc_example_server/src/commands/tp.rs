@@ -1,14 +1,12 @@
-
-use mc_networking::data_types::command_data::{LiteralNode, Node, ArgumentNode};
+use mc_networking::data_types::command_data::{ArgumentNode, LiteralNode, Node};
 use mc_server_lib::chat_manager::CommandExecutor;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use mc_server_lib::entity::BoxedEntity;
+use mc_server_lib::{entity::BoxedEntity, entity_pool::EntityPool};
+use mc_utils::Location;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use mc_server_lib::entity_pool::EntityPool;
-use mc_utils::Location;
 
 pub struct TpCommand {
     pub entity_pool: Arc<RwLock<EntityPool>>,
@@ -25,17 +23,15 @@ impl CommandExecutor for TpCommand {
 
         let main_node = Arc::new(LiteralNode {
             is_executable: false,
-            children_nodes: vec![
-                Arc::new(ArgumentNode {
-                    is_executable: true,
-                    children_nodes: vec![],
-                    redirect_node: None,
-                    name: "location".to_string(),
-                    parser: "minecraft:vec3".to_string(),
-                    properties: vec![],
-                    suggestions_type: None
-                }),
-            ],
+            children_nodes: vec![Arc::new(ArgumentNode {
+                is_executable: true,
+                children_nodes: vec![],
+                redirect_node: None,
+                name: "location".to_string(),
+                parser: "minecraft:vec3".to_string(),
+                properties: vec![],
+                suggestions_type: None,
+            })],
             redirect_node: None,
             name,
         }) as Arc<dyn Node>;
@@ -51,7 +47,12 @@ impl CommandExecutor for TpCommand {
         nodes
     }
 
-    async fn on_command(&self, executor: Arc<RwLock<BoxedEntity>>, _command: String, args: Vec<String>) -> Result<bool> {
+    async fn on_command(
+        &self,
+        executor: Arc<RwLock<BoxedEntity>>,
+        _command: String,
+        args: Vec<String>,
+    ) -> Result<bool> {
         if args.len() != 3 {
             return Ok(false);
         }
@@ -63,12 +64,10 @@ impl CommandExecutor for TpCommand {
             }
             match x.parse::<i32>() {
                 Ok(block) => Some(block as f64 + if block < 0 { -0.5 } else { 0.5 }),
-                Err(..) => {
-                    match x.parse::<f64>() {
-                        Ok(pos) => Some(pos),
-                        Err(..) => None
-                    }
-                }
+                Err(..) => match x.parse::<f64>() {
+                    Ok(pos) => Some(pos),
+                    Err(..) => None,
+                },
             }
         };
 
@@ -85,16 +84,20 @@ impl CommandExecutor for TpCommand {
             None => return Ok(false),
         };
 
-        self.entity_pool.read().await.teleport_entity(
-            eid,
-            Location {
-                x,
-                y,
-                z,
-                yaw: 0.0,
-                pitch: 0.0
-            }
-        ).await;
+        self.entity_pool
+            .read()
+            .await
+            .teleport_entity(
+                eid,
+                Location {
+                    x,
+                    y,
+                    z,
+                    yaw: 0.0,
+                    pitch: 0.0,
+                },
+            )
+            .await;
 
         Ok(true)
     }

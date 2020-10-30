@@ -26,7 +26,7 @@ use std::sync::{
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
     sync::{Barrier, RwLock},
-    time::{Duration, Instant, sleep},
+    time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -69,7 +69,7 @@ impl Server {
             .await;
         chat_manager
             .register_command(Arc::new(TpCommand {
-                entity_pool: Arc::clone(&entity_pool)
+                entity_pool: Arc::clone(&entity_pool),
             }))
             .await;
         Self {

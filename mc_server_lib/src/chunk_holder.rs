@@ -4,7 +4,7 @@ use mc_utils::ChunkData;
 
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{RwLock, Notify};
+use tokio::sync::{Notify, RwLock};
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -121,7 +121,9 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     let client = player_write.client.write().await;
                     let chunk = chunk.read().await.encode();
                     client.send_packet(&chunk).await.unwrap();
-                    player_write.loaded_chunks.insert((chunk_x + dx, chunk_z + dz));
+                    player_write
+                        .loaded_chunks
+                        .insert((chunk_x + dx, chunk_z + dz));
                 }
             }
         }
@@ -159,13 +161,22 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
 
     async fn get_synced_player_chunk(&self, player: i32) -> (i32, i32) {
         if !self.synced_player_chunks.read().await.contains_key(&player) {
-            self.synced_player_chunks.write().await.insert(player, (i32::MAX, i32::MAX));
+            self.synced_player_chunks
+                .write()
+                .await
+                .insert(player, (i32::MAX, i32::MAX));
         }
         self.synced_player_chunks.read().await[&player]
     }
 
     pub async fn tick(this: Arc<Self>) {
-        let players = this.players.read().await.entities().cloned().collect::<Vec<_>>();
+        let players = this
+            .players
+            .read()
+            .await
+            .entities()
+            .cloned()
+            .collect::<Vec<_>>();
         for player in players {
             let id = player.entity_id().await;
             let location = player.read().await.location().clone();
@@ -173,12 +184,18 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             let current_chunk = (location.chunk_x(), location.chunk_z());
             if current_chunk != synced_chunk {
                 let this = Arc::clone(&this);
-                this.synced_player_chunks.write().await.insert(id, current_chunk);
+                this.synced_player_chunks
+                    .write()
+                    .await
+                    .insert(id, current_chunk);
                 if let Some(notify) = this.update_view_position_notifies.read().await.get(&id) {
                     notify.notify_one();
                 }
                 let notify = Arc::new(Notify::new());
-                this.update_view_position_notifies.write().await.insert(id, Arc::clone(&notify));
+                this.update_view_position_notifies
+                    .write()
+                    .await
+                    .insert(id, Arc::clone(&notify));
                 tokio::task::spawn(async move {
                     tokio::select! {
                         _ = notify.notified() => (),
