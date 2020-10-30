@@ -37,7 +37,9 @@ mod handshake {
         pub next_state: VarInt,
     }
     impl ServerBoundPacket for S00Handshake {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -64,9 +66,13 @@ mod status {
     #[derive(Clone, Debug)]
     pub struct S00Request;
     impl ServerBoundPacket for S00Request {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
-        fn run_decoder(_decoder: &mut PacketDecoder) -> Result<Self> { Ok(S00Request) }
+        fn run_decoder(_decoder: &mut PacketDecoder) -> Result<Self> {
+            Ok(S00Request)
+        }
     }
 
     /// Should be responses with C01Pong with provided payload
@@ -77,7 +83,9 @@ mod status {
         pub payload: i64,
     }
     impl ServerBoundPacket for S01Ping {
-        fn packet_id() -> i32 { 0x01 }
+        fn packet_id() -> i32 {
+            0x01
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -114,7 +122,9 @@ mod login {
         pub name: String,
     }
     impl ServerBoundPacket for S00LoginStart {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -132,7 +142,9 @@ mod login {
         pub verify_token: Vec<u8>,
     }
     impl ServerBoundPacket for S01EncryptionResponse {
-        fn packet_id() -> i32 { 0x01 }
+        fn packet_id() -> i32 {
+            0x01
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let shared_secret_length = decoder.read_varint()? as usize;
@@ -158,7 +170,9 @@ mod login {
         pub data: Option<Vec<u8>>,
     }
     impl ServerBoundPacket for S02LoginPluginResponse {
-        fn packet_id() -> i32 { 0x02 }
+        fn packet_id() -> i32 {
+            0x02
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let message_id = decoder.read_varint()?;
@@ -194,7 +208,9 @@ mod play {
         pub teleport_id: VarInt,
     }
     impl ServerBoundPacket for S00TeleportConfirm {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -212,7 +228,9 @@ mod play {
         pub message: String,
     }
     impl ServerBoundPacket for S03ChatMessage {
-        fn packet_id() -> i32 { 0x03 }
+        fn packet_id() -> i32 {
+            0x03
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -230,7 +248,9 @@ mod play {
         pub action_id: VarInt,
     }
     impl ServerBoundPacket for S04ClientStatus {
-        fn packet_id() -> i32 { 0x04 }
+        fn packet_id() -> i32 {
+            0x04
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -258,7 +278,9 @@ mod play {
         pub main_hand: VarInt,
     }
     impl ServerBoundPacket for S05ClientSettings {
-        fn packet_id() -> i32 { 0x05 }
+        fn packet_id() -> i32 {
+            0x05
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -280,7 +302,9 @@ mod play {
         pub id: i64,
     }
     impl ServerBoundPacket for S10KeepAlive {
-        fn packet_id() -> i32 { 0x10 }
+        fn packet_id() -> i32 {
+            0x10
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -304,7 +328,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S12PlayerPosition {
-        fn packet_id() -> i32 { 0x12 }
+        fn packet_id() -> i32 {
+            0x12
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -335,7 +361,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S13PlayerPositionAndRotation {
-        fn packet_id() -> i32 { 0x13 }
+        fn packet_id() -> i32 {
+            0x13
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -362,7 +390,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S14PlayerRotation {
-        fn packet_id() -> i32 { 0x14 }
+        fn packet_id() -> i32 {
+            0x14
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -381,7 +411,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S15PlayerMovement {
-        fn packet_id() -> i32 { 0x15 }
+        fn packet_id() -> i32 {
+            0x15
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -400,7 +432,9 @@ mod play {
         pub flags: u8,
     }
     impl ServerBoundPacket for S1APlayerAbilities {
-        fn packet_id() -> i32 { 0x1A }
+        fn packet_id() -> i32 {
+            0x1A
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -424,7 +458,9 @@ mod play {
         pub jump_boost: VarInt,
     }
     impl ServerBoundPacket for S1CEntityAction {
-        fn packet_id() -> i32 { 0x1C }
+        fn packet_id() -> i32 {
+            0x1C
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
@@ -444,7 +480,9 @@ mod play {
         pub hand: VarInt,
     }
     impl ServerBoundPacket for S2CAnimation {
-        fn packet_id() -> i32 { 0x2C }
+        fn packet_id() -> i32 {
+            0x2C
+        }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {

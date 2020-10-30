@@ -33,11 +33,14 @@ impl PlayerWrapper {
             .await?;
         Ok(())
     }
-    pub async fn entity_id(&self) -> i32 { self.entity.read().await.entity_id() }
+    pub async fn entity_id(&self) -> i32 {
+        self.entity.read().await.entity_id()
+    }
     pub async fn set_gamemode(&self, gm: u8) {
         self.entity.write().await.as_player_mut().unwrap().gamemode = gm;
         match gm {
-            0 => { // Survival
+            0 => {
+                // Survival
                 self.entity.write().await.as_player_mut().unwrap().can_fly = false;
                 self.entity.write().await.as_player_mut().unwrap().is_flying = false;
                 self.entity
@@ -47,7 +50,8 @@ impl PlayerWrapper {
                     .unwrap()
                     .invulnerable = false;
             }
-            1 => { // Creative
+            1 => {
+                // Creative
                 self.entity.write().await.as_player_mut().unwrap().can_fly = true;
                 self.entity
                     .write()
@@ -56,7 +60,8 @@ impl PlayerWrapper {
                     .unwrap()
                     .invulnerable = true;
             }
-            2 => { // Adventure
+            2 => {
+                // Adventure
                 self.entity.write().await.as_player_mut().unwrap().can_fly = false;
                 self.entity.write().await.as_player_mut().unwrap().is_flying = false;
                 self.entity
@@ -66,7 +71,8 @@ impl PlayerWrapper {
                     .unwrap()
                     .invulnerable = false;
             }
-            3 => { // Spectator
+            3 => {
+                // Spectator
                 self.entity.write().await.as_player_mut().unwrap().can_fly = true;
                 self.entity
                     .write()
@@ -108,19 +114,25 @@ impl PlayerWrapper {
 impl Deref for PlayerWrapper {
     type Target = Arc<RwLock<BoxedEntity>>;
 
-    fn deref(&self) -> &Self::Target { &self.entity }
+    fn deref(&self) -> &Self::Target {
+        &self.entity
+    }
 }
 impl Into<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
-    fn into(self) -> Arc<RwLock<BoxedEntity>> { self.entity }
+    fn into(self) -> Arc<RwLock<BoxedEntity>> {
+        self.entity
+    }
 }
 impl From<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
-    fn from(entity: Arc<RwLock<BoxedEntity>>) -> Self { Self { entity } }
+    fn from(entity: Arc<RwLock<BoxedEntity>>) -> Self {
+        Self { entity }
+    }
 }
 
 #[derive(Clone)]
 pub struct EntityManager<T>
 where
-    T: Into<Arc<RwLock<BoxedEntity>>>+Clone,
+    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
 {
     entities: HashMap<i32, T>,
 }
@@ -130,7 +142,7 @@ pub type BoxedEntityManager = EntityManager<Arc<RwLock<BoxedEntity>>>;
 
 impl<T> EntityManager<T>
 where
-    T: Into<Arc<RwLock<BoxedEntity>>>+Clone,
+    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -138,11 +150,19 @@ where
         }
     }
 
-    pub fn size(&self) -> usize { self.entities.len() }
+    pub fn size(&self) -> usize {
+        self.entities.len()
+    }
 
-    pub fn get_entities(&self) -> &HashMap<i32, T> { &self.entities }
-    pub fn has_entity(&self, entity_id: i32) -> bool { self.entities.contains_key(&entity_id) }
-    pub fn get_entity(&self, entity_id: i32) -> Option<&T> { self.entities.get(&entity_id) }
+    pub fn get_entities(&self) -> &HashMap<i32, T> {
+        &self.entities
+    }
+    pub fn has_entity(&self, entity_id: i32) -> bool {
+        self.entities.contains_key(&entity_id)
+    }
+    pub fn get_entity(&self, entity_id: i32) -> Option<&T> {
+        self.entities.get(&entity_id)
+    }
     pub async fn add_entity(&mut self, entity: impl Into<T>) {
         let entity = entity.into();
         let entity_id = entity.clone().into().read().await.entity_id();
@@ -152,9 +172,13 @@ where
         self.entities.remove(&entity_id)
     }
 
-    pub fn entities(&self) -> impl Iterator<Item=&T> { self.entities.values() }
-    pub fn ids(&self) -> impl Iterator<Item=i32>+'_ { self.entities.keys().cloned() }
-    pub fn iter(&self) -> impl Iterator<Item=(i32, &T)> {
+    pub fn entities(&self) -> impl Iterator<Item = &T> {
+        self.entities.values()
+    }
+    pub fn ids(&self) -> impl Iterator<Item = i32> + '_ {
+        self.entities.keys().cloned()
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (i32, &T)> {
         self.entities.iter().map(|(k, v)| (*k, v))
     }
 }
@@ -214,29 +238,35 @@ impl PlayerManager {
 
 impl<T> Index<i32> for EntityManager<T>
 where
-    T: Into<Arc<RwLock<BoxedEntity>>>+Clone,
+    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
 {
     type Output = T;
 
-    fn index(&self, index: i32) -> &Self::Output { self.get_entity(index).unwrap() }
+    fn index(&self, index: i32) -> &Self::Output {
+        self.get_entity(index).unwrap()
+    }
 }
 
 impl<T> IntoIterator for EntityManager<T>
 where
-    T: Into<Arc<RwLock<BoxedEntity>>>+Clone,
+    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
 {
     type Item = (i32, T);
     type IntoIter = std::collections::hash_map::IntoIter<i32, T>;
 
-    fn into_iter(self) -> Self::IntoIter { self.entities.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.entities.into_iter()
+    }
 }
 
 impl<'a, T> IntoIterator for &'a EntityManager<T>
 where
-    T: Into<Arc<RwLock<BoxedEntity>>>+Clone,
+    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
 {
     type Item = (&'a i32, &'a T);
     type IntoIter = std::collections::hash_map::Iter<'a, i32, T>;
 
-    fn into_iter(self) -> Self::IntoIter { self.entities.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.entities.iter()
+    }
 }

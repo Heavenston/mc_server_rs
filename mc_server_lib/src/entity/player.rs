@@ -59,17 +59,29 @@ impl Player {
     }
 }
 impl Entity for Player {
-    fn entity_id(&self) -> i32 { self.entity_id }
+    fn entity_id(&self) -> i32 {
+        self.entity_id
+    }
 
-    fn uuid(&self) -> &Uuid { &self.uuid }
+    fn uuid(&self) -> &Uuid {
+        &self.uuid
+    }
 
-    fn location(&self) -> &Location { &self.location }
+    fn location(&self) -> &Location {
+        &self.location
+    }
 
-    fn location_mut(&mut self) -> &mut Location { &mut self.location }
+    fn location_mut(&mut self) -> &mut Location {
+        &mut self.location
+    }
 
-    fn on_ground(&self) -> bool { self.on_ground }
+    fn on_ground(&self) -> bool {
+        self.on_ground
+    }
 
-    fn set_on_ground(&mut self, on_ground: bool) { self.on_ground = on_ground }
+    fn set_on_ground(&mut self, on_ground: bool) {
+        self.on_ground = on_ground
+    }
 
     fn metadata(&self) -> HashMap<u8, MetadataValue> {
         map! {

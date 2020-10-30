@@ -26,7 +26,9 @@ mod status {
         pub json_response: serde_json::Value,
     }
     impl ClientBoundPacket for C00Response {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.json_response.to_string());
@@ -41,9 +43,13 @@ mod status {
         pub payload: i64,
     }
     impl ClientBoundPacket for C01Pong {
-        fn packet_id() -> i32 { 0x01 }
+        fn packet_id() -> i32 {
+            0x01
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_i64(self.payload); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i64(self.payload);
+        }
     }
 }
 pub use status::*;
@@ -61,7 +67,9 @@ mod login {
         pub reason: serde_json::Value,
     }
     impl ClientBoundPacket for C00LoginDisconnect {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.reason.to_string());
@@ -78,7 +86,9 @@ mod login {
         pub verify_token: Vec<u8>,
     }
     impl ClientBoundPacket for C01EncryptionRequest {
-        fn packet_id() -> i32 { 0x01 }
+        fn packet_id() -> i32 {
+            0x01
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.server_id);
@@ -98,7 +108,9 @@ mod login {
         pub username: String,
     }
     impl ClientBoundPacket for C02LoginSuccess {
-        fn packet_id() -> i32 { 0x02 }
+        fn packet_id() -> i32 {
+            0x02
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_uuid(&self.uuid);
@@ -114,9 +126,13 @@ mod login {
         pub threshold: i32,
     }
     impl ClientBoundPacket for C03SetCompression {
-        fn packet_id() -> i32 { 0x03 }
+        fn packet_id() -> i32 {
+            0x03
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_varint(self.threshold); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.threshold);
+        }
     }
 
     /// Used to implement a custom handshaking flow together with S02LoginPluginResponse.
@@ -129,7 +145,9 @@ mod login {
         pub data: Vec<u8>,
     }
     impl ClientBoundPacket for C04LoginPluginRequest {
-        fn packet_id() -> i32 { 0x04 }
+        fn packet_id() -> i32 {
+            0x04
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.message_id);
@@ -173,7 +191,9 @@ mod play {
         pub velocity_z: i16,
     }
     impl ClientBoundPacket for C00SpawnEntity {
-        fn packet_id() -> i32 { 0x00 }
+        fn packet_id() -> i32 {
+            0x00
+        }
 
         fn encode(&self, packet_encoder: &mut PacketEncoder) {
             packet_encoder.write_varint(self.entity_id);
@@ -202,7 +222,9 @@ mod play {
         pub count: i16,
     }
     impl ClientBoundPacket for C01SpawnExperienceOrb {
-        fn packet_id() -> i32 { 0x01 }
+        fn packet_id() -> i32 {
+            0x01
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -232,7 +254,9 @@ mod play {
         pub velocity_z: i16,
     }
     impl ClientBoundPacket for C02SpawnLivingEntity {
-        fn packet_id() -> i32 { 0x02 }
+        fn packet_id() -> i32 {
+            0x02
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -262,7 +286,9 @@ mod play {
         pub direction: u8,
     }
     impl ClientBoundPacket for C03SpawnPainting {
-        fn packet_id() -> i32 { 0x03 }
+        fn packet_id() -> i32 {
+            0x03
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -287,7 +313,9 @@ mod play {
         pub pitch: Angle,
     }
     impl ClientBoundPacket for C04SpawnPlayer {
-        fn packet_id() -> i32 { 0x04 }
+        fn packet_id() -> i32 {
+            0x04
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -309,7 +337,9 @@ mod play {
         pub animation: u8,
     }
     impl ClientBoundPacket for C05EntityAnimation {
-        fn packet_id() -> i32 { 0x05 }
+        fn packet_id() -> i32 {
+            0x05
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -332,7 +362,9 @@ mod play {
         pub sender: Option<uuid::Uuid>,
     }
     impl ClientBoundPacket for C0EChatMessage {
-        fn packet_id() -> i32 { 0x0E }
+        fn packet_id() -> i32 {
+            0x0E
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.json_data.to_string());
@@ -357,7 +389,9 @@ mod play {
         pub root_node: Arc<command_data::RootNode>,
     }
     impl ClientBoundPacket for C10DeclareCommands {
-        fn packet_id() -> i32 { 0x10 }
+        fn packet_id() -> i32 {
+            0x10
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             let mut graph_encoder = command_data::GraphEncoder::new();
@@ -383,7 +417,9 @@ mod play {
         pub slots: Vec<Slot>,
     }
     impl ClientBoundPacket for C13WindowItems {
-        fn packet_id() -> i32 { 0x13 }
+        fn packet_id() -> i32 {
+            0x13
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_u8(self.window_id);
@@ -424,7 +460,9 @@ mod play {
         pub data: Vec<u8>,
     }
     impl ClientBoundPacket for C17PluginMessage {
-        fn packet_id() -> i32 { 0x17 }
+        fn packet_id() -> i32 {
+            0x17
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.channel);
@@ -442,7 +480,9 @@ mod play {
         pub chunk_z: i32,
     }
     impl ClientBoundPacket for C1CUnloadChunk {
-        fn packet_id() -> i32 { 0x1C }
+        fn packet_id() -> i32 {
+            0x1C
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i32(self.chunk_x);
@@ -459,7 +499,9 @@ mod play {
         pub value: f32,
     }
     impl ClientBoundPacket for C1DChangeGameState {
-        fn packet_id() -> i32 { 0x1D }
+        fn packet_id() -> i32 {
+            0x1D
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_u8(self.reason);
@@ -479,9 +521,13 @@ mod play {
         pub id: i64,
     }
     impl ClientBoundPacket for C1FKeepAlive {
-        fn packet_id() -> i32 { 0x1F }
+        fn packet_id() -> i32 {
+            0x1F
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_i64(self.id); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i64(self.id);
+        }
     }
 
     #[derive(Clone, Debug)]
@@ -518,7 +564,9 @@ mod play {
         pub block_entities: Vec<nbt::Blob>,
     }
     impl ClientBoundPacket for C20ChunkData {
-        fn packet_id() -> i32 { 0x20 }
+        fn packet_id() -> i32 {
+            0x20
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i32(self.chunk_x);
@@ -658,7 +706,9 @@ mod play {
         pub is_flat: bool,
     }
     impl ClientBoundPacket for C24JoinGame {
-        fn packet_id() -> i32 { 0x24 }
+        fn packet_id() -> i32 {
+            0x24
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_i32(self.entity_id);
@@ -698,7 +748,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ClientBoundPacket for C27EntityPosition {
-        fn packet_id() -> i32 { 0x27 }
+        fn packet_id() -> i32 {
+            0x27
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -729,7 +781,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ClientBoundPacket for C28EntityPositionAndRotation {
-        fn packet_id() -> i32 { 0x28 }
+        fn packet_id() -> i32 {
+            0x28
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -755,7 +809,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ClientBoundPacket for C29EntityRotation {
-        fn packet_id() -> i32 { 0x29 }
+        fn packet_id() -> i32 {
+            0x29
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -773,9 +829,13 @@ mod play {
         pub entity_id: VarInt,
     }
     impl ClientBoundPacket for C2AEntityMovement {
-        fn packet_id() -> i32 { 0x2A }
+        fn packet_id() -> i32 {
+            0x2A
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_varint(self.entity_id); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+        }
     }
 
     /// https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29
@@ -786,7 +846,9 @@ mod play {
         pub fov_modifier: f32,
     }
     impl ClientBoundPacket for C30PlayerAbilities {
-        fn packet_id() -> i32 { 0x30 }
+        fn packet_id() -> i32 {
+            0x30
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_u8(self.flags);
@@ -838,7 +900,9 @@ mod play {
         pub players: Vec<C32PlayerInfoPlayerUpdate>,
     }
     impl ClientBoundPacket for C32PlayerInfo {
-        fn packet_id() -> i32 { 0x32 }
+        fn packet_id() -> i32 {
+            0x32
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             let action = match self.players.first() {
@@ -930,7 +994,9 @@ mod play {
         pub teleport_id: i32,
     }
     impl ClientBoundPacket for C34PlayerPositionAndLook {
-        fn packet_id() -> i32 { 0x34 }
+        fn packet_id() -> i32 {
+            0x34
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_f64(self.x);
@@ -951,7 +1017,9 @@ mod play {
         pub entities: Vec<VarInt>,
     }
     impl ClientBoundPacket for C36DestroyEntities {
-        fn packet_id() -> i32 { 0x36 }
+        fn packet_id() -> i32 {
+            0x36
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entities.len() as i32);
@@ -973,7 +1041,9 @@ mod play {
         pub head_yaw: Angle,
     }
     impl ClientBoundPacket for C3AEntityHeadLook {
-        fn packet_id() -> i32 { 0x3A }
+        fn packet_id() -> i32 {
+            0x3A
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -990,9 +1060,13 @@ mod play {
         pub slot: i8,
     }
     impl ClientBoundPacket for C3FHoldItemChange {
-        fn packet_id() -> i32 { 0x3F }
+        fn packet_id() -> i32 {
+            0x3F
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_i8(self.slot); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i8(self.slot);
+        }
     }
 
     /// Updates the client's location.
@@ -1006,7 +1080,9 @@ mod play {
         pub chunk_z: i32,
     }
     impl ClientBoundPacket for C40UpdateViewPosition {
-        fn packet_id() -> i32 { 0x40 }
+        fn packet_id() -> i32 {
+            0x40
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.chunk_z);
@@ -1024,9 +1100,13 @@ mod play {
         pub location: Position,
     }
     impl ClientBoundPacket for C42SpawnPosition {
-        fn packet_id() -> i32 { 0x42 }
+        fn packet_id() -> i32 {
+            0x42
+        }
 
-        fn encode(&self, encoder: &mut PacketEncoder) { encoder.write_u64(self.location.encode()); }
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64(self.location.encode());
+        }
     }
 
     /// Updates one or more metadata properties for an existing entity.
@@ -1039,7 +1119,9 @@ mod play {
         pub metadata: HashMap<u8, MetadataValue>,
     }
     impl ClientBoundPacket for C44EntityMetadata {
-        fn packet_id() -> i32 { 0x44 }
+        fn packet_id() -> i32 {
+            0x44
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
@@ -1063,7 +1145,9 @@ mod play {
         pub footer: serde_json::Value,
     }
     impl ClientBoundPacket for C53PlayerListHeaderAndFooter {
-        fn packet_id() -> i32 { 0x53 }
+        fn packet_id() -> i32 {
+            0x53
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.header.to_string());
@@ -1085,7 +1169,9 @@ mod play {
         pub on_ground: bool,
     }
     impl ClientBoundPacket for C56EntityTeleport {
-        fn packet_id() -> i32 { 0x56 }
+        fn packet_id() -> i32 {
+            0x56
+        }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);

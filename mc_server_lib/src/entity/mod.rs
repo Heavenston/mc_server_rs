@@ -12,13 +12,15 @@ use std::{
 };
 use uuid::Uuid;
 
-pub trait Entity: Send+Sync+DowncastSync {
+pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
     fn location(&self) -> &Location;
     fn location_mut(&mut self) -> &mut Location;
-    fn set_location(&mut self, new_location: Location) { *self.location_mut() = new_location; }
+    fn set_location(&mut self, new_location: Location) {
+        *self.location_mut() = new_location;
+    }
 
     fn on_ground(&self) -> bool;
     fn set_on_ground(&mut self, on_ground: bool);
@@ -34,7 +36,9 @@ pub enum BoxedEntity {
     Unknown(Box<dyn Entity>),
 }
 impl BoxedEntity {
-    pub fn new(entity: impl Entity) -> Self { BoxedEntity::Unknown(Box::new(entity)).into_known() }
+    pub fn new(entity: impl Entity) -> Self {
+        BoxedEntity::Unknown(Box::new(entity)).into_known()
+    }
 
     pub fn is_player(&self) -> bool {
         match self {
@@ -100,8 +104,12 @@ impl BoxedEntity {
 impl Deref for BoxedEntity {
     type Target = dyn Entity;
 
-    fn deref(&self) -> &Self::Target { self.as_entity() }
+    fn deref(&self) -> &Self::Target {
+        self.as_entity()
+    }
 }
 impl DerefMut for BoxedEntity {
-    fn deref_mut(&mut self) -> &mut Self::Target { self.as_entity_mut() }
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_entity_mut()
+    }
 }

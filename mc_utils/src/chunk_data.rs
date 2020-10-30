@@ -9,7 +9,9 @@ pub struct ChunkDataSection {
     blocks: [u16; 4096],
 }
 impl ChunkDataSection {
-    pub fn new() -> Self { Self { blocks: [0; 4096] } }
+    pub fn new() -> Self {
+        Self { blocks: [0; 4096] }
+    }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
         let (x, y, z) = (x as usize, y as usize, z as usize);
@@ -64,7 +66,9 @@ impl ChunkData {
     }
 
     /// Get a reference to a section, returns None id it doesn't exist
-    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> { self.sections.get(&y) }
+    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> {
+        self.sections.get(&y)
+    }
     /// Get a mutable reference to a section, create the section if it doesn't exist
     pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
         if !self.sections.contains_key(&y) {

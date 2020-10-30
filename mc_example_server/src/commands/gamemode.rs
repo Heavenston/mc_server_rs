@@ -3,15 +3,16 @@ use mc_server_lib::chat_manager::CommandExecutor;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use mc_server_lib::entity::BoxedEntity;
+use mc_server_lib::{entity::BoxedEntity, entity_manager::PlayerWrapper};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use mc_server_lib::entity_manager::PlayerWrapper;
 
 pub struct GamemodeCommand;
 #[async_trait]
 impl CommandExecutor for GamemodeCommand {
-    fn names(&self) -> Vec<String> { vec!["gamemode".to_string(), "gm".to_string()] }
+    fn names(&self) -> Vec<String> {
+        vec!["gamemode".to_string(), "gm".to_string()]
+    }
     fn graph(&self) -> Vec<Arc<dyn Node>> {
         let mut names = self.names().into_iter();
         let name = names.next().unwrap();
@@ -54,7 +55,7 @@ impl CommandExecutor for GamemodeCommand {
                 is_executable: false,
                 children_nodes: vec![],
                 redirect_node: Some(Arc::clone(&main_node)),
-                name: alias
+                name: alias,
             }) as Arc<dyn Node>);
         }
         nodes
@@ -77,20 +78,20 @@ impl CommandExecutor for GamemodeCommand {
                 "survival" => {
                     player.set_gamemode(0).await;
                     Ok(true)
-                },
+                }
                 "creative" => {
                     player.set_gamemode(1).await;
                     Ok(true)
-                },
+                }
                 "adventure" => {
                     player.set_gamemode(2).await;
                     Ok(true)
-                },
+                }
                 "spectator" => {
                     player.set_gamemode(3).await;
                     Ok(true)
-                },
-                _ => Ok(false)
+                }
+                _ => Ok(false),
             }
         }
         else {

@@ -15,7 +15,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 #[async_trait]
-pub trait CommandExecutor: Send+Sync {
+pub trait CommandExecutor: Send + Sync {
     fn names(&self) -> Vec<String>;
     fn graph(&self) -> Vec<Arc<dyn Node>>;
 
@@ -93,10 +93,13 @@ impl ChatManager {
             let mut exist = true;
             match self.commands_mapping.read().await.get(&command_name) {
                 Some(command) => {
-                    match command.on_command(sender.clone().into(), command_name.clone(), args).await {
+                    match command
+                        .on_command(sender.clone().into(), command_name.clone(), args)
+                        .await
+                    {
                         Ok(is_valid) => {
                             exist = is_valid;
-                        },
+                        }
                         Err(error) => {
                             self.send_message(sender.entity_id().await, json!({
                             "text": format!("An unexpected error occurred while executing command"),
@@ -115,11 +118,11 @@ impl ChatManager {
                 self.send_message(
                     sender.entity_id().await,
                     json!({
-                            "text": format!("Unknown command name '{}'", command_name),
-                            "color": "red"
-                        }),
+                        "text": format!("Unknown command name '{}'", command_name),
+                        "color": "red"
+                    }),
                 )
-                    .await;
+                .await;
             }
         }
         else {

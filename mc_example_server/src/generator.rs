@@ -1,7 +1,6 @@
-use mc_server_lib::chunk_holder::ChunkGenerator;
-use mc_server_lib::resource_manager::ResourceManager;
-use mc_utils::ChunkData;
 use mc_networking::map;
+use mc_server_lib::{chunk_holder::ChunkGenerator, resource_manager::ResourceManager};
+use mc_utils::ChunkData;
 
 use async_trait::async_trait;
 use noise::{NoiseFn, Perlin, Seedable};
@@ -23,21 +22,33 @@ impl Generator {
             snow_noise_scale: 2.25,
             noise: Perlin::new(),
             noise_scale: 1.0 / 15.0,
-            resource_manager
+            resource_manager,
         }
     }
 }
 #[async_trait]
 impl ChunkGenerator for Generator {
     async fn generate_chunk_data(&self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
-        let stone = self.resource_manager
-            .get_block_id("minecraft:stone".into(), None).await.unwrap() as u16;
-        let dirt = self.resource_manager
-            .get_block_id("minecraft:dirt".into(), None).await.unwrap() as u16;
-        let grass = self.resource_manager
-            .get_block_id("minecraft:grass_block".into(), Some(map!{
-                "snowy".to_string() => "true".to_string()
-            })).await.unwrap() as u16;
+        let stone = self
+            .resource_manager
+            .get_block_id("minecraft:stone".into(), None)
+            .await
+            .unwrap() as u16;
+        let dirt = self
+            .resource_manager
+            .get_block_id("minecraft:dirt".into(), None)
+            .await
+            .unwrap() as u16;
+        let grass = self
+            .resource_manager
+            .get_block_id(
+                "minecraft:grass_block".into(),
+                Some(map! {
+                    "snowy".to_string() => "true".to_string()
+                }),
+            )
+            .await
+            .unwrap() as u16;
 
         let mut data = Box::new(ChunkData::new());
         for local_x in 0..16 {

@@ -12,9 +12,12 @@ use mc_server_lib::{
 };
 use mc_utils::Location;
 
+use crate::commands::RegenCommand;
 use anyhow::Result;
 use log::*;
-use mc_server_lib::{chat_manager::ChatManager, entity_manager::EntityManager};
+use mc_server_lib::{
+    chat_manager::ChatManager, entity_manager::EntityManager, resource_manager::ResourceManager,
+};
 use serde_json::json;
 use std::sync::{
     atomic::{AtomicI32, Ordering},
@@ -26,8 +29,6 @@ use tokio::{
     time::{Duration, Instant},
 };
 use uuid::Uuid;
-use crate::commands::RegenCommand;
-use mc_server_lib::resource_manager::ResourceManager;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -51,7 +52,7 @@ impl Server {
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(
             Generator::new(true, resource_manager.clone()),
-            view_distance as i32
+            view_distance as i32,
         ));
 
         let chat_manager = Arc::new(ChatManager::new());
@@ -343,7 +344,11 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
-                    chunk_holder.players.write().await.add_entity(Arc::clone(player))
+                    chunk_holder
+                        .players
+                        .write()
+                        .await
+                        .add_entity(Arc::clone(player))
                         .await;
 
                     chat_manager

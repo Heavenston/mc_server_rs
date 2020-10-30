@@ -1,9 +1,9 @@
-use mc_networking::data_types::command_data::{LiteralNode, Node};
-use mc_server_lib::chat_manager::CommandExecutor;
-use mc_server_lib::entity_manager::PlayerWrapper;
-use mc_server_lib::chunk_holder::ChunkHolder;
-use mc_server_lib::resource_manager::ResourceManager;
 use crate::generator::Generator;
+use mc_networking::data_types::command_data::{LiteralNode, Node};
+use mc_server_lib::{
+    chat_manager::CommandExecutor, chunk_holder::ChunkHolder, entity_manager::PlayerWrapper,
+    resource_manager::ResourceManager,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -17,7 +17,9 @@ pub struct RegenCommand {
 }
 #[async_trait]
 impl CommandExecutor for RegenCommand {
-    fn names(&self) -> Vec<String> { vec!["regen".to_string()] }
+    fn names(&self) -> Vec<String> {
+        vec!["regen".to_string()]
+    }
     fn graph(&self) -> Vec<Arc<dyn Node>> {
         vec![Arc::new(LiteralNode {
             is_executable: true,
@@ -35,10 +37,13 @@ impl CommandExecutor for RegenCommand {
     ) -> Result<bool> {
         if let Some(player) = PlayerWrapper::new(executor).await {
             let location = player.read().await.location().clone();
-            self.chunk_holder.generate_chunk(
-                location.chunk_x(), location.chunk_z(),
-                Generator::new(false, self.resource_manager.clone())
-            ).await;
+            self.chunk_holder
+                .generate_chunk(
+                    location.chunk_x(),
+                    location.chunk_z(),
+                    Generator::new(false, self.resource_manager.clone()),
+                )
+                .await;
             Ok(true)
         }
         else {

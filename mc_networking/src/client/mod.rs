@@ -98,7 +98,9 @@ impl Client {
         )
     }
 
-    pub async fn get_state(&self) -> ClientState { self.state.read().await.clone() }
+    pub async fn get_state(&self) -> ClientState {
+        self.state.read().await.clone()
+    }
 
     pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();

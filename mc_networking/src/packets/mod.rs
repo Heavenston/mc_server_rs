@@ -18,15 +18,21 @@ use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 #[derive(Debug, Clone, Copy)]
 pub struct PacketCompression(i32);
 impl PacketCompression {
-    pub fn new(threshold: i32) -> Self { Self(threshold) }
+    pub fn new(threshold: i32) -> Self {
+        Self(threshold)
+    }
 }
 impl Default for PacketCompression {
-    fn default() -> Self { Self(-1) }
+    fn default() -> Self {
+        Self(-1)
+    }
 }
 impl Deref for PacketCompression {
     type Target = i32;
 
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 pub struct RawPacket {
@@ -34,7 +40,9 @@ pub struct RawPacket {
     pub data: Box<[u8]>,
 }
 impl RawPacket {
-    pub fn new(packet_id: i32, data: Box<[u8]>) -> Self { Self { packet_id, data } }
+    pub fn new(packet_id: i32, data: Box<[u8]>) -> Self {
+        Self { packet_id, data }
+    }
 
     pub fn encode(&self, compression: PacketCompression) -> Box<[u8]> {
         // PacketID + Data
@@ -78,7 +86,7 @@ impl RawPacket {
         }
     }
 
-    fn decode<T: Read+Unpin>(stream: &mut T) -> Result<Self> {
+    fn decode<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
         let packet_id = varint::decode_sync(stream)?;
         let mut data = vec![];
         while let Ok(b) = stream.read_u8() {
@@ -89,7 +97,7 @@ impl RawPacket {
             data: data.into_boxed_slice(),
         })
     }
-    pub async fn decode_async<T: AsyncRead+Unpin>(
+    pub async fn decode_async<T: AsyncRead + Unpin>(
         stream: &mut T,
         compression: PacketCompression,
     ) -> Result<Self> {
@@ -124,7 +132,7 @@ impl RawPacket {
             Self::decode(&mut Cursor::new(data))
         }
     }
-    pub fn decode_sync<T: Read+Unpin>(
+    pub fn decode_sync<T: Read + Unpin>(
         stream: &mut T,
         compression: PacketCompression,
     ) -> Result<Self> {

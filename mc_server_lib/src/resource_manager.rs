@@ -1,19 +1,14 @@
-
-use tokio::fs;
-use std::path::Path;
-use anyhow::{Result, Error};
-use tokio::prelude::io::*;
+use anyhow::{Error, Result};
 use log::*;
-use tokio::process::Command;
-use std::process::Stdio;
-use tokio::sync::RwLock;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path, process::Stdio};
+use tokio::{fs, prelude::io::*, process::Command, sync::RwLock};
 
-const SERVER_JAR_URL: &'static str = "https://launcher.mojang.com/v1/objects/f02f4473dbf152c23d7d484952121db0b36698cb/server.jar";
+const SERVER_JAR_URL: &'static str =
+    "https://launcher.mojang.com/v1/objects/f02f4473dbf152c23d7d484952121db0b36698cb/server.jar";
 
 pub struct ResourceManager {
     vanilla_blocks: RwLock<Option<serde_json::Value>>,
-    block_cache: RwLock<HashMap<(String, Option<String>), i32>>
+    block_cache: RwLock<HashMap<(String, Option<String>), i32>>,
 }
 impl ResourceManager {
     pub fn new() -> Self {
@@ -23,25 +18,39 @@ impl ResourceManager {
         }
     }
 
-    pub async fn get_block_id(&self, block_identifier: String, properties: Option<HashMap<String, String>>) -> Result<i32> {
+    pub async fn get_block_id(
+        &self,
+        block_identifier: String,
+        properties: Option<HashMap<String, String>>,
+    ) -> Result<i32> {
         let vanilla_blocks = self.vanilla_blocks.read().await;
-        let vanilla_blocks = vanilla_blocks.as_ref().ok_or(Error::msg("no blocks registered"))?;
+        let vanilla_blocks = vanilla_blocks
+            .as_ref()
+            .ok_or(Error::msg("no blocks registered"))?;
 
-        let properties_string = properties
-            .clone()
-            .map(|properties| {
-                properties.iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
-                    .fold(String::new(), |acc, v| format!("{},{}", acc, v))
-            });
+        let properties_string = properties.clone().map(|properties| {
+            properties
+                .iter()
+                .map(|(k, v)| format!("{}={}", k, v))
+                .fold(String::new(), |acc, v| format!("{},{}", acc, v))
+        });
 
-        if let Some(cached_id) = self.block_cache.read().await.get(&(block_identifier.clone(), properties_string.clone())) {
+        if let Some(cached_id) = self
+            .block_cache
+            .read()
+            .await
+            .get(&(block_identifier.clone(), properties_string.clone()))
+        {
             return Ok(*cached_id);
         }
 
-        let block = vanilla_blocks.as_object().unwrap()
-            .get(&block_identifier).ok_or(Error::msg("no block with this identifier were found"))?
-            .as_object().unwrap();
+        let block = vanilla_blocks
+            .as_object()
+            .unwrap()
+            .get(&block_identifier)
+            .ok_or(Error::msg("no block with this identifier were found"))?
+            .as_object()
+            .unwrap();
 
         if let Some(properties) = properties {
             if let Some(props) = block.get("properties").map(|v| v.as_object().unwrap()) {
@@ -49,11 +58,16 @@ impl ResourceManager {
                     if !props.contains_key(key) {
                         return Err(Error::msg("invalid property key"));
                     }
-                    if !props[key].as_array().unwrap()
-                        .iter().any(|v| properties[key] == v.as_str().unwrap()) {
-                        return Err(Error::msg(
-                            format!("invalid property value '{}'", properties[key])
-                        ));
+                    if !props[key]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|v| properties[key] == v.as_str().unwrap())
+                    {
+                        return Err(Error::msg(format!(
+                            "invalid property value '{}'",
+                            properties[key]
+                        )));
                     }
                 }
             }
@@ -62,30 +76,46 @@ impl ResourceManager {
                     return Err(Error::msg("invalid properties"));
                 }
             }
-            for state in block["states"].as_array().unwrap().iter().map(|v| v.as_object().unwrap()) {
-                let all_properties_match = state["properties"].as_object().unwrap()
+            for state in block["states"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_object().unwrap())
+            {
+                let all_properties_match = state["properties"]
+                    .as_object()
+                    .unwrap()
                     .iter()
                     .map(|(key, value)| (key, value.as_str().unwrap()))
                     .all(|(key, value)| properties[key] == value);
                 if all_properties_match {
                     let id = state["id"].as_i64().unwrap() as i32;
-                    self.block_cache.write().await.insert(
-                        (block_identifier, properties_string),
-                        id
-                    );
+                    self.block_cache
+                        .write()
+                        .await
+                        .insert((block_identifier, properties_string), id);
                     return Ok(id);
                 }
             }
             Ok(0)
         }
         else {
-            for state in block["states"].as_array().unwrap().iter().map(|v| v.as_object().unwrap()) {
-                if state.get("default").map(|v| v.as_bool().unwrap_or(false)).unwrap_or(false) {
+            for state in block["states"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_object().unwrap())
+            {
+                if state
+                    .get("default")
+                    .map(|v| v.as_bool().unwrap_or(false))
+                    .unwrap_or(false)
+                {
                     let id = state["id"].as_i64().unwrap() as i32;
-                    self.block_cache.write().await.insert(
-                        (block_identifier, properties_string),
-                        id
-                    );
+                    self.block_cache
+                        .write()
+                        .await
+                        .insert((block_identifier, properties_string), id);
                     return Ok(id);
                 }
             }
@@ -121,7 +151,8 @@ impl ResourceManager {
             .arg("net.minecraft.data.Main")
             .arg("--reports")
             .stdout(Stdio::null())
-            .spawn()?.await?;
+            .spawn()?
+            .await?;
         if !exit_status.success() {
             return Err(Error::msg("Java process returned with an error"));
         }

@@ -1,8 +1,8 @@
 condense_wildcard_suffixes = true
 control_brace_style = "ClosingNextLine"
-fn_single_line = true
+fn_single_line = false
 format_strings = true
 merge_imports = true
 newline_style = "Unix"
-type_punctuation_density = "Compressed"
+type_punctuation_density = "Wide"
 use_try_shorthand = true
