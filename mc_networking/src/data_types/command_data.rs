@@ -81,6 +81,7 @@ pub struct ArgumentNode {
     pub children_nodes: Vec<Arc<dyn Node>>,
     pub redirect_node: Option<Arc<dyn Node>>,
     pub name: String,
+    /// All parsers can be found here: https://wiki.vg/Command_Data#Parsers
     pub parser: String,
     /// Content depends on parser: https://wiki.vg/Command_Data#Parsers
     pub properties: Vec<u8>,

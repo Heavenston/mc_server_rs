@@ -12,7 +12,7 @@ use mc_server_lib::{
 };
 use mc_utils::Location;
 
-use crate::commands::RegenCommand;
+use crate::commands::{RegenCommand, TpCommand};
 use anyhow::Result;
 use log::*;
 use mc_server_lib::{
@@ -55,6 +55,8 @@ impl Server {
             view_distance as i32,
         ));
 
+        let entity_pool = Arc::new(RwLock::new(EntityPool::new(10 * 16)));
+
         let chat_manager = Arc::new(ChatManager::new());
         chat_manager
             .register_command(Arc::new(GamemodeCommand))
@@ -65,8 +67,13 @@ impl Server {
                 resource_manager: resource_manager.clone(),
             }))
             .await;
+        chat_manager
+            .register_command(Arc::new(TpCommand {
+                entity_pool: Arc::clone(&entity_pool)
+            }))
+            .await;
         Self {
-            entity_pool: Arc::new(RwLock::new(EntityPool::new(10 * 16))),
+            entity_pool,
             chunk_holder,
             chat_manager,
             resource_manager,
