@@ -4,7 +4,7 @@ use mc_utils::ChunkData;
 
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, Notify};
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -25,6 +25,7 @@ pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
     synced_player_chunks: RwLock<HashMap<i32, (i32, i32)>>,
+    update_view_position_notifies: RwLock<HashMap<i32, Arc<Notify>>>,
 }
 
 impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
@@ -35,6 +36,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             chunks: RwLock::new(HashMap::new()),
             players: RwLock::new(PlayerManager::new()),
             synced_player_chunks: RwLock::default(),
+            update_view_position_notifies: RwLock::default(),
         }
     }
 
@@ -89,7 +91,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
         self.chunks.read().await.get(&(x, z)).cloned()
     }
 
-    pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32, ) {
+    pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32) {
         let player = self
             .players
             .read()
@@ -114,17 +116,12 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     continue;
                 }
                 if let Some(chunk) = self.get_chunk(chunk_x + dx, chunk_z + dz).await {
-                    player
-                        .send_packet(&chunk.read().await.encode())
-                        .await
-                        .unwrap();
-                    player
-                        .write()
-                        .await
-                        .as_player_mut()
-                        .unwrap()
-                        .loaded_chunks
-                        .insert((chunk_x + dx, chunk_z + dz));
+                    let mut player_write = player.write().await;
+                    let player_write = player_write.as_player_mut().unwrap();
+                    let client = player_write.client.write().await;
+                    let chunk = chunk.read().await.encode();
+                    client.send_packet(&chunk).await.unwrap();
+                    player_write.loaded_chunks.insert((chunk_x + dx, chunk_z + dz));
                 }
             }
         }
@@ -177,8 +174,16 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             if current_chunk != synced_chunk {
                 let this = Arc::clone(&this);
                 this.synced_player_chunks.write().await.insert(id, current_chunk);
+                if let Some(notify) = this.update_view_position_notifies.read().await.get(&id) {
+                    notify.notify_one();
+                }
+                let notify = Arc::new(Notify::new());
+                this.update_view_position_notifies.write().await.insert(id, Arc::clone(&notify));
                 tokio::task::spawn(async move {
-                    this.update_player_view_position(id, current_chunk.0, current_chunk.1).await
+                    tokio::select! {
+                        _ = notify.notified() => (),
+                        _ = this.update_player_view_position(id, current_chunk.0, current_chunk.1) => (),
+                    };
                 });
             }
         }
