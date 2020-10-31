@@ -578,5 +578,52 @@ mod play {
             })
         }
     }
+
+    /// Upon placing a block, this packet is sent once.
+    ///
+    /// https://wiki.vg/Protocol#Player_Block_Placement
+    #[derive(Clone, Debug)]
+    pub struct S2EPlayerBlockPlacement {
+        /// The hand from which the block is placed; 0: main hand, 1: off hand
+        pub hand: VarInt,
+        /// Block position
+        pub position: Position,
+        /// The face on which the block is placed
+        pub face: S1BPlayerDiggingFace,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from west to east
+        pub cursor_position_x: f32,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from bottom to top
+        pub cursor_position_y: f32,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from north to south
+        pub cursor_position_z: f32,
+        /// True when the player's head is inside of a block.
+        pub inside_block: bool,
+    }
+    impl ServerBoundPacket for S2EPlayerBlockPlacement {
+        fn packet_id() -> i32 {
+            0x2E
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                hand: decoder.read_varint()?,
+                position: Position::decode(decoder.read_u64()?),
+                face: match decoder.read_u8()? {
+                    0 => S1BPlayerDiggingFace::Bottom,
+                    1 => S1BPlayerDiggingFace::Top,
+                    2 => S1BPlayerDiggingFace::North,
+                    3 => S1BPlayerDiggingFace::South,
+                    4 => S1BPlayerDiggingFace::West,
+                    5 => S1BPlayerDiggingFace::East,
+                    _ => return Err(Error::msg("invalid player digging face"))
+                },
+                cursor_position_x: decoder.read_f32()?,
+                cursor_position_y: decoder.read_f32()?,
+                cursor_position_z: decoder.read_f32()?,
+                inside_block: decoder.read_bool()?,
+            })
+        }
+    }
+
 }
 pub use play::*;
