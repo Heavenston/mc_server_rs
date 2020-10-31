@@ -443,7 +443,7 @@ mod play {
         }
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     #[repr(u8)]
     pub enum S1BPlayerDiggingStatus {
         StartedDigging = 0,
@@ -467,7 +467,7 @@ mod play {
         SwapItemInHand = 6,
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq, Eq)]
     #[repr(u8)]
     pub enum S1BPlayerDiggingFace {
         /// -Y
