@@ -54,6 +54,6 @@ impl BitBuffer {
     }
 
     pub fn into_buffer(self) -> Vec<i64> {
-        self.longs.into_iter().map(|i| i as i64).collect()
+        unsafe { std::mem::transmute(self.longs) }
     }
 }
