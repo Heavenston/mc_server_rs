@@ -1,5 +1,5 @@
 use crate::entity::{player::Player, BoxedEntity};
-use mc_networking::packets::client_bound::{C1DChangeGameState, ClientBoundPacket};
+use mc_networking::packets::client_bound::{C1DChangeGameState, ClientBoundPacket, C0EChatMessage};
 
 use anyhow::{Error, Result};
 use std::{
@@ -32,6 +32,13 @@ impl PlayerWrapper {
             .send_packet(packet)
             .await?;
         Ok(())
+    }
+    pub async fn send_message(&self, message: serde_json::Value) -> Result<()> {
+        self.send_packet(&C0EChatMessage {
+            json_data: message,
+            position: 0,
+            sender: None
+        }).await
     }
     pub async fn entity_id(&self) -> i32 {
         self.entity.read().await.entity_id()
