@@ -53,14 +53,18 @@ impl ChunkGenerator for Generator {
                     for y in (block_height - 2)..=block_height {
                         data.set_block(local_x as u8, y, local_z as u8, snow_block);
                     }
-                    data.set_block(local_x as u8, block_height+1, local_z as u8, {
+                    data.set_block(local_x as u8, block_height + 1, local_z as u8, {
                         self.resource_manager
-                            .get_block_id("minecraft:snow".into(), Some(map!{
-                                "layers".to_string() => (
-                                    (remaining_height * 7.0).ceil() + 1.0
-                                ).to_string()
-                            }))
-                            .await.unwrap() as u16
+                            .get_block_id(
+                                "minecraft:snow".into(),
+                                Some(map! {
+                                    "layers".to_string() => (
+                                        (remaining_height * 7.0).ceil() + 1.0
+                                    ).to_string()
+                                }),
+                            )
+                            .await
+                            .unwrap() as u16
                     });
                 }
             }

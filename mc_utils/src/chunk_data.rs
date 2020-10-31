@@ -18,7 +18,12 @@ impl ChunkDataSection {
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
         let (x, y, z) = (x as usize, y as usize, z as usize);
-        if let Some((pb, _)) = self.palette.iter().enumerate().find(|(_, b)| **b == block as i32) {
+        if let Some((pb, _)) = self
+            .palette
+            .iter()
+            .enumerate()
+            .find(|(_, b)| **b == block as i32)
+        {
             self.blocks[x + (z * 16) + (y * 256)] = pb;
         }
         else {
@@ -60,7 +65,10 @@ pub struct ChunkData {
 impl ChunkData {
     pub fn new() -> Self {
         Self {
-            sections: [None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None],
+            sections: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None,
+            ],
             biomes: [1; 1024],
         }
     }
@@ -75,7 +83,10 @@ impl ChunkData {
             self.sections[y as usize] = Some(Box::new(ChunkDataSection::new()));
         }
 
-        self.sections[y as usize].as_mut().map(|s| s.as_mut()).unwrap()
+        self.sections[y as usize]
+            .as_mut()
+            .map(|s| s.as_mut())
+            .unwrap()
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
@@ -122,7 +133,8 @@ impl ChunkData {
             let mut chunk_sections = vec![];
             for section_y in 0..=16 {
                 if self.sections[section_y as usize].is_some() {
-                    chunk_sections.push(self.sections[section_y as usize].as_ref().unwrap().encode());
+                    chunk_sections
+                        .push(self.sections[section_y as usize].as_ref().unwrap().encode());
                 }
             }
             chunk_sections

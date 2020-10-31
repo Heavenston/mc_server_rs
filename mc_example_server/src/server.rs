@@ -12,7 +12,7 @@ use mc_server_lib::{
 };
 use mc_utils::Location;
 
-use crate::commands::{RegenCommand, TpCommand, FlyCommand};
+use crate::commands::{FlyCommand, RegenCommand, TpCommand};
 use anyhow::Result;
 use log::*;
 use mc_server_lib::{
@@ -72,8 +72,7 @@ impl Server {
                 entity_pool: Arc::clone(&entity_pool),
             }))
             .await;
-        chat_manager.register_command(Arc::new(FlyCommand))
-            .await;
+        chat_manager.register_command(Arc::new(FlyCommand)).await;
         Self {
             entity_pool,
             chunk_holder,
