@@ -195,7 +195,7 @@ pub use login::*;
 
 mod play {
     use super::ServerBoundPacket;
-    use crate::data_types::VarInt;
+    use crate::data_types::{VarInt, Position};
 
     use crate::data_types::encoder::PacketDecoder;
     use anyhow::Error;
@@ -439,6 +439,94 @@ mod play {
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
                 flags: decoder.read_u8()?,
+            })
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    #[repr(u8)]
+    pub enum S1BPlayerDiggingStatus {
+        StartedDigging = 0,
+        /// Sent when the player lets go of the Mine Block key (default: left click)
+        CancelledDigging = 1,
+        /// Sent when the client thinks it is finished
+        FinishedDigging = 2,
+        /// Triggered by using the Drop Item key (default: Q) with the modifier to drop the entire
+        /// selected stack (default: depends on OS). Location is always set to 0/0/0,
+        /// Face is always set to -Y.
+        DropItemStack = 3,
+        /// Triggered by using the Drop Item key (default: Q). Location is always set to 0/0/0,
+        /// Face is always set to -Y.
+        DropItem = 4,
+        /// Indicates that the currently held item should have its state updated such as eating food,
+        /// pulling back bows, using buckets, etc.
+        /// Location is always set to 0/0/0, Face is always set to -Y.
+        ShootArrowOrFinishEating = 5,
+        /// Used to swap or assign an item to the second hand. Location is always set to 0/0/0,
+        /// Face is always set to -Y.
+        SwapItemInHand = 6,
+    }
+
+    #[derive(Clone, Debug)]
+    #[repr(u8)]
+    pub enum S1BPlayerDiggingFace {
+        /// -Y
+        Bottom,
+        /// +Y
+        Top,
+        /// -Z
+        North,
+        /// +Z
+        South,
+        /// -X
+        West,
+        /// +X
+        East,
+    }
+
+    /// Sent when the player mines a block.
+    ///
+    /// https://wiki.vg/Protocol#Player_Digging
+    #[derive(Clone, Debug)]
+    pub struct S1BPlayerDigging {
+        /// The action the player is taking against the block
+        pub status: S1BPlayerDiggingStatus,
+        /// Block position
+        pub position: Position,
+        /// The face being hit
+        pub face: S1BPlayerDiggingFace,
+    }
+    impl ServerBoundPacket for S1BPlayerDigging {
+        fn packet_id() -> i32 {
+            0x1B
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            let status = match decoder.read_varint()? {
+                0 => S1BPlayerDiggingStatus::StartedDigging,
+                1 => S1BPlayerDiggingStatus::CancelledDigging,
+                2 => S1BPlayerDiggingStatus::FinishedDigging,
+                3 => S1BPlayerDiggingStatus::DropItemStack,
+                4 => S1BPlayerDiggingStatus::DropItem,
+                5 => S1BPlayerDiggingStatus::ShootArrowOrFinishEating,
+                6 => S1BPlayerDiggingStatus::SwapItemInHand,
+                _ => return Err(Error::msg("invalid player digging status"))
+            };
+            let position = Position::decode(decoder.read_u64()?);
+            let face = match decoder.read_u8()? {
+                0 => S1BPlayerDiggingFace::Bottom,
+                1 => S1BPlayerDiggingFace::Top,
+                2 => S1BPlayerDiggingFace::North,
+                3 => S1BPlayerDiggingFace::South,
+                4 => S1BPlayerDiggingFace::West,
+                5 => S1BPlayerDiggingFace::East,
+                _ => return Err(Error::msg("invalid player digging face"))
+            };
+
+            Ok(Self {
+                status,
+                position,
+                face
             })
         }
     }
