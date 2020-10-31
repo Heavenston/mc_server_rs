@@ -3,13 +3,11 @@ use mc_server_lib::{chunk_holder::ChunkGenerator, resource_manager::ResourceMana
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::{NoiseFn, Perlin};
 use std::sync::Arc;
 
 pub struct Generator {
     grass: bool,
-    snow_noise: Perlin,
-    snow_noise_scale: f64,
     noise: Perlin,
     noise_scale: f64,
     resource_manager: Arc<ResourceManager>,
@@ -18,10 +16,8 @@ impl Generator {
     pub fn new(grass: bool, resource_manager: Arc<ResourceManager>) -> Self {
         Self {
             grass,
-            snow_noise: Perlin::new().set_seed(3283720),
-            snow_noise_scale: 2.25,
             noise: Perlin::new(),
-            noise_scale: 1.0 / 15.0,
+            noise_scale: 1.0 / 40.0,
             resource_manager,
         }
     }
@@ -34,19 +30,9 @@ impl ChunkGenerator for Generator {
             .get_block_id("minecraft:stone".into(), None)
             .await
             .unwrap() as u16;
-        let dirt = self
+        let snow_block = self
             .resource_manager
-            .get_block_id("minecraft:dirt".into(), None)
-            .await
-            .unwrap() as u16;
-        let grass = self
-            .resource_manager
-            .get_block_id(
-                "minecraft:grass_block".into(),
-                Some(map! {
-                    "snowy".to_string() => "true".to_string()
-                }),
-            )
+            .get_block_id("minecraft:snow_block".into(), None)
             .await
             .unwrap() as u16;
 
@@ -54,25 +40,24 @@ impl ChunkGenerator for Generator {
         for local_x in 0..16 {
             let global_x = chunk_x * 16 + local_x;
             let noise_x = global_x as f64 * self.noise_scale;
-            let snow_noise_x = global_x as f64 * self.snow_noise_scale;
             for local_z in 0..16 {
                 let global_z = chunk_z * 16 + local_z;
                 let noise_z = global_z as f64 * self.noise_scale;
-                let snow_noise_z = global_z as f64 * self.snow_noise_scale;
-                let height = (50.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0)) as u8;
-                for y in 0..(height - 2) {
+                let target_height = 50.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0);
+                let block_height = target_height.floor() as u8;
+                let remaining_height = target_height.fract();
+                for y in 0..(block_height - 2) {
                     data.set_block(local_x as u8, y, local_z as u8, stone);
                 }
                 if self.grass {
-                    for y in (height - 2)..height {
-                        data.set_block(local_x as u8, y, local_z as u8, dirt);
+                    for y in (block_height - 2)..=block_height {
+                        data.set_block(local_x as u8, y, local_z as u8, snow_block);
                     }
-                    data.set_block(local_x as u8, height, local_z as u8, grass);
-                    data.set_block(local_x as u8, height+1, local_z as u8, {
+                    data.set_block(local_x as u8, block_height+1, local_z as u8, {
                         self.resource_manager
                             .get_block_id("minecraft:snow".into(), Some(map!{
                                 "layers".to_string() => (
-                                    ((self.snow_noise.get([snow_noise_x, snow_noise_z]) / 2.0 + 0.5) * 7.0 + 1.0).floor()
+                                    (remaining_height * 7.0).ceil() + 1.0
                                 ).to_string()
                             }))
                             .await.unwrap() as u16
