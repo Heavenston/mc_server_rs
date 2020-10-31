@@ -63,5 +63,21 @@ pub enum ClientEvent {
         status: S1BPlayerDiggingStatus,
         position: Position,
         face: S1BPlayerDiggingFace,
-    }
+    },
+    PlayerBlockPlacement {
+        /// The hand from which the block is placed; 0: main hand, 1: off hand
+        hand: i32,
+        /// Block position
+        position: Position,
+        /// The face on which the block is placed
+        face: S1BPlayerDiggingFace,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from west to east
+        cursor_position_x: f32,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from bottom to top
+        cursor_position_y: f32,
+        /// The position of the crosshair on the block, from 0 to 1 increasing from north to south
+        cursor_position_z: f32,
+        /// True when the player's head is inside of a block.
+        inside_block: bool,
+    },
 }

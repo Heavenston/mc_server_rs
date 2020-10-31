@@ -471,6 +471,18 @@ async fn listen_client_packets(
                         hand: animation.hand,
                     })?;
                 }
+                else if raw_packet.packet_id == S2EPlayerBlockPlacement::packet_id() {
+                    let player_block_placement = S2EPlayerBlockPlacement::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::PlayerBlockPlacement {
+                        hand: player_block_placement.hand,
+                        position: player_block_placement.position,
+                        face: player_block_placement.face,
+                        cursor_position_x: player_block_placement.cursor_position_x,
+                        cursor_position_y: player_block_placement.cursor_position_y,
+                        cursor_position_z: player_block_placement.cursor_position_z,
+                        inside_block: player_block_placement.inside_block,
+                    })?;
+                }
             }
 
             ClientState::Disconnected => {
