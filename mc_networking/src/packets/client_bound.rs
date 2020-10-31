@@ -379,6 +379,25 @@ mod play {
         }
     }
 
+    /// Fired whenever a block is changed within the render distance.
+    ///
+    /// https://wiki.vg/Protocol#Block_Change
+    #[derive(Clone, Debug)]
+    pub struct C0BBlockChange {
+        pub position: Position,
+        pub block_id: VarInt,
+    }
+    impl ClientBoundPacket for C0BBlockChange {
+        fn packet_id() -> i32 {
+            0x0B
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64(self.position.encode());
+            encoder.write_varint(self.block_id);
+        }
+    }
+
     /// Lists all of the commands on the server, and how they are parsed.
     /// This is a directed graph, with one root node.
     /// Each redirect or child node must refer only to nodes that have already been declared.
@@ -1048,6 +1067,39 @@ mod play {
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
             encoder.write_angle(self.head_yaw);
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct C3BMultiBlockChangeBlockChange {
+        pub x: u8,
+        pub y: u8,
+        pub z: u8,
+        pub block_id: i32,
+    }
+
+    /// Fired whenever 2 or more blocks are changed within the same chunk on the same tick.
+    ///
+    /// https://wiki.vg/Protocol#Multi_Block_Change
+    #[derive(Clone, Debug)]
+    pub struct C3BMultiBlockChange {
+        pub section_x: i32,
+        pub section_y: i32,
+        pub section_z: i32,
+        pub inverted_trust_edges: bool,
+        pub blocks: Vec<C3BMultiBlockChangeBlockChange>,
+    }
+    impl ClientBoundPacket for C3BMultiBlockChange {
+        fn packet_id() -> i32 {
+            0x3B
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64((((self.section_x as u64) & 0x3FFFFF) << 42) | ((self.section_y as u64) & 0xFFFFF) | (((self.section_z as u64) & 0x3FFFFF) << 20));
+            encoder.write_bool(self.inverted_trust_edges);
+            for block_change in self.blocks.iter() {
+                encoder.write_varlong((block_change.block_id as i64) << 12 | (block_change.x as i64) << 8 | (block_change.y as i64) << 4 | (block_change.z as i64));
+            }
         }
     }
 

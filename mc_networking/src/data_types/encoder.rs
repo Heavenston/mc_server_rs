@@ -8,6 +8,7 @@ use byteorder::{ReadBytesExt, BE};
 use bytes::Buf;
 use std::io::{Cursor, Read, Write};
 use uuid::Uuid;
+use crate::data_types::VarLong;
 
 pub struct PacketEncoder {
     data: Vec<u8>,
@@ -71,6 +72,9 @@ impl PacketEncoder {
 
     pub fn write_varint(&mut self, v: VarInt) {
         self.data.append(&mut varint::encode(v));
+    }
+    pub fn write_varlong(&mut self, v: VarLong) {
+        self.data.append(&mut varlong::encode(v));
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) {
@@ -158,6 +162,10 @@ impl PacketDecoder {
         Ok(varint::decode_sync(&mut self.data)?)
     }
 
+    pub fn read_varlong(&mut self) -> Result<VarLong> {
+        Ok(varlong::decode_sync(&mut self.data)?)
+    }
+
     pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>> {
         let mut bytes = vec![0; amount];
         self.data.read_exact(bytes.as_mut_slice())?;
@@ -241,6 +249,71 @@ pub mod varint {
         Ok(result)
     }
     pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<VarInt> {
+        decode_sync(&mut Cursor::new(buffer.as_ref()))
+    }
+}
+pub mod varlong {
+    use crate::data_types::VarLong;
+    use anyhow::{Error, Result};
+    use byteorder::ReadBytesExt;
+    use std::io::{Cursor, Read};
+    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
+
+    pub fn encode(int: VarLong) -> Vec<u8> {
+        let mut val: u64 = int as u64;
+        let mut buf = Vec::new();
+        loop {
+            let mut temp = (val & 0b0111_1111) as u8;
+            val >>= 7;
+            if val != 0 {
+                temp |= 0b1000_0000;
+            }
+            buf.push(temp);
+            if val == 0 {
+                return buf;
+            }
+        }
+    }
+
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<VarLong> {
+        let mut num_read: i64 = 0;
+        let mut result = 0i64;
+        let mut read;
+        loop {
+            read = stream.read_u8().await?;
+            let value = (read & 0b0111_1111) as i64;
+            result |= value << (7 * num_read);
+
+            num_read += 1;
+            if num_read > 5 {
+                return Err(Error::msg("VarInt is too big!"));
+            }
+            if read & 0b1000_0000 == 0 {
+                break;
+            }
+        }
+        Ok(result)
+    }
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<VarLong> {
+        let mut num_read = 0;
+        let mut result = 0i64;
+        let mut read;
+        loop {
+            read = stream.read_u8()?;
+            let value = (read & 0b0111_1111) as i64;
+            result |= value << (7 * num_read);
+
+            num_read += 1;
+            if num_read > 5 {
+                return Err(Error::msg("VarInt is too big!"));
+            }
+            if read & 0b1000_0000 == 0 {
+                break;
+            }
+        }
+        Ok(result)
+    }
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<VarLong> {
         decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 }

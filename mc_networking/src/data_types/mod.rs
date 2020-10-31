@@ -8,6 +8,7 @@ pub mod command_data;
 pub mod encoder;
 
 pub type VarInt = i32;
+pub type VarLong = i64;
 pub type Angle = u8;
 
 #[derive(Clone, Debug)]
