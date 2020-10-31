@@ -60,7 +60,7 @@ impl CommandExecutor for FlyCommand {
         ]
     }
 
-    async fn on_command(&self, executor: Arc<RwLock<BoxedEntity>>, command: String, args: Vec<String>) -> Result<bool> {
+    async fn on_command(&self, executor: Arc<RwLock<BoxedEntity>>, _command: String, args: Vec<String>) -> Result<bool> {
         if let Some(player) = PlayerWrapper::new(executor).await {
             if args.len() < 1 {
                 return Ok(false);
