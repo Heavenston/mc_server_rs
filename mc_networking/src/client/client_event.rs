@@ -1,3 +1,6 @@
+use crate::packets::server_bound::{S1BPlayerDiggingStatus, S1BPlayerDiggingFace};
+use crate::data_types::Position;
+
 use tokio::sync::oneshot;
 use uuid::Uuid;
 
@@ -56,4 +59,9 @@ pub enum ClientEvent {
     Animation {
         hand: i32,
     },
+    PlayerDigging {
+        status: S1BPlayerDiggingStatus,
+        position: Position,
+        face: S1BPlayerDiggingFace,
+    }
 }

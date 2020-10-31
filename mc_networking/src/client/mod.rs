@@ -457,6 +457,14 @@ async fn listen_client_packets(
                         is_flying: player_abilities.flags & 0x02 == 0x02,
                     })?;
                 }
+                else if raw_packet.packet_id == S1BPlayerDigging::packet_id() {
+                    let player_digging = S1BPlayerDigging::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::PlayerDigging {
+                        status: player_digging.status,
+                        position: player_digging.position,
+                        face: player_digging.face
+                    })?;
+                }
                 else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::Animation {
