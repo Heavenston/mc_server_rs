@@ -72,7 +72,7 @@ impl CommandExecutor for FlyCommand {
                         Ok(false)
                     }
                     else {
-                        if player.read().await.as_player().unwrap().can_fly {
+                        if player.read().await.as_player().can_fly {
                             player
                                 .send_message(json!({
                                     "text": "Fly is already enabled",
@@ -83,7 +83,7 @@ impl CommandExecutor for FlyCommand {
                                 .unwrap();
                         }
                         else {
-                            player.write().await.as_player_mut().unwrap().can_fly = true;
+                            player.write().await.as_player_mut().can_fly = true;
                             player.update_abilities().await.unwrap();
                             player
                                 .send_message(json!({
@@ -102,7 +102,7 @@ impl CommandExecutor for FlyCommand {
                         Ok(false)
                     }
                     else {
-                        if !player.read().await.as_player().unwrap().can_fly {
+                        if !player.read().await.as_player().can_fly {
                             player
                                 .send_message(json!({
                                     "text": "Fly is already disabled",
@@ -113,8 +113,8 @@ impl CommandExecutor for FlyCommand {
                                 .unwrap();
                         }
                         else {
-                            player.write().await.as_player_mut().unwrap().can_fly = false;
-                            player.write().await.as_player_mut().unwrap().is_flying = false;
+                            player.write().await.as_player_mut().can_fly = false;
+                            player.write().await.as_player_mut().is_flying = false;
                             player.update_abilities().await.unwrap();
                             player
                                 .send_message(json!({
@@ -138,7 +138,7 @@ impl CommandExecutor for FlyCommand {
                             return Ok(false);
                         }
                         let speed = speed.unwrap();
-                        player.write().await.as_player_mut().unwrap().flying_speed = 0.05 * speed;
+                        player.write().await.as_player_mut().flying_speed = 0.05 * speed;
                         player.update_abilities().await.unwrap();
                         player
                             .send_message(json!({

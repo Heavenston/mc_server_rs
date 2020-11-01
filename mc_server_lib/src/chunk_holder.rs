@@ -117,7 +117,6 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 .write()
                 .await
                 .as_player_mut()
-                .unwrap()
                 .loaded_chunks
                 .remove(&(x, z));
             let eid = player.entity_id().await;
@@ -159,7 +158,6 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .read()
                     .await
                     .as_player()
-                    .unwrap()
                     .loaded_chunks
                     .contains(&(chunk_x + dx, chunk_z + dz))
                 {
@@ -167,7 +165,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 }
                 if let Some(chunk) = self.get_chunk(chunk_x + dx, chunk_z + dz).await {
                     let mut player_write = player.write().await;
-                    let player_write = player_write.as_player_mut().unwrap();
+                    let player_write = player_write.as_player_mut();
                     let client = player_write.client.write().await;
                     let chunk = chunk.read().await.encode();
                     client.send_packet(&chunk).await.unwrap();
@@ -177,13 +175,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 }
             }
         }
-        let loaded_chunks = player
-            .read()
-            .await
-            .as_player()
-            .unwrap()
-            .loaded_chunks
-            .clone();
+        let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
         for chunk in loaded_chunks {
             let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
             if dx * dx + dz * dz >= view_distance * view_distance {
@@ -198,7 +190,6 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .write()
                     .await
                     .as_player_mut()
-                    .unwrap()
                     .loaded_chunks
                     .remove(&chunk);
             }

@@ -25,7 +25,6 @@ impl PlayerWrapper {
         self.read()
             .await
             .as_player()
-            .unwrap()
             .client
             .read()
             .await
@@ -45,51 +44,35 @@ impl PlayerWrapper {
         self.entity.read().await.entity_id()
     }
     pub async fn set_gamemode(&self, gm: u8) {
-        self.entity.write().await.as_player_mut().unwrap().gamemode = gm;
-        match gm {
-            0 => {
-                // Survival
-                self.entity.write().await.as_player_mut().unwrap().can_fly = false;
-                self.entity.write().await.as_player_mut().unwrap().is_flying = false;
-                self.entity
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .unwrap()
-                    .invulnerable = false;
+        {
+            let mut player = self.entity.write().await;
+            let player = player.as_player_mut();
+            player.gamemode = gm;
+            match gm {
+                0 => {
+                    // Survival
+                    player.can_fly = false;
+                    player.is_flying = false;
+                    player.invulnerable = false;
+                }
+                1 => {
+                    // Creative
+                    player.can_fly = true;
+                    player.invulnerable = true;
+                }
+                2 => {
+                    // Adventure
+                    player.can_fly = false;
+                    player.is_flying = false;
+                    player.invulnerable = false;
+                }
+                3 => {
+                    // Spectator
+                    player.can_fly = true;
+                    player.invulnerable = true;
+                }
+                _ => unimplemented!(),
             }
-            1 => {
-                // Creative
-                self.entity.write().await.as_player_mut().unwrap().can_fly = true;
-                self.entity
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .unwrap()
-                    .invulnerable = true;
-            }
-            2 => {
-                // Adventure
-                self.entity.write().await.as_player_mut().unwrap().can_fly = false;
-                self.entity.write().await.as_player_mut().unwrap().is_flying = false;
-                self.entity
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .unwrap()
-                    .invulnerable = false;
-            }
-            3 => {
-                // Spectator
-                self.entity.write().await.as_player_mut().unwrap().can_fly = true;
-                self.entity
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .unwrap()
-                    .invulnerable = true;
-            }
-            _ => unimplemented!(),
         }
         self.send_packet(&C1DChangeGameState {
             reason: 3, // Change Gamemode
@@ -102,7 +85,7 @@ impl PlayerWrapper {
 
     pub async fn update_abilities(&self) -> Result<()> {
         let player = self.entity.read().await;
-        let player = player.as_player().unwrap();
+        let player = player.as_player();
         player
             .client
             .read()
@@ -233,7 +216,7 @@ impl PlayerManager {
         for (eid, player) in self.iter() {
             let result = {
                 let player = player.read().await;
-                let player = player.as_player().unwrap().as_ref();
+                let player = player.as_player().as_ref();
                 filter(player)
             };
             if result {

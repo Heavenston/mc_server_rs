@@ -70,7 +70,6 @@ impl EntityPool {
                     .read()
                     .await
                     .as_player()
-                    .unwrap()
                     .loaded_entities
                     .contains(&eid);
                 if !is_loaded && should_be_loaded {
@@ -99,7 +98,6 @@ impl EntityPool {
                         .write()
                         .await
                         .as_player_mut()
-                        .unwrap()
                         .loaded_entities
                         .insert(eid);
                     self.players
@@ -128,7 +126,6 @@ impl EntityPool {
                         .write()
                         .await
                         .as_player_mut()
-                        .unwrap()
                         .loaded_entities
                         .remove(&eid);
                 }
@@ -142,7 +139,6 @@ impl EntityPool {
                 .read()
                 .await
                 .as_player()
-                .unwrap()
                 .loaded_entities
                 .iter()
                 .cloned()
@@ -153,7 +149,7 @@ impl EntityPool {
             }
             {
                 let mut players_mut = player.write().await;
-                let players_mut = players_mut.as_player_mut().unwrap();
+                let players_mut = players_mut.as_player_mut();
                 for i in to_destroy.iter() {
                     players_mut.loaded_entities.remove(i);
                 }
@@ -295,7 +291,7 @@ impl EntityPool {
             self.get_players_around(id).await,
         )
         .await;
-        if let Ok(player) = self.entities[id].read().await.as_player() {
+        if let Some(player) = self.entities[id].read().await.try_as_player() {
             player
                 .client
                 .read()

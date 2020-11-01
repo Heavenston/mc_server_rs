@@ -189,7 +189,7 @@ impl Server {
                         .await
                         .send_packet(&{
                             let player = player.read().await;
-                            let player = player.as_player().unwrap();
+                            let player = player.as_player();
 
                             C24JoinGame {
                                 entity_id: player.entity_id,
@@ -290,10 +290,10 @@ impl Server {
 
                     let my_player_info = C32PlayerInfoPlayerUpdate::AddPlayer {
                         uuid: player.read().await.uuid().clone(),
-                        name: player.read().await.as_player().unwrap().username.clone(),
+                        name: player.read().await.as_player().username.clone(),
                         properties: vec![],
-                        gamemode: player.read().await.as_player().unwrap().gamemode as i32,
-                        ping: player.read().await.as_player().unwrap().ping,
+                        gamemode: player.read().await.as_player().gamemode as i32,
+                        ping: player.read().await.as_player().ping,
                         display_name: None,
                     };
                     // Send to him all players (and himself)
@@ -302,7 +302,7 @@ impl Server {
                             let mut players = vec![my_player_info.clone()];
                             for player in server.players.read().await.entities() {
                                 let player = player.read().await;
-                                let player = player.as_player().unwrap();
+                                let player = player.as_player();
                                 players.push(C32PlayerInfoPlayerUpdate::AddPlayer {
                                     uuid: player.uuid.clone(),
                                     name: player.username.clone(),
@@ -405,7 +405,7 @@ impl Server {
                     let player_inventory_slots = {
                         let mut slots = vec![];
                         let player = player.read().await;
-                        let player_inventory = &player.as_player().unwrap().inventory;
+                        let player_inventory = &player.as_player().inventory;
                         slots.push(player_inventory.crafting_output.clone());
                         slots.append(&mut player_inventory.crafting_input.clone());
                         slots.push(player_inventory.armor_head.clone());
@@ -445,8 +445,8 @@ impl Server {
 
                 ClientEvent::Ping { delay } => {
                     let player = player.as_ref().unwrap();
-                    player.write().await.as_player_mut().unwrap().ping = delay as i32;
-                    let uuid = player.read().await.as_player().unwrap().uuid.clone();
+                    player.write().await.as_player_mut().ping = delay as i32;
+                    let uuid = player.read().await.as_player().uuid.clone();
                     server
                         .players
                         .read()
@@ -523,7 +523,7 @@ impl Server {
                     if entity_id == player_eid {
                         {
                             let mut player = player.as_ref().unwrap().write().await;
-                            let mut player = player.as_player_mut().unwrap();
+                            let mut player = player.as_player_mut();
                             match action_id {
                                 0 => {
                                     player.is_sneaking = true;
@@ -555,7 +555,6 @@ impl Server {
                         .write()
                         .await
                         .as_player_mut()
-                        .unwrap()
                         .is_flying = is_flying;
                     entity_pool
                         .read()
@@ -585,7 +584,7 @@ impl Server {
                 } => {
                     let player = player.as_ref().unwrap();
                     if status == S1BPlayerDiggingStatus::StartedDigging
-                        && player.read().await.as_player().unwrap().gamemode == 1
+                        && player.read().await.as_player().gamemode == 1
                     {
                         chunk_holder
                             .set_block(position.x, position.y as u8, position.z, 0)
@@ -602,11 +601,11 @@ impl Server {
                 }
                 ClientEvent::CreativeInventoryAction { slot_id, slot } => {
                     let player = player.as_ref().unwrap();
-                    if player.read().await.as_player().unwrap().gamemode != 1 {
+                    if player.read().await.as_player().gamemode != 1 {
                         continue;
                     }
                     let mut player = player.write().await;
-                    let inventory = &mut player.as_player_mut().unwrap().inventory;
+                    let inventory = &mut player.as_player_mut().inventory;
                     match slot_id {
                         0 => inventory.crafting_output = slot,
                         1..=4 => inventory.crafting_input[slot_id as usize - 1] = slot,

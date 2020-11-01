@@ -4,7 +4,7 @@ use crate::entity::player::Player;
 use mc_networking::data_types::MetadataValue;
 use mc_utils::Location;
 
-use anyhow::{Error, Result};
+use anyhow::Error;
 use downcast_rs::{impl_downcast, DowncastSync};
 use std::{
     collections::HashMap,
@@ -53,18 +53,29 @@ impl BoxedEntity {
             _ => false,
         }
     }
-
-    pub fn as_player(&self) -> Result<&Box<Player>> {
+    pub fn as_player(&self) -> &Box<Player> {
         match self {
-            BoxedEntity::Player(p) => Ok(p),
-            _ => Err(Error::msg("Entity is not a player")),
+            BoxedEntity::Player(p) => p,
+            _ => panic!("Entity is not a player"),
+        }
+    }
+    pub fn as_player_mut(&mut self) -> &mut Box<Player> {
+        match self {
+            BoxedEntity::Player(p) => p,
+            _ => panic!("Entity is not a player"),
         }
     }
 
-    pub fn as_player_mut(&mut self) -> Result<&mut Box<Player>> {
+    pub fn try_as_player(&self) -> Option<&Box<Player>> {
         match self {
-            BoxedEntity::Player(p) => Ok(p),
-            _ => Err(Error::msg("Entity is not a player")),
+            BoxedEntity::Player(p) => Some(p),
+            _ => None,
+        }
+    }
+    pub fn try_as_player_mut(&mut self) -> Option<&mut Box<Player>> {
+        match self {
+            BoxedEntity::Player(p) => Some(p),
+            _ => None,
         }
     }
 
