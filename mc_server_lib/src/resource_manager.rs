@@ -28,16 +28,7 @@ impl ResourceManager {
             .as_ref()
             .ok_or(Error::msg("no blocks registered"))?;
 
-        let properties_string = properties.clone().map(|properties| {
-            let mut acc = String::new();
-            for (k, v) in properties.iter() {
-                acc.push_str(k);
-                acc.push('=');
-                acc.push_str(v);
-                acc.push(',');
-            }
-            acc
-        });
+        let properties_string = properties.clone().map(|properties| format!("{:?}", properties));
         let cache_key = properties_string.unwrap_or_default() + &block_identifier;
 
         if let Some(cached_id) = self
