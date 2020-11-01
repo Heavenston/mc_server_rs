@@ -102,6 +102,14 @@ impl Client {
         self.state.read().await.clone()
     }
 
+    pub async fn send_raw_packet(&self, packet: &RawPacket) -> Result<()> {
+        self.write
+            .lock()
+            .await
+            .write_all(&packet.encode(*self.compression.read().await))
+            .await?;
+        Ok(())
+    }
     pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();
         self.write
