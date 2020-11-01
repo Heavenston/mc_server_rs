@@ -92,7 +92,7 @@ impl Server {
             brand: "BEST SERVER EVER".to_string(),
             spawn_location: RwLock::new(Location {
                 x: 0.0,
-                y: 51.0,
+                y: 150.0,
                 z: 0.0,
                 yaw: 0.0,
                 pitch: 0.0,
