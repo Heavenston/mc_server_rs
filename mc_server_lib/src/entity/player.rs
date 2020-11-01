@@ -3,6 +3,7 @@ use mc_networking::{
     client::Client,
     data_types::{MetadataValue, Pose, Slot},
     map,
+    packets::{client_bound::*, RawPacket},
 };
 use mc_utils::Location;
 
@@ -102,6 +103,19 @@ impl Entity for Player {
     }
     fn uuid(&self) -> &Uuid {
         &self.uuid
+    }
+
+    fn get_spawn_packet(&self) -> RawPacket {
+        C04SpawnPlayer {
+            entity_id: self.entity_id(),
+            uuid: self.uuid.clone(),
+            x: self.location.x,
+            y: self.location.y,
+            z: self.location.z,
+            yaw: self.location.yaw_angle(),
+            pitch: self.location.pitch_angle(),
+        }
+        .to_rawpacket()
     }
 
     fn location(&self) -> &Location {

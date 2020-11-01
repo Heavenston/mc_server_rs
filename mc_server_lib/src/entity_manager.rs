@@ -1,5 +1,5 @@
 use crate::entity::{player::Player, BoxedEntity};
-use mc_networking::packets::client_bound::{C0EChatMessage, C1DChangeGameState, ClientBoundPacket};
+use mc_networking::packets::{client_bound::*, RawPacket};
 
 use anyhow::{Error, Result};
 use std::{
@@ -205,6 +205,19 @@ impl PlayerManager {
         self.get_entity(player_id)
             .ok_or(Error::msg("Invalid player id"))?
             .send_packet(packet)
+            .await?;
+        Ok(())
+    }
+    pub async fn send_raw_to_player(&self, player_id: i32, packet: &RawPacket) -> Result<()> {
+        self.get_entity(player_id)
+            .ok_or(Error::msg("Invalid player id"))?
+            .read()
+            .await
+            .as_player()
+            .client
+            .read()
+            .await
+            .send_raw_packet(packet)
             .await?;
         Ok(())
     }

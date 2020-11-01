@@ -1,7 +1,7 @@
 pub mod player;
 
 use crate::entity::player::Player;
-use mc_networking::data_types::MetadataValue;
+use mc_networking::{data_types::MetadataValue, packets::RawPacket};
 use mc_utils::Location;
 
 use anyhow::Error;
@@ -15,6 +15,8 @@ use uuid::Uuid;
 pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
+
+    fn get_spawn_packet(&self) -> RawPacket;
 
     fn location(&self) -> &Location;
     fn location_mut(&mut self) -> &mut Location;

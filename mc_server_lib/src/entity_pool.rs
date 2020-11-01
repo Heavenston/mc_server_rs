@@ -50,131 +50,6 @@ impl EntityPool {
     }
     pub async fn tick(&mut self) {
         /*
-        Update entities visibilities
-        */
-        let entities = self.entities.clone();
-        for (eid, entity) in entities {
-            let synced_entity_location = self.get_synced_entity_location(eid);
-            let entity_location = entity.read().await.location().clone();
-
-            let players = self
-                .players
-                .get_filtered_players(|player| player.entity_id != eid)
-                .await;
-            for (player_eid, player) in players {
-                let view_distance2 = self.view_distance.pow(2) as f64;
-                let player_location = player.read().await.location().clone();
-                if let Some(view_position) = player.read().await.as_player().view_position {
-                    if view_position.0 != player_location.chunk_x()
-                        || view_position.1 != player_location.chunk_z()
-                    {
-                        continue;
-                    }
-                }
-                let should_be_loaded =
-                    entity_location.h_distance2(&player_location) < view_distance2;
-                let is_loaded = player
-                    .read()
-                    .await
-                    .as_player()
-                    .loaded_entities
-                    .contains(&eid);
-                if !is_loaded && should_be_loaded {
-                    match &*entity.read().await {
-                        // TODO: Implement it in the entity trait... somehow
-                        BoxedEntity::Player(entity) => {
-                            self.players
-                                .send_to_player(
-                                    player_eid,
-                                    &C04SpawnPlayer {
-                                        entity_id: eid,
-                                        uuid: entity.uuid.clone(),
-                                        x: synced_entity_location.x,
-                                        y: synced_entity_location.y,
-                                        z: synced_entity_location.z,
-                                        yaw: synced_entity_location.yaw_angle(),
-                                        pitch: synced_entity_location.pitch_angle(),
-                                    },
-                                )
-                                .await
-                                .unwrap();
-                        }
-                        _ => unimplemented!(),
-                    }
-                    player
-                        .write()
-                        .await
-                        .as_player_mut()
-                        .loaded_entities
-                        .insert(eid);
-                    self.players
-                        .send_to_player(
-                            player_eid,
-                            &C3AEntityHeadLook {
-                                entity_id: eid,
-                                head_yaw: entity.read().await.location().yaw_angle(),
-                            },
-                        )
-                        .await
-                        .unwrap();
-                }
-                if is_loaded && !should_be_loaded {
-                    // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
-                    self.players
-                        .send_to_player(
-                            player_eid,
-                            &C36DestroyEntities {
-                                entities: vec![eid],
-                            },
-                        )
-                        .await
-                        .unwrap();
-                    player
-                        .write()
-                        .await
-                        .as_player_mut()
-                        .loaded_entities
-                        .remove(&eid);
-                }
-            }
-        }
-        // Remove nonexisting entities that are loaded in players
-        for player in self.players.entities() {
-            let player_eid = player.read().await.entity_id();
-            let mut to_destroy = vec![];
-            for eid in player
-                .read()
-                .await
-                .as_player()
-                .loaded_entities
-                .iter()
-                .cloned()
-            {
-                if !self.entities.has_entity(eid) {
-                    to_destroy.push(eid);
-                }
-            }
-            {
-                let mut players_mut = player.write().await;
-                let players_mut = players_mut.as_player_mut();
-                for i in to_destroy.iter() {
-                    players_mut.loaded_entities.remove(i);
-                }
-            }
-            if !to_destroy.is_empty() {
-                self.players
-                    .send_to_player(
-                        player_eid,
-                        &C36DestroyEntities {
-                            entities: to_destroy,
-                        },
-                    )
-                    .await
-                    .unwrap();
-            }
-        }
-
-        /*
         Update entities positions
         */
         let entities = self.entities.clone();
@@ -267,6 +142,113 @@ impl EntityPool {
             }
             else {
                 EntityManager::broadcast_to(&C2AEntityMovement { entity_id: eid }, players).await;
+            }
+        }
+
+        /*
+        Update entities visibilities
+        */
+        let entities = self.entities.clone();
+        for (eid, entity) in entities {
+            let entity_location = entity.read().await.location().clone();
+
+            let players = self
+                .players
+                .get_filtered_players(|player| player.entity_id != eid)
+                .await;
+            for (player_eid, player) in players {
+                let view_distance2 = self.view_distance.pow(2) as f64;
+                let player_location = player.read().await.location().clone();
+                if let Some(view_position) = player.read().await.as_player().view_position {
+                    if view_position.0 != player_location.chunk_x()
+                        || view_position.1 != player_location.chunk_z()
+                    {
+                        continue;
+                    }
+                }
+                let should_be_loaded =
+                    entity_location.h_distance2(&player_location) < view_distance2;
+                let is_loaded = player
+                    .read()
+                    .await
+                    .as_player()
+                    .loaded_entities
+                    .contains(&eid);
+                if !is_loaded && should_be_loaded {
+                    self.players
+                        .send_raw_to_player(player_eid, &entity.read().await.get_spawn_packet())
+                        .await
+                        .unwrap();
+                    player
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .loaded_entities
+                        .insert(eid);
+                    self.players
+                        .send_to_player(
+                            player_eid,
+                            &C3AEntityHeadLook {
+                                entity_id: eid,
+                                head_yaw: entity.read().await.location().yaw_angle(),
+                            },
+                        )
+                        .await
+                        .unwrap();
+                }
+                if is_loaded && !should_be_loaded {
+                    // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
+                    self.players
+                        .send_to_player(
+                            player_eid,
+                            &C36DestroyEntities {
+                                entities: vec![eid],
+                            },
+                        )
+                        .await
+                        .unwrap();
+                    player
+                        .write()
+                        .await
+                        .as_player_mut()
+                        .loaded_entities
+                        .remove(&eid);
+                }
+            }
+        }
+        // Remove nonexisting entities that are loaded in players
+        for player in self.players.entities() {
+            let player_eid = player.read().await.entity_id();
+            let mut to_destroy = vec![];
+            for eid in player
+                .read()
+                .await
+                .as_player()
+                .loaded_entities
+                .iter()
+                .cloned()
+            {
+                if !self.entities.has_entity(eid) {
+                    to_destroy.push(eid);
+                }
+            }
+            {
+                let mut players_mut = player.write().await;
+                let players_mut = players_mut.as_player_mut();
+                for i in to_destroy.iter() {
+                    players_mut.loaded_entities.remove(i);
+                }
+            }
+            if !to_destroy.is_empty() {
+                self.players
+                    .send_to_player(
+                        player_eid,
+                        &C36DestroyEntities {
+                            entities: to_destroy,
+                        },
+                    )
+                    .await
+                    .unwrap();
             }
         }
     }
