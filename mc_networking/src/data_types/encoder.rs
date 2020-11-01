@@ -3,12 +3,12 @@ use crate::{
     packets::RawPacket,
 };
 
+use crate::data_types::VarLong;
 use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
 use bytes::Buf;
 use std::io::{Cursor, Read, Write};
 use uuid::Uuid;
-use crate::data_types::VarLong;
 
 pub struct PacketEncoder {
     data: Vec<u8>,

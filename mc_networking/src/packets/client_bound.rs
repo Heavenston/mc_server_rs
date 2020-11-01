@@ -1095,7 +1095,11 @@ mod play {
         }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_u64((((self.section_x as u64) & 0x3FFFFF) << 42) | ((self.section_y as u64) & 0xFFFFF) | (((self.section_z as u64) & 0x3FFFFF) << 20));
+            encoder.write_u64(
+                (((self.section_x as u64) & 0x3FFFFF) << 42)
+                    | ((self.section_y as u64) & 0xFFFFF)
+                    | (((self.section_z as u64) & 0x3FFFFF) << 20),
+            );
             encoder.write_bool(self.inverted_trust_edges);
             encoder.write_varint(self.blocks.len() as VarInt);
             for block_change in self.blocks.iter() {
@@ -1103,7 +1107,7 @@ mod play {
                     (block_change.block_id as i64) << 12
                         | (block_change.x as i64 & 0xF) << 8
                         | (block_change.z as i64 & 0xF) << 4
-                        | (block_change.y as i64 & 0xF)
+                        | (block_change.y as i64 & 0xF),
                 );
             }
         }

@@ -1,12 +1,17 @@
 use crate::{chunk::Chunk, entity_manager::PlayerManager};
-use mc_networking::packets::client_bound::{C1CUnloadChunk, C40UpdateViewPosition, C0BBlockChange, C3BMultiBlockChange, C3BMultiBlockChangeBlockChange};
+use mc_networking::packets::client_bound::{
+    C0BBlockChange, C1CUnloadChunk, C3BMultiBlockChange, C3BMultiBlockChangeBlockChange,
+    C40UpdateViewPosition,
+};
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::{Notify, RwLock};
-use tokio::time::Instant;
 use log::*;
+use std::{collections::HashMap, sync::Arc};
+use tokio::{
+    sync::{Notify, RwLock},
+    time::Instant,
+};
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -52,21 +57,37 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn set_block(&self, x: i32, y: u8, z: i32, block: u16) {
-        let chunk_pos = (((x as f64) / 16.0).floor() as i32, ((z as f64) / 16.0).floor() as i32);
+        let chunk_pos = (
+            ((x as f64) / 16.0).floor() as i32,
+            ((z as f64) / 16.0).floor() as i32,
+        );
         let chunk = self.chunks.read().await.get(&chunk_pos).cloned().unwrap();
-        let (local_x, local_y, local_z) = (x.rem_euclid(16) as u8, y.rem_euclid(16), z.rem_euclid(16) as u8);
-        chunk.write().await.data.set_block(local_x, y, local_z, block);
+        let (local_x, local_y, local_z) = (
+            x.rem_euclid(16) as u8,
+            y.rem_euclid(16),
+            z.rem_euclid(16) as u8,
+        );
+        chunk
+            .write()
+            .await
+            .data
+            .set_block(local_x, y, local_z, block);
 
         let section_pos = (chunk_pos.0, ((y as f64) / 16.0).floor() as i32, chunk_pos.1);
         if !self.block_changes.read().await.contains_key(&section_pos) {
             self.block_changes.write().await.insert(section_pos, vec![]);
         }
-        self.block_changes.write().await.get_mut(&section_pos).unwrap().push(BlockChange {
-            x: local_x,
-            y: local_y,
-            z: local_z,
-            block
-        });
+        self.block_changes
+            .write()
+            .await
+            .get_mut(&section_pos)
+            .unwrap()
+            .push(BlockChange {
+                x: local_x,
+                y: local_y,
+                z: local_z,
+                block,
+            });
     }
 
     /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
@@ -213,24 +234,26 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                             y: section_pos.1 * 16 + change.y as i32,
                             z: section_pos.2 * 16 + change.z as i32,
                         },
-                        block_id: change.block as i32
+                        block_id: change.block as i32,
                     })
-                },
+                }
                 _ => {
                     let mut multi_block_change = C3BMultiBlockChange {
                         section_x: section_pos.0,
                         section_y: section_pos.1,
                         section_z: section_pos.2,
                         inverted_trust_edges: false,
-                        blocks: vec![]
+                        blocks: vec![],
                     };
                     for change in changes {
-                        multi_block_change.blocks.push(C3BMultiBlockChangeBlockChange {
-                            x: change.x,
-                            y: change.y,
-                            z: change.z,
-                            block_id: change.block as i32
-                        });
+                        multi_block_change
+                            .blocks
+                            .push(C3BMultiBlockChangeBlockChange {
+                                x: change.x,
+                                y: change.y,
+                                z: change.z,
+                                block_id: change.block as i32,
+                            });
                     }
                     multi_block_changes.push(multi_block_change);
                 }

@@ -15,6 +15,7 @@ use mc_utils::Location;
 use crate::commands::{FlyCommand, RegenCommand, TpCommand};
 use anyhow::Result;
 use log::*;
+use mc_networking::packets::server_bound::S1BPlayerDiggingStatus;
 use mc_server_lib::{
     chat_manager::ChatManager, entity_manager::EntityManager, resource_manager::ResourceManager,
 };
@@ -29,7 +30,6 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
-use mc_networking::packets::server_bound::S1BPlayerDiggingStatus;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -416,10 +416,13 @@ impl Server {
                         slots.append(&mut player_inventory.hotbar.clone());
                         slots
                     };
-                    player.send_packet(&C13WindowItems {
-                        window_id: 0,
-                        slots: player_inventory_slots
-                    }).await.unwrap();
+                    player
+                        .send_packet(&C13WindowItems {
+                            window_id: 0,
+                            slots: player_inventory_slots,
+                        })
+                        .await
+                        .unwrap();
                 }
                 ClientEvent::Logout => {
                     server.players.write().await.remove_entity(player_eid);
@@ -581,22 +584,23 @@ impl Server {
                     position, status, ..
                 } => {
                     let player = player.as_ref().unwrap();
-                    if status == S1BPlayerDiggingStatus::StartedDigging && player.read().await.as_player().unwrap().gamemode == 1 {
-                        chunk_holder.set_block(
-                            position.x, position.y as u8, position.z, 0
-                        ).await;
+                    if status == S1BPlayerDiggingStatus::StartedDigging
+                        && player.read().await.as_player().unwrap().gamemode == 1
+                    {
+                        chunk_holder
+                            .set_block(position.x, position.y as u8, position.z, 0)
+                            .await;
                     }
                     if status == S1BPlayerDiggingStatus::FinishedDigging {
-                        chunk_holder.set_block(
-                            position.x, position.y as u8, position.z, 0
-                        ).await;
+                        chunk_holder
+                            .set_block(position.x, position.y as u8, position.z, 0)
+                            .await;
                     }
                 }
-                ClientEvent::PlayerBlockPlacement {
-                    ..
-                } => {
+                ClientEvent::PlayerBlockPlacement { .. } => {
                     todo!();
                 }
+                ClientEvent::CreativeInventoryAction { slot_id, slot } => {}
             }
         }
 

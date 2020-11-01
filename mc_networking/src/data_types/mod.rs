@@ -1,10 +1,10 @@
 use crate::data_types::encoder::PacketEncoder;
 
 use anyhow::{Error, Result};
+use byteorder::ReadBytesExt;
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 use uuid::Uuid;
-use byteorder::ReadBytesExt;
 
 pub mod bitbuffer;
 pub mod command_data;
@@ -29,7 +29,7 @@ impl Slot {
             Ok(Slot::Present {
                 item_id: encoder::varint::decode_sync(stream)?,
                 item_count: stream.read_u8()?,
-                nbt: nbt::de::from_reader(stream)?
+                nbt: nbt::de::from_reader(stream)?,
             })
         }
         else {

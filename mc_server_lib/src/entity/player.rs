@@ -6,14 +6,14 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
+use mc_networking::data_types::Slot;
+use nbt::Map;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use mc_networking::data_types::Slot;
-use nbt::Map;
 
 pub struct PlayerInventory {
     pub armor_head: Slot,
@@ -32,7 +32,7 @@ impl Default for PlayerInventory {
             armor_head: Slot::Present {
                 item_id: 630,
                 item_count: 1,
-                nbt: nbt::Value::Compound(Map::new())
+                nbt: nbt::Value::Compound(Map::new()),
             },
             armor_chest: Slot::default(),
             armor_legs: Slot::default(),
@@ -41,7 +41,7 @@ impl Default for PlayerInventory {
             crafting_output: Slot::default(),
             main_inventory: vec![Slot::default(); 27],
             hotbar: vec![Slot::default(); 9],
-            offhand: Slot::default()
+            offhand: Slot::default(),
         }
     }
 }

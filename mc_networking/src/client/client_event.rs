@@ -1,5 +1,7 @@
-use crate::packets::server_bound::{S1BPlayerDiggingStatus, S1BPlayerDiggingFace};
-use crate::data_types::{Position, Slot};
+use crate::{
+    data_types::{Position, Slot},
+    packets::server_bound::{S1BPlayerDiggingFace, S1BPlayerDiggingStatus},
+};
 
 use tokio::sync::oneshot;
 use uuid::Uuid;

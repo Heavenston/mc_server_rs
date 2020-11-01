@@ -195,7 +195,7 @@ pub use login::*;
 
 mod play {
     use super::ServerBoundPacket;
-    use crate::data_types::{VarInt, Position, Slot};
+    use crate::data_types::{Position, Slot, VarInt};
 
     use crate::data_types::encoder::PacketDecoder;
     use anyhow::Error;
@@ -510,7 +510,7 @@ mod play {
                 4 => S1BPlayerDiggingStatus::DropItem,
                 5 => S1BPlayerDiggingStatus::ShootArrowOrFinishEating,
                 6 => S1BPlayerDiggingStatus::SwapItemInHand,
-                _ => return Err(Error::msg("invalid player digging status"))
+                _ => return Err(Error::msg("invalid player digging status")),
             };
             let position = Position::decode(decoder.read_i64()?);
             let face = match decoder.read_u8()? {
@@ -520,13 +520,13 @@ mod play {
                 3 => S1BPlayerDiggingFace::South,
                 4 => S1BPlayerDiggingFace::West,
                 5 => S1BPlayerDiggingFace::East,
-                _ => return Err(Error::msg("invalid player digging face"))
+                _ => return Err(Error::msg("invalid player digging face")),
             };
 
             Ok(Self {
                 status,
                 position,
-                face
+                face,
             })
         }
     }
@@ -638,7 +638,7 @@ mod play {
                     3 => S1BPlayerDiggingFace::South,
                     4 => S1BPlayerDiggingFace::West,
                     5 => S1BPlayerDiggingFace::East,
-                    _ => return Err(Error::msg("invalid player digging face"))
+                    _ => return Err(Error::msg("invalid player digging face")),
                 },
                 cursor_position_x: decoder.read_f32()?,
                 cursor_position_y: decoder.read_f32()?,
@@ -647,6 +647,5 @@ mod play {
             })
         }
     }
-
 }
 pub use play::*;

@@ -28,15 +28,12 @@ impl ResourceManager {
             .as_ref()
             .ok_or(Error::msg("no blocks registered"))?;
 
-        let properties_string = properties.clone().map(|properties| format!("{:?}", properties));
+        let properties_string = properties
+            .clone()
+            .map(|properties| format!("{:?}", properties));
         let cache_key = properties_string.unwrap_or_default() + &block_identifier;
 
-        if let Some(cached_id) = self
-            .block_cache
-            .read()
-            .await
-            .get(&cache_key)
-        {
+        if let Some(cached_id) = self.block_cache.read().await.get(&cache_key) {
             return Ok(*cached_id);
         }
 
@@ -86,10 +83,7 @@ impl ResourceManager {
                     .all(|(key, value)| properties[key] == value);
                 if all_properties_match {
                     let id = state["id"].as_i64().unwrap() as i32;
-                    self.block_cache
-                        .write()
-                        .await
-                        .insert(cache_key, id);
+                    self.block_cache.write().await.insert(cache_key, id);
                     return Ok(id);
                 }
             }
@@ -108,10 +102,7 @@ impl ResourceManager {
                     .unwrap_or(false)
                 {
                     let id = state["id"].as_i64().unwrap() as i32;
-                    self.block_cache
-                        .write()
-                        .await
-                        .insert(cache_key, id);
+                    self.block_cache.write().await.insert(cache_key, id);
                     return Ok(id);
                 }
             }
