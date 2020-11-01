@@ -29,6 +29,7 @@ use tokio::{
     time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
+use mc_networking::packets::server_bound::S1BPlayerDiggingStatus;
 
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
@@ -555,6 +556,26 @@ impl Server {
                         servers,
                     )
                     .await;
+                }
+                ClientEvent::PlayerDigging {
+                    position, status, ..
+                } => {
+                    let player = player.as_ref().unwrap();
+                    if status == S1BPlayerDiggingStatus::StartedDigging && player.read().await.as_player().unwrap().gamemode == 1 {
+                        chunk_holder.set_block(
+                            position.x, position.y as u8, position.z, 0
+                        ).await;
+                    }
+                    if status == S1BPlayerDiggingStatus::FinishedDigging {
+                        chunk_holder.set_block(
+                            position.x, position.y as u8, position.z, 0
+                        ).await;
+                    }
+                }
+                ClientEvent::PlayerBlockPlacement {
+                    ..
+                } => {
+                    todo!();
                 }
             }
         }

@@ -1,5 +1,5 @@
 use crate::{chunk::Chunk, entity_manager::PlayerManager};
-use mc_networking::packets::client_bound::{C1CUnloadChunk, C40UpdateViewPosition};
+use mc_networking::packets::client_bound::{C1CUnloadChunk, C40UpdateViewPosition, C0BBlockChange, C3BMultiBlockChange, C3BMultiBlockChangeBlockChange};
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
@@ -18,6 +18,13 @@ pub trait ChunkGenerator {
     async fn generate_chunk_data(&self, x: i32, z: i32) -> Box<ChunkData>;
 }
 
+struct BlockChange {
+    x: u8,
+    y: u8,
+    z: u8,
+    block: u16,
+}
+
 /// Manage chunks loading
 pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     chunk_generator: T,
@@ -26,6 +33,7 @@ pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     pub players: RwLock<PlayerManager>,
     synced_player_chunks: RwLock<HashMap<i32, (i32, i32)>>,
     update_view_position_notifies: RwLock<HashMap<i32, Arc<Notify>>>,
+    block_changes: RwLock<HashMap<(i32, i32, i32), Vec<BlockChange>>>,
 }
 
 impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
@@ -37,7 +45,26 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             players: RwLock::new(PlayerManager::new()),
             synced_player_chunks: RwLock::default(),
             update_view_position_notifies: RwLock::default(),
+            block_changes: RwLock::default(),
         }
+    }
+
+    pub async fn set_block(&self, x: i32, y: u8, z: i32, block: u16) {
+        let chunk_pos = (((x as f64) / 16.0).floor() as i32, ((z as f64) / 16.0).floor() as i32);
+        let chunk = self.chunks.read().await.get(&chunk_pos).cloned().unwrap();
+        let (local_x, local_y, local_z) = (x.rem_euclid(16) as u8, y.rem_euclid(16), z.rem_euclid(16) as u8);
+        chunk.write().await.data.set_block(local_x, y, local_z, block);
+
+        let section_pos = (chunk_pos.0, ((y as f64) / 16.0).floor() as i32, chunk_pos.1);
+        if !self.block_changes.read().await.contains_key(&section_pos) {
+            self.block_changes.write().await.insert(section_pos, vec![]);
+        }
+        self.block_changes.write().await.get_mut(&section_pos).unwrap().push(BlockChange {
+            x: local_x,
+            y: local_y,
+            z: local_z,
+            block
+        });
     }
 
     /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
@@ -170,6 +197,46 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn tick(this: Arc<Self>) {
+        let mut block_changes: Vec<C0BBlockChange> = vec![];
+        let mut multi_block_changes: Vec<C3BMultiBlockChange> = vec![];
+
+        for (section_pos, changes) in this.block_changes.read().await.iter() {
+            match changes.len() {
+                0 => (),
+                1 => {
+                    let change = &changes[0];
+                    block_changes.push(C0BBlockChange {
+                        position: mc_networking::data_types::Position {
+                            x: section_pos.0 * 16 + change.x as i32,
+                            y: section_pos.1 * 16 + change.y as i32,
+                            z: section_pos.2 * 16 + change.z as i32,
+                        },
+                        block_id: change.block as i32
+                    })
+                },
+                _ => {
+                    let mut multi_block_change = C3BMultiBlockChange {
+                        section_x: section_pos.0,
+                        section_y: section_pos.1,
+                        section_z: section_pos.2,
+                        inverted_trust_edges: false,
+                        blocks: vec![]
+                    };
+                    for change in changes {
+                        multi_block_change.blocks.push(C3BMultiBlockChangeBlockChange {
+                            x: change.x,
+                            y: change.y,
+                            z: change.z,
+                            block_id: change.block as i32
+                        });
+                    }
+                    multi_block_changes.push(multi_block_change);
+                }
+            }
+        }
+
+        this.block_changes.write().await.clear();
+
         let players = this
             .players
             .read()
@@ -202,6 +269,13 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                         _ = this.update_player_view_position(id, current_chunk.0, current_chunk.1) => (),
                     };
                 });
+            }
+
+            for block_change in block_changes.iter() {
+                player.send_packet(block_change).await.unwrap();
+            }
+            for multi_block_change in multi_block_changes.iter() {
+                player.send_packet(multi_block_change).await.unwrap();
             }
         }
     }
