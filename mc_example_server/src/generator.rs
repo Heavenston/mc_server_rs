@@ -10,6 +10,8 @@ pub struct Generator {
     grass: bool,
     noise: Perlin,
     noise_scale: f64,
+    base_height: i32,
+    height_diff: i32,
     resource_manager: Arc<ResourceManager>,
 }
 impl Generator {
@@ -17,7 +19,9 @@ impl Generator {
         Self {
             grass,
             noise: Perlin::new(),
-            noise_scale: 1.0 / 40.0,
+            noise_scale: 1.0 / 200.0,
+            base_height: 80,
+            height_diff: 100,
             resource_manager,
         }
     }
@@ -43,7 +47,8 @@ impl ChunkGenerator for Generator {
             for local_z in 0..16 {
                 let global_z = chunk_z * 16 + local_z;
                 let noise_z = global_z as f64 * self.noise_scale;
-                let target_height = 50.0 + (self.noise.get([noise_x, noise_z]) * 10.0 - 5.0);
+                let target_height = self.base_height as f64
+                    + (self.noise.get([noise_x, noise_z]) * (self.height_diff as f64 / 2.0));
                 let block_height = target_height.floor() as u8;
                 let remaining_height = target_height.fract();
                 for y in 0..(block_height - 2) {
