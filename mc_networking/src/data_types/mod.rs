@@ -2,6 +2,7 @@ use anyhow::{Error, Result};
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 use uuid::Uuid;
+use crate::data_types::encoder::PacketEncoder;
 
 pub mod bitbuffer;
 pub mod command_data;
@@ -22,20 +23,26 @@ pub enum Slot {
 }
 impl Slot {
     pub fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
+        let mut encoder = PacketEncoder::new();
         match self {
-            Slot::NotPresent => data.push(0),
+            Slot::NotPresent => encoder.write_bool(false),
             Slot::Present {
                 item_id,
                 item_count,
                 nbt,
             } => {
-                data.append(&mut encoder::varint::encode(*item_id));
-                data.push(*item_count);
-                nbt::ser::to_writer(&mut data, nbt, None).unwrap();
+                encoder.write_bool(true);
+                encoder.write_varint(*item_id);
+                encoder.write_u8(*item_count);
+                nbt::ser::to_writer(&mut encoder, nbt, None).unwrap();
             }
         }
-        data
+        encoder.consume()
+    }
+}
+impl Default for Slot {
+    fn default() -> Self {
+        Self::NotPresent
     }
 }
 
