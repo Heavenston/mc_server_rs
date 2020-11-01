@@ -186,6 +186,11 @@ impl PacketDecoder {
         Ok(Uuid::from_slice(self.read_bytes(16)?.as_slice())?)
     }
 }
+impl Read for PacketDecoder {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.data.read(buf)
+    }
+}
 
 pub mod varint {
     use crate::data_types::VarInt;
