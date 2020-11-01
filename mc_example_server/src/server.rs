@@ -1,3 +1,4 @@
+use crate::commands::{FlyCommand, RegenCommand, TpCommand};
 use crate::{commands::GamemodeCommand, generator::Generator};
 use mc_networking::{
     client::{client_event::*, Client},
@@ -12,7 +13,6 @@ use mc_server_lib::{
 };
 use mc_utils::Location;
 
-use crate::commands::{FlyCommand, RegenCommand, TpCommand};
 use anyhow::Result;
 use log::*;
 use mc_networking::packets::server_bound::S1BPlayerDiggingStatus;
@@ -35,6 +35,7 @@ pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
     chat_manager: Arc<ChatManager>,
+    #[allow(dead_code)]
     resource_manager: Arc<ResourceManager>,
     players: RwLock<PlayerManager>,
     entity_id_counter: AtomicI32,
@@ -150,8 +151,7 @@ impl Server {
                                 reason: "The server is full :(".to_string(),
                             })
                             .unwrap();
-                    }
-                    else {
+                    } else {
                         player_eid = server.entity_id_counter.fetch_add(1, Ordering::Relaxed);
                         let uuid = Uuid::new_v3(
                             &Uuid::new_v4(),
@@ -600,7 +600,27 @@ impl Server {
                 ClientEvent::PlayerBlockPlacement { .. } => {
                     todo!();
                 }
-                ClientEvent::CreativeInventoryAction { slot_id, slot } => {}
+                ClientEvent::CreativeInventoryAction { slot_id, slot } => {
+                    let player = player.as_ref().unwrap();
+                    if player.read().await.as_player().unwrap().gamemode != 1 {
+                        continue;
+                    }
+                    let mut player = player.write().await;
+                    let inventory = &mut player.as_player_mut().unwrap().inventory;
+                    match slot_id {
+                        0 => inventory.crafting_output = slot,
+                        1..=4 => inventory.crafting_input[slot_id as usize - 1] = slot,
+                        5 => inventory.armor_head = slot,
+                        6 => inventory.armor_chest = slot,
+                        7 => inventory.armor_legs = slot,
+                        8 => inventory.armor_feet = slot,
+                        9..=35 => inventory.main_inventory[slot_id as usize - 9] = slot,
+                        36..=44 => inventory.hotbar[slot_id as usize - 36] = slot,
+                        45 => inventory.offhand = slot,
+
+                        _ => (),
+                    }
+                }
             }
         }
 
