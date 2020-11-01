@@ -3,12 +3,14 @@ use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
-use log::*;
-use std::{collections::HashMap, sync::Arc};
-use tokio::{
-    sync::{Notify, RwLock},
-    time::Instant,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
+use tokio::sync::RwLock;
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -36,7 +38,7 @@ pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
     synced_player_chunks: RwLock<HashMap<i32, (i32, i32)>>,
-    update_view_position_notifies: RwLock<HashMap<i32, Arc<Notify>>>,
+    update_view_position_interrupts: RwLock<HashMap<i32, Arc<AtomicBool>>>,
     block_changes: RwLock<HashMap<(i32, i32, i32), Vec<BlockChange>>>,
 }
 
@@ -48,7 +50,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             chunks: RwLock::new(HashMap::new()),
             players: RwLock::new(PlayerManager::new()),
             synced_player_chunks: RwLock::default(),
-            update_view_position_notifies: RwLock::default(),
+            update_view_position_interrupts: RwLock::default(),
             block_changes: RwLock::default(),
         }
     }
@@ -138,6 +140,20 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32) {
+        if let Some(interrupt) = self
+            .update_view_position_interrupts
+            .read()
+            .await
+            .get(&player_id)
+        {
+            interrupt.store(true, Ordering::Relaxed);
+        }
+        let interrupt = Arc::new(AtomicBool::new(false));
+        self.update_view_position_interrupts
+            .write()
+            .await
+            .insert(player_id, Arc::clone(&interrupt));
+
         let view_distance = self.view_distance;
 
         let player = self
@@ -147,6 +163,10 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .get_entity(player_id)
             .unwrap()
             .clone();
+        player
+            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .await
+            .unwrap();
         let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
         for chunk in loaded_chunks {
             let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
@@ -166,12 +186,11 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .remove(&chunk);
             }
         }
-        player
-            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
-            .await
-            .unwrap();
-        for dx in -view_distance..view_distance {
+        'chunk_loading: for dx in -view_distance..view_distance {
             for dz in -view_distance..view_distance {
+                if interrupt.load(Ordering::Relaxed) {
+                    break 'chunk_loading;
+                }
                 if dx * dx + dz * dz > view_distance * view_distance {
                     continue;
                 }
@@ -196,6 +215,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 }
             }
         }
+        player.write().await.as_player_mut().view_position = Some((chunk_x, chunk_z));
     }
 
     async fn get_synced_player_chunk(&self, player: i32) -> (i32, i32) {
@@ -288,22 +308,9 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .write()
                     .await
                     .insert(id, current_chunk);
-                if let Some(notify) = this.update_view_position_notifies.read().await.get(&id) {
-                    notify.notify_one();
-                }
-                let notify = Arc::new(Notify::new());
-                this.update_view_position_notifies
-                    .write()
-                    .await
-                    .insert(id, Arc::clone(&notify));
                 tokio::task::spawn(async move {
-                    let start = Instant::now();
-                    tokio::select! {
-                        _ = notify.notified() => (),
-                        _ = this.update_player_view_position(id, current_chunk.0, current_chunk.1) => debug!(
-                            "Generation finished in {}ms", start.elapsed().as_millis()
-                        ),
-                    };
+                    this.update_player_view_position(id, current_chunk.0, current_chunk.1)
+                        .await;
                 });
             }
 

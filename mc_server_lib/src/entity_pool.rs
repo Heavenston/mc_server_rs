@@ -64,6 +64,13 @@ impl EntityPool {
             for (player_eid, player) in players {
                 let view_distance2 = self.view_distance.pow(2) as f64;
                 let player_location = player.read().await.location().clone();
+                if let Some(view_position) = player.read().await.as_player().view_position {
+                    if view_position.0 != player_location.chunk_x()
+                        || view_position.1 != player_location.chunk_z()
+                    {
+                        continue;
+                    }
+                }
                 let should_be_loaded =
                     entity_location.h_distance2(&player_location) < view_distance2;
                 let is_loaded = player

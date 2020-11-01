@@ -66,6 +66,7 @@ pub struct Player {
 
     pub loaded_entities: HashSet<i32>,
     pub loaded_chunks: HashSet<(i32, i32)>,
+    pub view_position: Option<(i32, i32)>,
 }
 impl Player {
     pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Arc<RwLock<Client>>) -> Self {
@@ -91,6 +92,7 @@ impl Player {
 
             loaded_entities: HashSet::new(),
             loaded_chunks: HashSet::new(),
+            view_position: None,
         }
     }
 }
