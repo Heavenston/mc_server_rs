@@ -195,7 +195,7 @@ pub use login::*;
 
 mod play {
     use super::ServerBoundPacket;
-    use crate::data_types::{VarInt, Position};
+    use crate::data_types::{VarInt, Position, Slot};
 
     use crate::data_types::encoder::PacketDecoder;
     use anyhow::Error;
@@ -555,6 +555,29 @@ mod play {
                 entity_id: decoder.read_varint()?,
                 action_id: decoder.read_varint()?,
                 jump_boost: decoder.read_varint()?,
+            })
+        }
+    }
+
+    /// While the user is in the standard inventory (i.e., not a crafting bench) in Creative mode,
+    /// the player will send this packet.
+    /// This action can be described as "set inventory slot".
+    ///
+    /// https://wiki.vg/Protocol#Creative_Inventory_Action
+    #[derive(Clone, Debug)]
+    pub struct S28CreativeInventoryAction {
+        pub slot_id: i16,
+        pub slot: Slot,
+    }
+    impl ServerBoundPacket for S28CreativeInventoryAction {
+        fn packet_id() -> i32 {
+            0x28
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                slot_id: decoder.read_i16()?,
+                slot: Slot::decode_sync(decoder)?,
             })
         }
     }
