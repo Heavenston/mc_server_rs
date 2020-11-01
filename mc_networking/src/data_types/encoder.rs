@@ -1,9 +1,9 @@
+use crate::data_types::VarLong;
 use crate::{
     data_types::{Angle, VarInt},
     packets::RawPacket,
 };
 
-use crate::data_types::VarLong;
 use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
 use bytes::Buf;
