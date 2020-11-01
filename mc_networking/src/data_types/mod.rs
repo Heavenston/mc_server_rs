@@ -20,16 +20,28 @@ pub enum Slot {
     Present {
         item_id: i32,
         item_count: u8,
-        nbt: nbt::Value,
+        nbt: nbt::Blob,
     },
 }
 impl Slot {
     pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
         if stream.read_u8()? == 1 {
+            let item_id = encoder::varint::decode_sync(stream)?;
+            let item_count = stream.read_u8()?;
+            let remaining = {
+                let mut remaining = vec![];
+                stream.read_to_end(&mut remaining)?;
+                remaining
+            };
             Ok(Slot::Present {
-                item_id: encoder::varint::decode_sync(stream)?,
-                item_count: stream.read_u8()?,
-                nbt: nbt::de::from_reader(stream)?,
+                item_id,
+                item_count,
+                nbt: if remaining[0] == 0 {
+                    nbt::Blob::new()
+                }
+                else {
+                    nbt::Blob::from_reader(&mut Cursor::new(remaining))?
+                },
             })
         }
         else {

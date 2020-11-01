@@ -1,13 +1,11 @@
 use super::Entity;
 use mc_networking::{
     client::Client,
-    data_types::{MetadataValue, Pose},
+    data_types::{MetadataValue, Pose, Slot},
     map,
 };
 use mc_utils::Location;
 
-use mc_networking::data_types::Slot;
-use nbt::Map;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -32,7 +30,7 @@ impl Default for PlayerInventory {
             armor_head: Slot::Present {
                 item_id: 630,
                 item_count: 1,
-                nbt: nbt::Value::Compound(Map::new()),
+                nbt: nbt::Blob::new(),
             },
             armor_chest: Slot::default(),
             armor_legs: Slot::default(),
