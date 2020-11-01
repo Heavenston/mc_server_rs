@@ -1,5 +1,4 @@
-use crate::commands::{FlyCommand, RegenCommand, TpCommand};
-use crate::{commands::GamemodeCommand, generator::Generator};
+use crate::{commands::*, generator::Generator};
 use mc_networking::{
     client::{client_event::*, Client},
     map,
@@ -72,6 +71,12 @@ impl Server {
         chat_manager
             .register_command(Arc::new(TpCommand {
                 entity_pool: Arc::clone(&entity_pool),
+            }))
+            .await;
+        chat_manager
+            .register_command(Arc::new(RefreshCommand {
+                chunk_holder: Arc::clone(&chunk_holder),
+                resource_manager: resource_manager.clone(),
             }))
             .await;
         chat_manager.register_command(Arc::new(FlyCommand)).await;
@@ -151,7 +156,8 @@ impl Server {
                                 reason: "The server is full :(".to_string(),
                             })
                             .unwrap();
-                    } else {
+                    }
+                    else {
                         player_eid = server.entity_id_counter.fetch_add(1, Ordering::Relaxed);
                         let uuid = Uuid::new_v3(
                             &Uuid::new_v4(),

@@ -1147,8 +1147,8 @@ mod play {
         }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
-            encoder.write_varint(self.chunk_z);
             encoder.write_varint(self.chunk_x);
+            encoder.write_varint(self.chunk_z);
         }
     }
 

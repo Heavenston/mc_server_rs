@@ -1,8 +1,5 @@
 use crate::{chunk::Chunk, entity_manager::PlayerManager};
-use mc_networking::packets::client_bound::{
-    C0BBlockChange, C1CUnloadChunk, C3BMultiBlockChange, C3BMultiBlockChangeBlockChange,
-    C40UpdateViewPosition,
-};
+use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
@@ -148,6 +145,10 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .get_entity(player_id)
             .unwrap()
             .clone();
+        player
+            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .await
+            .unwrap();
         let view_distance = self.view_distance;
         for dx in -view_distance..view_distance {
             for dz in -view_distance..view_distance {
@@ -194,10 +195,6 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .remove(&chunk);
             }
         }
-        player
-            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
-            .await
-            .unwrap();
     }
 
     async fn get_synced_player_chunk(&self, player: i32) -> (i32, i32) {
@@ -208,6 +205,25 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 .insert(player, (i32::MAX, i32::MAX));
         }
         self.synced_player_chunks.read().await[&player]
+    }
+
+    pub async fn refresh_player_chunks(&self, player_id: i32) {
+        let entity = self
+            .players
+            .read()
+            .await
+            .get_entity(player_id)
+            .unwrap()
+            .clone();
+        let loaded_chunks = entity.write().await.as_player_mut().loaded_chunks.clone();
+        for (chunk_x, chunk_z) in loaded_chunks {
+            entity
+                .send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
+                .await
+                .unwrap();
+        }
+        entity.write().await.as_player_mut().loaded_chunks.clear();
+        self.synced_player_chunks.write().await.remove(&player_id);
     }
 
     pub async fn tick(this: Arc<Self>) {
