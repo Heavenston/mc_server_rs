@@ -8,7 +8,7 @@ const SERVER_JAR_URL: &'static str =
 
 pub struct ResourceManager {
     vanilla_blocks: RwLock<Option<serde_json::Value>>,
-    block_cache: RwLock<HashMap<(String, Option<String>), i32>>,
+    block_cache: RwLock<HashMap<String, i32>>,
 }
 impl ResourceManager {
     pub fn new() -> Self {
@@ -29,17 +29,22 @@ impl ResourceManager {
             .ok_or(Error::msg("no blocks registered"))?;
 
         let properties_string = properties.clone().map(|properties| {
-            properties
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .fold(String::new(), |acc, v| format!("{},{}", acc, v))
+            let mut acc = String::new();
+            for (k, v) in properties.iter() {
+                acc.push_str(k);
+                acc.push('=');
+                acc.push_str(v);
+                acc.push(',');
+            }
+            acc
         });
+        let cache_key = properties_string.unwrap_or_default() + &block_identifier;
 
         if let Some(cached_id) = self
             .block_cache
             .read()
             .await
-            .get(&(block_identifier.clone(), properties_string.clone()))
+            .get(&cache_key)
         {
             return Ok(*cached_id);
         }
@@ -93,7 +98,7 @@ impl ResourceManager {
                     self.block_cache
                         .write()
                         .await
-                        .insert((block_identifier, properties_string), id);
+                        .insert(cache_key, id);
                     return Ok(id);
                 }
             }
@@ -115,7 +120,7 @@ impl ResourceManager {
                     self.block_cache
                         .write()
                         .await
-                        .insert((block_identifier, properties_string), id);
+                        .insert(cache_key, id);
                     return Ok(id);
                 }
             }
