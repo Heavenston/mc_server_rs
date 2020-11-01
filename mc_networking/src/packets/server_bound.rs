@@ -512,7 +512,7 @@ mod play {
                 6 => S1BPlayerDiggingStatus::SwapItemInHand,
                 _ => return Err(Error::msg("invalid player digging status"))
             };
-            let position = Position::decode(decoder.read_u64()?);
+            let position = Position::decode(decoder.read_i64()?);
             let face = match decoder.read_u8()? {
                 0 => S1BPlayerDiggingFace::Bottom,
                 1 => S1BPlayerDiggingFace::Top,
@@ -607,7 +607,7 @@ mod play {
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
             Ok(Self {
                 hand: decoder.read_varint()?,
-                position: Position::decode(decoder.read_u64()?),
+                position: Position::decode(decoder.read_i64()?),
                 face: match decoder.read_u8()? {
                     0 => S1BPlayerDiggingFace::Bottom,
                     1 => S1BPlayerDiggingFace::Top,

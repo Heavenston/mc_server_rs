@@ -54,14 +54,14 @@ impl Position {
         ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
     }
 
-    pub fn decode(bytes: u64) -> Self {
-        let x = (bytes >> 38) as u32;
-        let y = (bytes & 0xFFF) as u32;
-        let z = ((bytes << 26) >> 38) as u32;
+    pub fn decode(bytes: i64) -> Self {
+        let x = bytes >> 38;
+        let y = bytes & 0xFFF;
+        let z = (bytes << 26) >> 38;
         Self {
-            x: i32::from_ne_bytes(x.to_ne_bytes()),
-            y: i32::from_ne_bytes(y.to_ne_bytes()),
-            z: i32::from_ne_bytes(z.to_ne_bytes()),
+            x: x as i32,
+            y: y as i32,
+            z: z as i32,
         }
     }
 }
