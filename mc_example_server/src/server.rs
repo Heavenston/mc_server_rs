@@ -400,6 +400,26 @@ impl Server {
                         .await
                         .teleport_entity(player_eid, spawn_location)
                         .await;
+
+                    // Send inventory
+                    let player_inventory_slots = {
+                        let mut slots = vec![];
+                        let player = player.read().await;
+                        let player_inventory = &player.as_player().unwrap().inventory;
+                        slots.push(player_inventory.crafting_output.clone());
+                        slots.append(&mut player_inventory.crafting_input.clone());
+                        slots.push(player_inventory.armor_head.clone());
+                        slots.push(player_inventory.armor_chest.clone());
+                        slots.push(player_inventory.armor_legs.clone());
+                        slots.push(player_inventory.armor_feet.clone());
+                        slots.append(&mut player_inventory.main_inventory.clone());
+                        slots.append(&mut player_inventory.hotbar.clone());
+                        slots
+                    };
+                    player.send_packet(&C13WindowItems {
+                        window_id: 0,
+                        slots: player_inventory_slots
+                    }).await.unwrap();
                 }
                 ClientEvent::Logout => {
                     server.players.write().await.remove_entity(player_eid);

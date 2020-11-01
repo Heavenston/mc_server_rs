@@ -12,6 +12,39 @@ use std::{
 };
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use mc_networking::data_types::Slot;
+use nbt::Map;
+
+pub struct PlayerInventory {
+    pub armor_head: Slot,
+    pub armor_chest: Slot,
+    pub armor_legs: Slot,
+    pub armor_feet: Slot,
+    pub crafting_input: Vec<Slot>,
+    pub crafting_output: Slot,
+    pub main_inventory: Vec<Slot>,
+    pub hotbar: Vec<Slot>,
+    pub offhand: Slot,
+}
+impl Default for PlayerInventory {
+    fn default() -> Self {
+        Self {
+            armor_head: Slot::Present {
+                item_id: 630,
+                item_count: 1,
+                nbt: nbt::Value::Compound(Map::new())
+            },
+            armor_chest: Slot::default(),
+            armor_legs: Slot::default(),
+            armor_feet: Slot::default(),
+            crafting_input: vec![Slot::default(); 4],
+            crafting_output: Slot::default(),
+            main_inventory: vec![Slot::default(); 27],
+            hotbar: vec![Slot::default(); 9],
+            offhand: Slot::default()
+        }
+    }
+}
 
 pub struct Player {
     pub username: String,
@@ -19,6 +52,7 @@ pub struct Player {
     pub uuid: Uuid,
     pub client: Arc<RwLock<Client>>,
 
+    pub inventory: PlayerInventory,
     pub location: Location,
     pub ping: i32,
     pub gamemode: u8,
@@ -42,6 +76,8 @@ impl Player {
             entity_id,
             uuid,
             client,
+
+            inventory: PlayerInventory::default(),
             location: Location::default(),
             ping: 0,
             gamemode: 0,
@@ -49,10 +85,12 @@ impl Player {
             is_sneaking: false,
             is_sprinting: false,
             is_flying: false,
+
             invulnerable: false,
             can_fly: false,
             flying_speed: 0.05,
             fov_modifier: 0.1,
+
             loaded_entities: HashSet::new(),
             loaded_chunks: HashSet::new(),
         }
@@ -62,7 +100,6 @@ impl Entity for Player {
     fn entity_id(&self) -> i32 {
         self.entity_id
     }
-
     fn uuid(&self) -> &Uuid {
         &self.uuid
     }
@@ -70,7 +107,6 @@ impl Entity for Player {
     fn location(&self) -> &Location {
         &self.location
     }
-
     fn location_mut(&mut self) -> &mut Location {
         &mut self.location
     }
@@ -78,7 +114,6 @@ impl Entity for Player {
     fn on_ground(&self) -> bool {
         self.on_ground
     }
-
     fn set_on_ground(&mut self, on_ground: bool) {
         self.on_ground = on_ground
     }
@@ -89,7 +124,6 @@ impl Entity for Player {
             6 => self.metadata_value(6).unwrap().clone()
         }
     }
-
     fn metadata_value(&self, id: u8) -> Option<MetadataValue> {
         Some(match id {
             0 => MetadataValue::Byte(
@@ -104,7 +138,6 @@ impl Entity for Player {
             _ => return None,
         })
     }
-
     fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool {
         match id {
             0 => {
