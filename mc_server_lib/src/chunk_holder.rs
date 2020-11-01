@@ -138,6 +138,8 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32) {
+        let view_distance = self.view_distance;
+
         let player = self
             .players
             .read()
@@ -145,11 +147,29 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .get_entity(player_id)
             .unwrap()
             .clone();
+        let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
+        for chunk in loaded_chunks {
+            let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
+            if dx * dx + dz * dz >= view_distance * view_distance {
+                player
+                    .send_packet(&C1CUnloadChunk {
+                        chunk_x: chunk.0,
+                        chunk_z: chunk.1,
+                    })
+                    .await
+                    .unwrap();
+                player
+                    .write()
+                    .await
+                    .as_player_mut()
+                    .loaded_chunks
+                    .remove(&chunk);
+            }
+        }
         player
             .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
             .await
             .unwrap();
-        let view_distance = self.view_distance;
         for dx in -view_distance..view_distance {
             for dz in -view_distance..view_distance {
                 if dx * dx + dz * dz > view_distance * view_distance {
@@ -174,25 +194,6 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                         .loaded_chunks
                         .insert((chunk_x + dx, chunk_z + dz));
                 }
-            }
-        }
-        let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
-        for chunk in loaded_chunks {
-            let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
-            if dx * dx + dz * dz >= view_distance * view_distance {
-                player
-                    .send_packet(&C1CUnloadChunk {
-                        chunk_x: chunk.0,
-                        chunk_z: chunk.1,
-                    })
-                    .await
-                    .unwrap();
-                player
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .loaded_chunks
-                    .remove(&chunk);
             }
         }
     }
