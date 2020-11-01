@@ -465,6 +465,13 @@ async fn listen_client_packets(
                         face: player_digging.face
                     })?;
                 }
+                else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
+                    let creative_inventory_action = S28CreativeInventoryAction::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::CreativeInventoryAction {
+                        slot_id: creative_inventory_action.slot_id,
+                        slot: creative_inventory_action.slot
+                    }).unwrap();
+                }
                 else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
                     event_sender.try_send(ClientEvent::Animation {

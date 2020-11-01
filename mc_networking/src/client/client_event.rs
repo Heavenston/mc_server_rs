@@ -1,5 +1,5 @@
 use crate::packets::server_bound::{S1BPlayerDiggingStatus, S1BPlayerDiggingFace};
-use crate::data_types::Position;
+use crate::data_types::{Position, Slot};
 
 use tokio::sync::oneshot;
 use uuid::Uuid;
@@ -79,5 +79,9 @@ pub enum ClientEvent {
         cursor_position_z: f32,
         /// True when the player's head is inside of a block.
         inside_block: bool,
+    },
+    CreativeInventoryAction {
+        slot_id: i16,
+        slot: Slot,
     },
 }
