@@ -5,6 +5,8 @@ use mc_utils::ChunkData;
 use async_trait::async_trait;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Notify, RwLock};
+use tokio::time::Instant;
+use log::*;
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -264,9 +266,12 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .await
                     .insert(id, Arc::clone(&notify));
                 tokio::task::spawn(async move {
+                    let start = Instant::now();
                     tokio::select! {
                         _ = notify.notified() => (),
-                        _ = this.update_player_view_position(id, current_chunk.0, current_chunk.1) => (),
+                        _ = this.update_player_view_position(id, current_chunk.0, current_chunk.1) => debug!(
+                            "Generation finished in {}ms", start.elapsed().as_millis()
+                        ),
                     };
                 });
             }
