@@ -1,11 +1,18 @@
 use anyhow::{Error, Result};
 use log::*;
+use sha2::{digest::FixedOutput, Digest, Sha256};
 use std::{collections::HashMap, path::Path, process::Stdio};
 use tokio::{fs, prelude::io::*, process::Command, sync::RwLock};
 use tokio_compat_02::FutureExt;
 
 const SERVER_JAR_URL: &'static str =
     "https://launcher.mojang.com/v1/objects/f02f4473dbf152c23d7d484952121db0b36698cb/server.jar";
+const SERVER_JAR_HASH: [u64; 4] = [
+    0x32e450e74c081aecu64.to_be(),
+    0x06dcfbadfa5ba9aau64.to_be(),
+    0x1c7f370bd869e658u64.to_be(),
+    0xcaec0c3004f7ad5bu64.to_be(),
+];
 
 pub struct ResourceManager {
     blocks: RwLock<Option<serde_json::Value>>,
@@ -168,7 +175,31 @@ impl ResourceManager {
         let temp_folder = std::env::temp_dir().join("mc_server_generator");
         let server_jar_file_path = temp_folder.join("server.jar");
         fs::create_dir_all(temp_folder.clone()).await?;
-        if !Path::new(&server_jar_file_path).exists() {
+        let should_download_server_jar = !Path::new(&server_jar_file_path).exists() || {
+            let mut hasher = Sha256::new();
+            info!("Validating server jar...");
+            let mut file = fs::File::open(server_jar_file_path.clone()).await?;
+            loop {
+                let mut buffer = [0; 2048];
+                let read = file.read(&mut buffer).await?;
+                if read == 0 {
+                    break;
+                }
+                hasher.update(&buffer[..read]);
+            }
+            let hash = hasher.finalize_fixed();
+            if hash.as_slice()
+                != &unsafe { std::mem::transmute::<[u64; 4], [u8; 32]>(SERVER_JAR_HASH) }
+            {
+                info!("The server jar could not be validated");
+                true
+            }
+            else {
+                info!("Server jar successfully validated");
+                false
+            }
+        };
+        if should_download_server_jar {
             let mut server_jar_file = fs::File::create(server_jar_file_path.clone()).await?;
             info!("Downloading server.jar...");
             let mut server_jar_response = reqwest::get(SERVER_JAR_URL).compat().await?;
