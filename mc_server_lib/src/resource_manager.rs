@@ -2,6 +2,7 @@ use anyhow::{Error, Result};
 use log::*;
 use std::{collections::HashMap, path::Path, process::Stdio};
 use tokio::{fs, prelude::io::*, process::Command, sync::RwLock};
+use tokio_compat_02::FutureExt;
 
 const SERVER_JAR_URL: &'static str =
     "https://launcher.mojang.com/v1/objects/f02f4473dbf152c23d7d484952121db0b36698cb/server.jar";
@@ -117,7 +118,7 @@ impl ResourceManager {
         if !Path::new(&server_jar_file_path).exists() {
             let mut server_jar_file = fs::File::create(server_jar_file_path.clone()).await?;
             info!("Downloading server.jar...");
-            let mut server_jar_response = reqwest::get(SERVER_JAR_URL).await?;
+            let mut server_jar_response = reqwest::get(SERVER_JAR_URL).compat().await?;
             let size = server_jar_response.content_length().unwrap_or(0);
             let mut last_remaining = 0;
             while let Some(chunk) = server_jar_response.chunk().await? {
