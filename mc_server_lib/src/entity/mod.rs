@@ -1,8 +1,10 @@
+pub mod living_entity;
 pub mod player;
 
-use crate::entity::player::Player;
+use living_entity::LivingEntity;
 use mc_networking::{data_types::MetadataValue, packets::RawPacket};
 use mc_utils::Location;
+use player::Player;
 
 use anyhow::Error;
 use downcast_rs::{impl_downcast, DowncastSync};
@@ -35,6 +37,7 @@ impl_downcast!(sync Entity);
 
 pub enum BoxedEntity {
     Player(Box<Player>),
+    LivingEntity(Box<LivingEntity>),
     Unknown(Box<dyn Entity>),
 }
 impl BoxedEntity {
@@ -42,16 +45,16 @@ impl BoxedEntity {
         BoxedEntity::Unknown(Box::new(entity)).into_known()
     }
 
-    pub fn is_player(&self) -> bool {
+    pub fn is_unknown(&self) -> bool {
         match self {
-            BoxedEntity::Player(..) => true,
+            BoxedEntity::Unknown(..) => true,
             _ => false,
         }
     }
 
-    pub fn is_unknown(&self) -> bool {
+    pub fn is_player(&self) -> bool {
         match self {
-            BoxedEntity::Unknown(..) => true,
+            BoxedEntity::Player(..) => true,
             _ => false,
         }
     }
@@ -67,7 +70,6 @@ impl BoxedEntity {
             _ => panic!("Entity is not a player"),
         }
     }
-
     pub fn try_as_player(&self) -> Option<&Box<Player>> {
         match self {
             BoxedEntity::Player(p) => Some(p),
@@ -77,6 +79,37 @@ impl BoxedEntity {
     pub fn try_as_player_mut(&mut self) -> Option<&mut Box<Player>> {
         match self {
             BoxedEntity::Player(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    pub fn is_living_entity(&self) -> bool {
+        match self {
+            BoxedEntity::LivingEntity(..) => true,
+            _ => false,
+        }
+    }
+    pub fn as_living_entity(&self) -> &Box<LivingEntity> {
+        match self {
+            BoxedEntity::LivingEntity(p) => p,
+            _ => panic!("Entity is not a living_entity"),
+        }
+    }
+    pub fn as_living_entity_mut(&mut self) -> &mut Box<LivingEntity> {
+        match self {
+            BoxedEntity::LivingEntity(p) => p,
+            _ => panic!("Entity is not a living_entity"),
+        }
+    }
+    pub fn try_as_living_entity(&self) -> Option<&Box<LivingEntity>> {
+        match self {
+            BoxedEntity::LivingEntity(p) => Some(p),
+            _ => None,
+        }
+    }
+    pub fn try_as_living_entity_mut(&mut self) -> Option<&mut Box<LivingEntity>> {
+        match self {
+            BoxedEntity::LivingEntity(p) => Some(p),
             _ => None,
         }
     }
@@ -103,13 +136,14 @@ impl BoxedEntity {
     pub fn as_entity(&self) -> &dyn Entity {
         match self {
             BoxedEntity::Player(player) => player.as_ref(),
+            BoxedEntity::LivingEntity(entity) => entity.as_ref(),
             BoxedEntity::Unknown(entity) => entity.as_ref(),
         }
     }
-
     pub fn as_entity_mut(&mut self) -> &mut dyn Entity {
         match self {
             BoxedEntity::Player(player) => player.as_mut(),
+            BoxedEntity::LivingEntity(entity) => entity.as_mut(),
             BoxedEntity::Unknown(entity) => entity.as_mut(),
         }
     }

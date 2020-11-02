@@ -2,22 +2,20 @@ use crate::{commands::*, generator::Generator};
 use mc_networking::{
     client::{client_event::*, Client},
     map,
-    packets::client_bound::*,
+    packets::{client_bound::*, server_bound::S1BPlayerDiggingStatus},
 };
 use mc_server_lib::{
+    chat_manager::ChatManager,
     chunk_holder::ChunkHolder,
     entity::{player::Player, BoxedEntity},
-    entity_manager::{PlayerManager, PlayerWrapper},
+    entity_manager::{EntityManager, PlayerManager, PlayerWrapper},
     entity_pool::EntityPool,
+    resource_manager::ResourceManager,
 };
 use mc_utils::Location;
 
 use anyhow::Result;
 use log::*;
-use mc_networking::packets::server_bound::S1BPlayerDiggingStatus;
-use mc_server_lib::{
-    chat_manager::ChatManager, entity_manager::EntityManager, resource_manager::ResourceManager,
-};
 use serde_json::json;
 use std::sync::{
     atomic::{AtomicI32, Ordering},
@@ -30,6 +28,8 @@ use tokio::{
 };
 use uuid::Uuid;
 
+pub static ENTITY_ID_COUNTER: AtomicI32 = AtomicI32::new(0);
+
 pub struct Server {
     entity_pool: Arc<RwLock<EntityPool>>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
@@ -37,7 +37,6 @@ pub struct Server {
     #[allow(dead_code)]
     resource_manager: Arc<ResourceManager>,
     players: RwLock<PlayerManager>,
-    entity_id_counter: AtomicI32,
     spawn_location: RwLock<Location>,
     tps: RwLock<f64>,
     max_players: u16,
@@ -79,6 +78,12 @@ impl Server {
                 resource_manager: resource_manager.clone(),
             }))
             .await;
+        chat_manager
+            .register_command(Arc::new(SummonCommand {
+                entity_pool: Arc::clone(&entity_pool),
+                resource_manager: resource_manager.clone(),
+            }))
+            .await;
         chat_manager.register_command(Arc::new(FlyCommand)).await;
         Self {
             entity_pool,
@@ -86,7 +91,6 @@ impl Server {
             chat_manager,
             resource_manager,
             players: RwLock::new(PlayerManager::new()),
-            entity_id_counter: AtomicI32::new(0),
             max_players: 10,
             view_distance,
             brand: "BEST SERVER EVER".to_string(),
@@ -158,7 +162,7 @@ impl Server {
                             .unwrap();
                     }
                     else {
-                        player_eid = server.entity_id_counter.fetch_add(1, Ordering::Relaxed);
+                        player_eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let uuid = Uuid::new_v3(
                             &Uuid::new_v4(),
                             format!("OfflinePlayer:{}", username).as_bytes(),
