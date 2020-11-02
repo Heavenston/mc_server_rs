@@ -37,7 +37,7 @@ fn setup_logger() {
         .unwrap();
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() {
     setup_logger();
     let server = Arc::new(Server::new().await);
