@@ -1195,6 +1195,47 @@ mod play {
         }
     }
 
+    #[derive(Clone, Copy, Debug)]
+    #[repr(u8)]
+    pub enum C47EntityEquipmentSlot {
+        MainHand = 0,
+        OffHand = 1,
+        Head = 5,
+        Chest = 4,
+        Legs = 3,
+        Feet = 2,
+    }
+
+    /// Change one or more slots in an entity equipment
+    ///
+    /// https://wiki.vg/Pre-release_protocol#Entity_Equipment
+    #[derive(Clone, Debug)]
+    pub struct C47EntityEquipment {
+        pub entity_id: VarInt,
+        pub equipment: Vec<(C47EntityEquipmentSlot, Slot)>,
+    }
+    impl ClientBoundPacket for C47EntityEquipment {
+        fn packet_id() -> i32 {
+            0x47
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_varint(self.entity_id);
+            for (i, (slot_pos, slot)) in self.equipment.iter().enumerate() {
+                encoder.write_u8(
+                    *slot_pos as u8
+                        | if i == self.equipment.len() - 1 {
+                            !(u8::MAX - 1)
+                        }
+                        else {
+                            0
+                        },
+                );
+                encoder.write_bytes(&slot.encode());
+            }
+        }
+    }
+
     /// This packet may be used by custom servers to display additional information above/below the player list.
     /// It is never sent by the Notchian server.
     ///
