@@ -35,11 +35,6 @@ impl ResourceManager {
         block_identifier: String,
         properties: Option<HashMap<String, String>>,
     ) -> Result<i32> {
-        let vanilla_blocks = self.blocks.read().await;
-        let vanilla_blocks = vanilla_blocks
-            .as_ref()
-            .ok_or(Error::msg("no blocks registered"))?;
-
         let properties_string = properties
             .clone()
             .map(|properties| format!("{:?}", properties));
@@ -48,6 +43,11 @@ impl ResourceManager {
         if let Some(cached_id) = self.block_cache.read().await.get(&cache_key) {
             return Ok(*cached_id);
         }
+
+        let vanilla_blocks = self.blocks.read().await;
+        let vanilla_blocks = vanilla_blocks
+            .as_ref()
+            .ok_or(Error::msg("no blocks registered"))?;
 
         let block = vanilla_blocks
             .as_object()
