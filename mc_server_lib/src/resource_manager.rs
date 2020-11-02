@@ -8,14 +8,18 @@ const SERVER_JAR_URL: &'static str =
     "https://launcher.mojang.com/v1/objects/f02f4473dbf152c23d7d484952121db0b36698cb/server.jar";
 
 pub struct ResourceManager {
-    vanilla_blocks: RwLock<Option<serde_json::Value>>,
+    blocks: RwLock<Option<serde_json::Value>>,
     block_cache: RwLock<HashMap<String, i32>>,
+    registries: RwLock<Option<serde_json::Value>>,
+    registry_cache: RwLock<HashMap<String, i32>>,
 }
 impl ResourceManager {
     pub fn new() -> Self {
         Self {
-            vanilla_blocks: RwLock::new(None),
+            blocks: RwLock::new(None),
             block_cache: RwLock::default(),
+            registries: RwLock::new(None),
+            registry_cache: RwLock::default(),
         }
     }
 
@@ -24,7 +28,7 @@ impl ResourceManager {
         block_identifier: String,
         properties: Option<HashMap<String, String>>,
     ) -> Result<i32> {
-        let vanilla_blocks = self.vanilla_blocks.read().await;
+        let vanilla_blocks = self.blocks.read().await;
         let vanilla_blocks = vanilla_blocks
             .as_ref()
             .ok_or(Error::msg("no blocks registered"))?;
@@ -111,6 +115,55 @@ impl ResourceManager {
         }
     }
 
+    pub async fn get_registry(&self, registry: &str, entry_name: Option<&str>) -> Option<i32> {
+        let registry = if registry.contains(":") {
+            registry.to_string()
+        }
+        else {
+            "minecraft:".to_string() + registry
+        };
+        let cache_key = registry.to_string() + "=" + entry_name.unwrap_or("");
+        if let Some(id) = self.registry_cache.read().await.get(&cache_key) {
+            return Some(*id);
+        }
+
+        let registries = self.registries.read().await;
+        let registries = registries.as_ref().unwrap();
+        let registry = match registries.as_object().unwrap().get(&registry) {
+            Some(a) => a,
+            None => return None,
+        }
+        .as_object()
+        .unwrap();
+        let default = registry.get("default").map(|a| a.as_str().unwrap());
+        if default.is_none() && entry_name.is_none() {
+            return None;
+        }
+        let entry_name = entry_name.unwrap_or(default.unwrap());
+        let entry = registry
+            .get("entries")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get(entry_name);
+        if entry.is_none() {
+            return None;
+        }
+        let protocol_id = entry
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get("protocol_id")
+            .unwrap()
+            .as_i64()
+            .unwrap() as i32;
+        self.registry_cache
+            .write()
+            .await
+            .insert(cache_key, protocol_id);
+        Some(protocol_id)
+    }
+
     pub async fn load_from_server_generator(&self) -> Result<()> {
         let temp_folder = std::env::temp_dir().join("mc_server_generator");
         let server_jar_file_path = temp_folder.join("server.jar");
@@ -151,7 +204,11 @@ impl ResourceManager {
 
         let vanilla_blocks_text = fs::read_to_string(reports_folder.join("blocks.json")).await?;
         let vanilla_blocks = serde_json::from_str(&vanilla_blocks_text)?;
-        *self.vanilla_blocks.write().await = Some(vanilla_blocks);
+        *self.blocks.write().await = Some(vanilla_blocks);
+
+        let registries_text = fs::read_to_string(reports_folder.join("registries.json")).await?;
+        let registries = serde_json::from_str(&registries_text)?;
+        *self.registries.write().await = Some(registries);
 
         Ok(())
     }
