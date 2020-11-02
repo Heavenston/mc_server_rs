@@ -1,8 +1,5 @@
-use crate::{generator::Generator, server::ENTITY_ID_COUNTER};
-use mc_networking::data_types::{
-    command_data::{ArgumentNode, LiteralNode, Node},
-    encoder::PacketEncoder,
-};
+use crate::server::ENTITY_ID_COUNTER;
+use mc_networking::data_types::command_data::{ArgumentNode, LiteralNode, Node};
 use mc_server_lib::{
     chat_manager::CommandExecutor,
     entity::{living_entity::LivingEntity, BoxedEntity},
