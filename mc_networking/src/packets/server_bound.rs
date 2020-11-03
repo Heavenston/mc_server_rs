@@ -582,6 +582,24 @@ mod play {
         }
     }
 
+    /// Sent when the player changes the slot selection
+    #[derive(Clone, Debug)]
+    pub struct S25HeldItemChange {
+        /// The slot which the player has selected (0–8)
+        pub slot: i16,
+    }
+    impl ServerBoundPacket for S25HeldItemChange {
+        fn packet_id() -> i32 {
+            0x25
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                slot: decoder.read_i16()?,
+            })
+        }
+    }
+
     /// Sent when the player's arm swings.
     ///
     /// https://wiki.vg/Protocol#Animation_.28serverbound.29
