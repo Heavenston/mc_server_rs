@@ -141,8 +141,8 @@ impl Server {
                     response
                         .send(json!({
                             "version": {
-                                "name": "1.16.3",
-                                "protocol": 753
+                                "name": "1.16.4",
+                                "protocol": 754
                             },
                             "players": {
                                 "max": server.max_players,

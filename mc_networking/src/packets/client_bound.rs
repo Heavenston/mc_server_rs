@@ -351,7 +351,7 @@ mod play {
     /// it helps respect the user's chat visibility options.
     /// See processing chat for more info about these positions.
     ///
-    /// https://wiki.vg/Pre-release_protocol#Chat_Message_.28clientbound.29
+    /// https://wiki.vg/Protocol#Chat_Message_.28clientbound.29
     #[derive(Clone, Debug)]
     pub struct C0EChatMessage {
         /// Limited to 32767 bytes
@@ -557,7 +557,7 @@ mod play {
         pub data_array: Vec<i64>,
     }
 
-    /// https://wiki.vg/Pre-release_protocol#Chunk_Data
+    /// https://wiki.vg/Protocol#Chunk_Data
     #[derive(Clone, Debug)]
     pub struct C20ChunkData {
         /// Chunk coordinate (block coordinate divided by 16, rounded down)
@@ -705,7 +705,7 @@ mod play {
 
     /// Send information about the game
     ///
-    /// https://wiki.vg/Pre-release_protocol#Join_Game
+    /// https://wiki.vg/Protocol#Join_Game
     #[derive(Clone, Debug)]
     pub struct C24JoinGame {
         pub entity_id: i32,
@@ -1080,7 +1080,7 @@ mod play {
 
     /// Fired whenever 2 or more blocks are changed within the same chunk on the same tick.
     ///
-    /// https://wiki.vg/Pre-release_protocol#Multi_Block_Change
+    /// https://wiki.vg/Prrotocol#Multi_Block_Change
     #[derive(Clone, Debug)]
     pub struct C3BMultiBlockChange {
         pub section_x: i32,
@@ -1208,7 +1208,7 @@ mod play {
 
     /// Change one or more slots in an entity equipment
     ///
-    /// https://wiki.vg/Pre-release_protocol#Entity_Equipment
+    /// https://wiki.vg/Protocol#Entity_Equipment
     #[derive(Clone, Debug)]
     pub struct C47EntityEquipment {
         pub entity_id: VarInt,
