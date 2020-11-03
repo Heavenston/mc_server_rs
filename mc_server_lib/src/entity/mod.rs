@@ -18,7 +18,7 @@ use std::{
 };
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct EntityEquipment<T: Borrow<Slot>> {
     pub main_hand: T,
     pub off_hand: T,
@@ -26,6 +26,28 @@ pub struct EntityEquipment<T: Borrow<Slot>> {
     pub chest: T,
     pub legs: T,
     pub feet: T,
+}
+impl<T: Borrow<Slot>> EntityEquipment<T> {
+    pub fn to_owned(&self) -> EntityEquipment<Slot> {
+        EntityEquipment {
+            main_hand: self.main_hand.borrow().clone(),
+            off_hand: self.off_hand.borrow().clone(),
+            head: self.head.borrow().clone(),
+            chest: self.chest.borrow().clone(),
+            legs: self.legs.borrow().clone(),
+            feet: self.feet.borrow().clone(),
+        }
+    }
+    pub fn to_ref(&self) -> EntityEquipment<&Slot> {
+        EntityEquipment {
+            main_hand: self.main_hand.borrow(),
+            off_hand: self.off_hand.borrow(),
+            head: self.head.borrow(),
+            chest: self.chest.borrow(),
+            legs: self.legs.borrow(),
+            feet: self.feet.borrow(),
+        }
+    }
 }
 
 pub trait Entity: Send + Sync + DowncastSync {

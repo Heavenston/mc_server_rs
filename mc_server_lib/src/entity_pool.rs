@@ -1,8 +1,8 @@
 use crate::{
-    entity::BoxedEntity,
+    entity::{BoxedEntity, EntityEquipment},
     entity_manager::{BoxedEntityManager, EntityManager, PlayerManager},
 };
-use mc_networking::packets::client_bound::*;
+use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
 
 use anyhow::{Error, Result};
@@ -16,6 +16,7 @@ pub struct EntityPool {
     /// Players can be in multiple entity pools at the same time
     pub players: PlayerManager,
     synced_entities_location: HashMap<i32, Location>,
+    synced_entities_equipments: HashMap<i32, EntityEquipment<Slot>>,
 }
 
 impl EntityPool {
@@ -25,6 +26,7 @@ impl EntityPool {
             entities: BoxedEntityManager::new(),
             players: PlayerManager::new(),
             synced_entities_location: HashMap::new(),
+            synced_entities_equipments: HashMap::new(),
         }
     }
 
@@ -146,6 +148,64 @@ impl EntityPool {
         }
 
         /*
+        Update entities equipments
+        */
+        let entities = self.entities.clone();
+        for (eid, entity) in entities {
+            let packet = {
+                let synced_equipment = self.get_synced_entity_equipment(eid).await.to_ref();
+                let entity = entity.read().await;
+                let equipment = entity.get_equipment();
+                if synced_equipment != equipment {
+                    let mut packet = C47EntityEquipment {
+                        entity_id: eid,
+                        equipment: vec![],
+                    };
+                    if synced_equipment.main_hand != equipment.main_hand {
+                        packet.equipment.push((
+                            C47EntityEquipmentSlot::MainHand,
+                            synced_equipment.main_hand.clone(),
+                        ));
+                    }
+                    if synced_equipment.off_hand != equipment.off_hand {
+                        packet.equipment.push((
+                            C47EntityEquipmentSlot::OffHand,
+                            synced_equipment.off_hand.clone(),
+                        ));
+                    }
+                    if synced_equipment.head != equipment.head {
+                        packet
+                            .equipment
+                            .push((C47EntityEquipmentSlot::Head, synced_equipment.head.clone()));
+                    }
+                    if synced_equipment.chest != equipment.chest {
+                        packet.equipment.push((
+                            C47EntityEquipmentSlot::Chest,
+                            synced_equipment.chest.clone(),
+                        ));
+                    }
+                    if synced_equipment.legs != equipment.legs {
+                        packet
+                            .equipment
+                            .push((C47EntityEquipmentSlot::Legs, synced_equipment.legs.clone()));
+                    }
+                    if synced_equipment.feet != equipment.feet {
+                        packet
+                            .equipment
+                            .push((C47EntityEquipmentSlot::Feet, synced_equipment.feet.clone()));
+                    }
+                    Some(packet)
+                }
+                else {
+                    None
+                }
+            };
+            if let Some(packet) = packet {
+                PlayerManager::broadcast_to(&packet, self.get_players_around(eid).await).await;
+            }
+        }
+
+        /*
         Update entities visibilities
         */
         let entities = self.entities.clone();
@@ -185,6 +245,7 @@ impl EntityPool {
                         .as_player_mut()
                         .loaded_entities
                         .insert(eid);
+                    // Send head look
                     self.players
                         .send_to_player(
                             player_eid,
@@ -195,6 +256,50 @@ impl EntityPool {
                         )
                         .await
                         .unwrap();
+                    // Send entity equipment
+                    {
+                        let equipment = entity.read().await.get_equipment().to_owned();
+                        let mut packet = C47EntityEquipment {
+                            entity_id: eid,
+                            equipment: vec![],
+                        };
+                        if equipment.main_hand.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::MainHand, equipment.main_hand));
+                        }
+                        if equipment.off_hand.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::OffHand, equipment.off_hand));
+                        }
+                        if equipment.head.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::MainHand, equipment.head));
+                        }
+                        if equipment.chest.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::MainHand, equipment.chest));
+                        }
+                        if equipment.legs.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::MainHand, equipment.legs));
+                        }
+                        if equipment.feet.is_present() {
+                            packet
+                                .equipment
+                                .push((C47EntityEquipmentSlot::MainHand, equipment.feet));
+                        }
+                        if packet.equipment.len() > 0 {
+                            self.players
+                                .send_to_player(player_eid, &packet)
+                                .await
+                                .unwrap();
+                        }
+                    }
                 }
                 if is_loaded && !should_be_loaded {
                     // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
@@ -260,6 +365,22 @@ impl EntityPool {
         }
 
         self.synced_entities_location[&eid].clone()
+    }
+    async fn get_synced_entity_equipment(&mut self, eid: i32) -> &EntityEquipment<Slot> {
+        if !self.synced_entities_equipments.contains_key(&eid) {
+            let entity_equipment = self
+                .entities
+                .get_entity(eid)
+                .unwrap()
+                .read()
+                .await
+                .get_equipment()
+                .to_owned();
+            self.synced_entities_equipments
+                .insert(eid, entity_equipment);
+        }
+
+        &self.synced_entities_equipments[&eid]
     }
 
     pub async fn teleport_entity(&self, id: i32, location: Location) {

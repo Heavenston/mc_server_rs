@@ -14,7 +14,7 @@ pub type VarInt = i32;
 pub type VarLong = i64;
 pub type Angle = u8;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Slot {
     NotPresent,
     Present {
@@ -69,6 +69,13 @@ impl Slot {
             }
         }
         encoder.consume()
+    }
+
+    pub fn is_present(&self) -> bool {
+        match self {
+            Slot::NotPresent => false,
+            Slot::Present { .. } => true,
+        }
     }
 }
 impl Default for Slot {
