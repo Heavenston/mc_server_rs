@@ -1052,7 +1052,7 @@ mod play {
     /// While sending the Entity Look packet changes the vertical rotation of the head,
     /// sending this packet appears to be necessary to rotate the head horizontally.
     ///
-    /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29
+    /// https://wiki.vg/Protocol#Entity_Head_Look
     #[derive(Clone, Debug)]
     pub struct C3AEntityHeadLook {
         pub entity_id: VarInt,
