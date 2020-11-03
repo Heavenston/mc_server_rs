@@ -18,7 +18,7 @@ use std::{
 };
 use uuid::Uuid;
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EntityEquipment<T: Borrow<Slot>> {
     pub main_hand: T,
     pub off_hand: T,

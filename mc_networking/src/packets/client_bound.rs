@@ -1225,10 +1225,10 @@ mod play {
                 encoder.write_u8(
                     *slot_pos as u8
                         | if i == self.equipment.len() - 1 {
-                            !(u8::MAX - 1)
+                            0
                         }
                         else {
-                            0
+                            !(!0 >> 1)
                         },
                 );
                 encoder.write_bytes(&slot.encode());

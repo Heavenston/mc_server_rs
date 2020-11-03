@@ -164,36 +164,36 @@ impl EntityPool {
                     if synced_equipment.main_hand != equipment.main_hand {
                         packet.equipment.push((
                             C47EntityEquipmentSlot::MainHand,
-                            synced_equipment.main_hand.clone(),
+                            equipment.main_hand.clone(),
                         ));
                     }
                     if synced_equipment.off_hand != equipment.off_hand {
-                        packet.equipment.push((
-                            C47EntityEquipmentSlot::OffHand,
-                            synced_equipment.off_hand.clone(),
-                        ));
+                        packet
+                            .equipment
+                            .push((C47EntityEquipmentSlot::OffHand, equipment.off_hand.clone()));
                     }
                     if synced_equipment.head != equipment.head {
                         packet
                             .equipment
-                            .push((C47EntityEquipmentSlot::Head, synced_equipment.head.clone()));
+                            .push((C47EntityEquipmentSlot::Head, equipment.head.clone()));
                     }
                     if synced_equipment.chest != equipment.chest {
-                        packet.equipment.push((
-                            C47EntityEquipmentSlot::Chest,
-                            synced_equipment.chest.clone(),
-                        ));
+                        packet
+                            .equipment
+                            .push((C47EntityEquipmentSlot::Chest, equipment.chest.clone()));
                     }
                     if synced_equipment.legs != equipment.legs {
                         packet
                             .equipment
-                            .push((C47EntityEquipmentSlot::Legs, synced_equipment.legs.clone()));
+                            .push((C47EntityEquipmentSlot::Legs, equipment.legs.clone()));
                     }
                     if synced_equipment.feet != equipment.feet {
                         packet
                             .equipment
-                            .push((C47EntityEquipmentSlot::Feet, synced_equipment.feet.clone()));
+                            .push((C47EntityEquipmentSlot::Feet, equipment.feet.clone()));
                     }
+                    self.synced_entities_equipments
+                        .insert(eid, equipment.to_owned());
                     Some(packet)
                 }
                 else {
@@ -276,22 +276,22 @@ impl EntityPool {
                         if equipment.head.is_present() {
                             packet
                                 .equipment
-                                .push((C47EntityEquipmentSlot::MainHand, equipment.head));
+                                .push((C47EntityEquipmentSlot::Head, equipment.head));
                         }
                         if equipment.chest.is_present() {
                             packet
                                 .equipment
-                                .push((C47EntityEquipmentSlot::MainHand, equipment.chest));
+                                .push((C47EntityEquipmentSlot::Chest, equipment.chest));
                         }
                         if equipment.legs.is_present() {
                             packet
                                 .equipment
-                                .push((C47EntityEquipmentSlot::MainHand, equipment.legs));
+                                .push((C47EntityEquipmentSlot::Legs, equipment.legs));
                         }
                         if equipment.feet.is_present() {
                             packet
                                 .equipment
-                                .push((C47EntityEquipmentSlot::MainHand, equipment.feet));
+                                .push((C47EntityEquipmentSlot::Feet, equipment.feet));
                         }
                         if packet.equipment.len() > 0 {
                             self.players
