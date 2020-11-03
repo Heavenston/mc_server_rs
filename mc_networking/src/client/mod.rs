@@ -473,6 +473,12 @@ async fn listen_client_packets(
                         face: player_digging.face,
                     })?;
                 }
+                else if raw_packet.packet_id == S25HeldItemChange::packet_id() {
+                    let held_item_change = S25HeldItemChange::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::HeldItemChange {
+                        slot: held_item_change.slot,
+                    })?;
+                }
                 else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
                     let creative_inventory_action = S28CreativeInventoryAction::decode(raw_packet)?;
                     event_sender

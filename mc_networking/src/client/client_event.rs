@@ -86,4 +86,8 @@ pub enum ClientEvent {
         slot_id: i16,
         slot: Slot,
     },
+    HeldItemChange {
+        /// The slot which the player has selected (0–8)
+        slot: i16,
+    },
 }

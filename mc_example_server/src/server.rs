@@ -630,6 +630,10 @@ impl Server {
                         _ => (),
                     }
                 }
+                ClientEvent::HeldItemChange { slot } => {
+                    let player = player.as_ref().unwrap();
+                    player.write().await.as_player_mut().held_item = slot as u8;
+                }
             }
         }
 
