@@ -15,7 +15,7 @@ use std::sync::{atomic::Ordering, Arc};
 use tokio::sync::RwLock;
 
 pub struct SummonCommand {
-    pub entity_pool: Arc<RwLock<EntityPool>>,
+    pub entity_pool: Arc<EntityPool>,
     pub resource_manager: Arc<ResourceManager>,
 }
 #[async_trait]
@@ -84,9 +84,9 @@ impl CommandExecutor for SummonCommand {
                                 let entity = BoxedEntity::new(entity);
                                 let entity = Arc::new(RwLock::new(entity));
                                 self.entity_pool
+                                    .entities
                                     .write()
                                     .await
-                                    .entities
                                     .add_entity(entity)
                                     .await;
                             }

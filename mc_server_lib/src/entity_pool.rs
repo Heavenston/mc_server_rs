@@ -12,27 +12,35 @@ use tokio::sync::RwLock;
 pub struct EntityPool {
     pub view_distance: u16,
     /// Entities must only be on one entity pool at the same time
-    pub entities: BoxedEntityManager,
+    pub entities: RwLock<BoxedEntityManager>,
     /// Players can be in multiple entity pools at the same time
-    pub players: PlayerManager,
-    synced_entities_location: HashMap<i32, Location>,
-    synced_entities_equipments: HashMap<i32, EntityEquipment<Slot>>,
+    pub players: RwLock<PlayerManager>,
+    synced_entities_location: RwLock<HashMap<i32, Location>>,
+    synced_entities_equipments: RwLock<HashMap<i32, EntityEquipment<Slot>>>,
 }
 
 impl EntityPool {
     pub fn new(view_distance: u16) -> Self {
         Self {
             view_distance,
-            entities: BoxedEntityManager::new(),
-            players: PlayerManager::new(),
-            synced_entities_location: HashMap::new(),
-            synced_entities_equipments: HashMap::new(),
+            entities: RwLock::new(BoxedEntityManager::new()),
+            players: RwLock::new(PlayerManager::new()),
+            synced_entities_location: RwLock::default(),
+            synced_entities_equipments: RwLock::default(),
         }
     }
 
     pub async fn can_see_each_other(&self, first: i32, second: i32) -> bool {
-        let first_location = self.entities[first].read().await.location().clone();
-        let second_location = self.entities[second].read().await.location().clone();
+        let first_location = self.entities.read().await[first]
+            .read()
+            .await
+            .location()
+            .clone();
+        let second_location = self.entities.read().await[second]
+            .read()
+            .await
+            .location()
+            .clone();
         first_location.distance2(&second_location) < (self.view_distance.pow(2) as f64)
     }
     /// Get all players in view distance of an entity
@@ -40,6 +48,8 @@ impl EntityPool {
         let mut players = HashMap::new();
         for (player_eid, player) in self
             .players
+            .read()
+            .await
             .get_filtered_players(|p| p.entity_id != eid)
             .await
             .into_iter()
@@ -50,13 +60,12 @@ impl EntityPool {
         }
         players
     }
-    pub async fn tick(&mut self) {
+    pub async fn tick(&self) {
         /*
         Update entities positions
         */
-        let entities = self.entities.clone();
-        for (eid, entity) in entities {
-            let previous_location = self.get_synced_entity_location(eid).clone();
+        for (eid, entity) in self.entities.read().await.iter() {
+            let previous_location = self.get_synced_entity_location(eid).await.clone();
             let new_location = entity.read().await.location().clone();
             if previous_location == new_location {
                 continue;
@@ -64,6 +73,8 @@ impl EntityPool {
             let has_rotation_changed = !previous_location.rotation_eq(&new_location);
             let has_position_changed = !previous_location.position_eq(&new_location);
             self.synced_entities_location
+                .write()
+                .await
                 .insert(eid, new_location.clone());
 
             let on_ground = entity.read().await.on_ground();
@@ -150,10 +161,10 @@ impl EntityPool {
         /*
         Update entities equipments
         */
-        let entities = self.entities.clone();
-        for (eid, entity) in entities {
+        for (eid, entity) in self.entities.read().await.iter() {
             let packet = {
-                let synced_equipment = self.get_synced_entity_equipment(eid).await.to_ref();
+                let synced_equipment = self.get_synced_entity_equipment(eid).await;
+                let synced_equipment = synced_equipment.to_ref();
                 let entity = entity.read().await;
                 let equipment = entity.get_equipment();
                 if synced_equipment != equipment {
@@ -193,6 +204,8 @@ impl EntityPool {
                             .push((C47EntityEquipmentSlot::Feet, equipment.feet.clone()));
                     }
                     self.synced_entities_equipments
+                        .write()
+                        .await
                         .insert(eid, equipment.to_owned());
                     Some(packet)
                 }
@@ -208,12 +221,13 @@ impl EntityPool {
         /*
         Update entities visibilities
         */
-        let entities = self.entities.clone();
-        for (eid, entity) in entities {
+        for (eid, entity) in self.entities.read().await.iter() {
             let entity_location = entity.read().await.location().clone();
 
             let players = self
                 .players
+                .read()
+                .await
                 .get_filtered_players(|player| player.entity_id != eid)
                 .await;
             for (player_eid, player) in players {
@@ -236,6 +250,8 @@ impl EntityPool {
                     .contains(&eid);
                 if !is_loaded && should_be_loaded {
                     self.players
+                        .write()
+                        .await
                         .send_raw_to_player(player_eid, &entity.read().await.get_spawn_packet())
                         .await
                         .unwrap();
@@ -247,6 +263,8 @@ impl EntityPool {
                         .insert(eid);
                     // Send head look
                     self.players
+                        .read()
+                        .await
                         .send_to_player(
                             player_eid,
                             &C3AEntityHeadLook {
@@ -295,6 +313,8 @@ impl EntityPool {
                         }
                         if packet.equipment.len() > 0 {
                             self.players
+                                .read()
+                                .await
                                 .send_to_player(player_eid, &packet)
                                 .await
                                 .unwrap();
@@ -304,6 +324,8 @@ impl EntityPool {
                 if is_loaded && !should_be_loaded {
                     // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
                     self.players
+                        .read()
+                        .await
                         .send_to_player(
                             player_eid,
                             &C36DestroyEntities {
@@ -322,7 +344,7 @@ impl EntityPool {
             }
         }
         // Remove nonexisting entities that are loaded in players
-        for player in self.players.entities() {
+        for player in self.players.read().await.entities() {
             let player_eid = player.read().await.entity_id();
             let mut to_destroy = vec![];
             for eid in player
@@ -333,7 +355,7 @@ impl EntityPool {
                 .iter()
                 .cloned()
             {
-                if !self.entities.has_entity(eid) {
+                if !self.entities.read().await.has_entity(eid) {
                     to_destroy.push(eid);
                 }
             }
@@ -346,6 +368,8 @@ impl EntityPool {
             }
             if !to_destroy.is_empty() {
                 self.players
+                    .read()
+                    .await
                     .send_to_player(
                         player_eid,
                         &C36DestroyEntities {
@@ -358,18 +382,32 @@ impl EntityPool {
         }
     }
 
-    fn get_synced_entity_location(&mut self, eid: i32) -> Location {
-        if !self.synced_entities_location.contains_key(&eid) {
+    async fn get_synced_entity_location(&self, eid: i32) -> Location {
+        if !self
+            .synced_entities_location
+            .read()
+            .await
+            .contains_key(&eid)
+        {
             self.synced_entities_location
+                .write()
+                .await
                 .insert(eid, Location::default());
         }
 
-        self.synced_entities_location[&eid].clone()
+        self.synced_entities_location.read().await[&eid].clone()
     }
-    async fn get_synced_entity_equipment(&mut self, eid: i32) -> &EntityEquipment<Slot> {
-        if !self.synced_entities_equipments.contains_key(&eid) {
+    async fn get_synced_entity_equipment(&self, eid: i32) -> EntityEquipment<Slot> {
+        if !self
+            .synced_entities_equipments
+            .read()
+            .await
+            .contains_key(&eid)
+        {
             let entity_equipment = self
                 .entities
+                .read()
+                .await
                 .get_entity(eid)
                 .unwrap()
                 .read()
@@ -377,14 +415,18 @@ impl EntityPool {
                 .get_equipment()
                 .to_owned();
             self.synced_entities_equipments
+                .write()
+                .await
                 .insert(eid, entity_equipment);
         }
 
-        &self.synced_entities_equipments[&eid]
+        self.synced_entities_equipments.read().await[&eid]
+            .to_ref()
+            .to_owned()
     }
 
     pub async fn teleport_entity(&self, id: i32, location: Location) {
-        self.entities[id]
+        self.entities.read().await[id]
             .write()
             .await
             .set_location(location.clone());
@@ -396,12 +438,12 @@ impl EntityPool {
                 z: location.z,
                 yaw: location.yaw_angle(),
                 pitch: location.pitch_angle(),
-                on_ground: self.entities[id].read().await.on_ground(),
+                on_ground: self.entities.read().await[id].read().await.on_ground(),
             },
             self.get_players_around(id).await,
         )
         .await;
-        if let Some(player) = self.entities[id].read().await.try_as_player() {
+        if let Some(player) = self.entities.read().await[id].read().await.try_as_player() {
             player
                 .client
                 .read()
@@ -422,8 +464,11 @@ impl EntityPool {
     pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
         let entity = self
             .entities
+            .read()
+            .await
             .get_entity(entity_id)
-            .ok_or(Error::msg("Invalid entity id"))?;
+            .ok_or(Error::msg("Invalid entity id"))?
+            .clone();
         let metadata = entity.read().await.metadata();
 
         EntityManager::broadcast_to(

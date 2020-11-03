@@ -31,7 +31,7 @@ use uuid::Uuid;
 pub static ENTITY_ID_COUNTER: AtomicI32 = AtomicI32::new(0);
 
 pub struct Server {
-    entity_pool: Arc<RwLock<EntityPool>>,
+    entity_pool: Arc<EntityPool>,
     chunk_holder: Arc<ChunkHolder<Generator>>,
     chat_manager: Arc<ChatManager>,
     #[allow(dead_code)]
@@ -55,7 +55,7 @@ impl Server {
             view_distance as i32,
         ));
 
-        let entity_pool = Arc::new(RwLock::new(EntityPool::new(10 * 16)));
+        let entity_pool = Arc::new(EntityPool::new(10 * 16));
 
         let chat_manager = Arc::new(ChatManager::new());
         chat_manager
@@ -351,15 +351,15 @@ impl Server {
                         .await;
 
                     entity_pool
+                        .entities
                         .write()
                         .await
-                        .entities
                         .add_entity(Arc::clone(player))
                         .await;
                     entity_pool
+                        .players
                         .write()
                         .await
-                        .players
                         .add_entity(Arc::clone(player))
                         .await;
 
@@ -406,8 +406,6 @@ impl Server {
 
                     // Update position
                     entity_pool
-                        .read()
-                        .await
                         .teleport_entity(player_eid, spawn_location)
                         .await;
 
@@ -436,8 +434,8 @@ impl Server {
                 }
                 ClientEvent::Logout => {
                     server.players.write().await.remove_entity(player_eid);
-                    entity_pool.write().await.entities.remove_entity(player_eid);
-                    entity_pool.write().await.players.remove_entity(player_eid);
+                    entity_pool.entities.write().await.remove_entity(player_eid);
+                    entity_pool.players.write().await.remove_entity(player_eid);
                     chunk_holder.players.write().await.remove_entity(player_eid);
                     chat_manager.players.write().await.remove_entity(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
@@ -551,8 +549,6 @@ impl Server {
                             }
                         }
                         entity_pool
-                            .read()
-                            .await
                             .update_entity_metadata(player_eid)
                             .await
                             .unwrap();
@@ -567,8 +563,6 @@ impl Server {
                         .as_player_mut()
                         .is_flying = is_flying;
                     entity_pool
-                        .read()
-                        .await
                         .update_entity_metadata(player_eid)
                         .await
                         .unwrap();
@@ -702,7 +696,7 @@ impl Server {
     }
 
     pub async fn tick(&self) {
-        self.entity_pool.write().await.tick().await;
+        self.entity_pool.tick().await;
         ChunkHolder::tick(Arc::clone(&self.chunk_holder)).await;
         self.players
             .write()

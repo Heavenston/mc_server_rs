@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct TpCommand {
-    pub entity_pool: Arc<RwLock<EntityPool>>,
+    pub entity_pool: Arc<EntityPool>,
 }
 #[async_trait]
 impl CommandExecutor for TpCommand {
@@ -85,8 +85,6 @@ impl CommandExecutor for TpCommand {
         };
 
         self.entity_pool
-            .read()
-            .await
             .teleport_entity(
                 eid,
                 Location {
