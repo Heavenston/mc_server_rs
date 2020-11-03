@@ -2,23 +2,40 @@ pub mod living_entity;
 pub mod player;
 
 use living_entity::LivingEntity;
-use mc_networking::{data_types::MetadataValue, packets::RawPacket};
+use mc_networking::{
+    data_types::{MetadataValue, Slot},
+    packets::RawPacket,
+};
 use mc_utils::Location;
 use player::Player;
 
 use anyhow::Error;
 use downcast_rs::{impl_downcast, DowncastSync};
 use std::{
+    borrow::Borrow,
     collections::HashMap,
     ops::{Deref, DerefMut},
 };
 use uuid::Uuid;
+
+#[derive(Clone)]
+pub struct EntityEquipment<T: Borrow<Slot>> {
+    pub main_hand: T,
+    pub off_hand: T,
+    pub head: T,
+    pub chest: T,
+    pub legs: T,
+    pub feet: T,
+}
 
 pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
     fn get_spawn_packet(&self) -> RawPacket;
+
+    fn get_equipment(&self) -> EntityEquipment<&Slot>;
+    fn get_equipment_mut(&mut self) -> EntityEquipment<&mut Slot>;
 
     fn location(&self) -> &Location;
     fn location_mut(&mut self) -> &mut Location;

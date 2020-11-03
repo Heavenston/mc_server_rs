@@ -1,4 +1,4 @@
-use super::Entity;
+use super::{Entity, EntityEquipment};
 use mc_networking::{
     client::Client,
     data_types::{MetadataValue, Pose, Slot},
@@ -52,6 +52,7 @@ pub struct Player {
     pub client: Arc<RwLock<Client>>,
 
     pub inventory: PlayerInventory,
+    pub held_item: u8,
     pub location: Location,
     pub ping: i32,
     pub gamemode: u8,
@@ -78,6 +79,7 @@ impl Player {
             client,
 
             inventory: PlayerInventory::default(),
+            held_item: 0,
             location: Location::default(),
             ping: 0,
             gamemode: 0,
@@ -116,6 +118,27 @@ impl Entity for Player {
             pitch: self.location.pitch_angle(),
         }
         .to_rawpacket()
+    }
+
+    fn get_equipment(&self) -> EntityEquipment<&Slot> {
+        EntityEquipment {
+            main_hand: &self.inventory.hotbar[self.held_item as usize],
+            off_hand: &self.inventory.offhand,
+            head: &self.inventory.armor_head,
+            chest: &self.inventory.armor_chest,
+            legs: &self.inventory.armor_legs,
+            feet: &self.inventory.armor_feet,
+        }
+    }
+    fn get_equipment_mut(&mut self) -> EntityEquipment<&mut Slot> {
+        EntityEquipment {
+            main_hand: &mut self.inventory.hotbar[self.held_item as usize],
+            off_hand: &mut self.inventory.offhand,
+            head: &mut self.inventory.armor_head,
+            chest: &mut self.inventory.armor_chest,
+            legs: &mut self.inventory.armor_legs,
+            feet: &mut self.inventory.armor_feet,
+        }
     }
 
     fn location(&self) -> &Location {

@@ -11,10 +11,7 @@ use mc_server_lib::{
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::json;
-use std::{
-    collections::HashMap,
-    sync::{atomic::Ordering, Arc},
-};
+use std::sync::{atomic::Ordering, Arc};
 use tokio::sync::RwLock;
 
 pub struct SummonCommand {
@@ -77,15 +74,13 @@ impl CommandExecutor for SummonCommand {
                             .await
                         {
                             Some(id) => {
-                                let entity = LivingEntity {
-                                    entity_id: ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-                                    uuid: uuid::Uuid::new_v4(),
-                                    kind: id,
-                                    location: player.read().await.location().clone(),
-                                    on_ground: player.read().await.on_ground(),
-                                    velocity: (0, 0, 0),
-                                    metadata: HashMap::new(),
-                                };
+                                let mut entity = LivingEntity::new(
+                                    ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
+                                    uuid::Uuid::new_v4(),
+                                    id,
+                                );
+                                entity.location = player.read().await.location().clone();
+                                entity.on_ground = player.read().await.on_ground();
                                 let entity = BoxedEntity::new(entity);
                                 let entity = Arc::new(RwLock::new(entity));
                                 self.entity_pool
