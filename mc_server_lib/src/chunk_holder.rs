@@ -10,7 +10,10 @@ use std::{
         Arc,
     },
 };
-use tokio::sync::RwLock;
+use tokio::{
+    sync::RwLock,
+    time::{sleep_until, Duration, Instant},
+};
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -168,53 +171,78 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .await
             .unwrap();
         let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
-        for chunk in loaded_chunks {
-            let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
-            if dx * dx + dz * dz >= view_distance * view_distance {
-                player
-                    .send_packet(&C1CUnloadChunk {
-                        chunk_x: chunk.0,
-                        chunk_z: chunk.1,
-                    })
-                    .await
-                    .unwrap();
-                player
-                    .write()
-                    .await
-                    .as_player_mut()
-                    .loaded_chunks
-                    .remove(&chunk);
+
+        tokio::join!(
+            {
+                let player = player.clone();
+                async move {
+                    // Unload already loaded chunks that are now too far
+                    for chunk in loaded_chunks {
+                        let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
+                        if dx.abs() > view_distance || dz.abs() > view_distance {
+                            let start = Instant::now();
+                            player
+                                .send_packet(&C1CUnloadChunk {
+                                    chunk_x: chunk.0,
+                                    chunk_z: chunk.1,
+                                })
+                                .await
+                                .unwrap();
+                            player
+                                .write()
+                                .await
+                                .as_player_mut()
+                                .loaded_chunks
+                                .remove(&chunk);
+                            sleep_until(start + Duration::from_millis(10)).await;
+                        }
+                    }
+                }
+            },
+            {
+                let player = player.clone();
+                async move {
+                    // Load new chunks in squares bigger around the player
+                    'chunk_loading: for square_i in 0..view_distance {
+                        let square_width = 1 + square_i * 2;
+                        let delay = Duration::from_millis(15);
+                        for dx in -square_width / 2..=square_width / 2 {
+                            for dz in [-square_width / 2, square_width / 2].iter().cloned() {
+                                for (dx, dz) in &[(dx, dz), (dz, dx)] {
+                                    let start = Instant::now();
+                                    if interrupt.load(Ordering::Relaxed) {
+                                        break 'chunk_loading;
+                                    }
+                                    if player
+                                        .read()
+                                        .await
+                                        .as_player()
+                                        .loaded_chunks
+                                        .contains(&(chunk_x + dx, chunk_z + dz))
+                                    {
+                                        continue;
+                                    }
+                                    if let Some(chunk) =
+                                        self.get_chunk(chunk_x + dx, chunk_z + dz).await
+                                    {
+                                        let mut player_write = player.write().await;
+                                        let player_write = player_write.as_player_mut();
+                                        let client = player_write.client.write().await;
+                                        let chunk = chunk.read().await.encode();
+                                        client.send_packet(&chunk).await.unwrap();
+                                        player_write
+                                            .loaded_chunks
+                                            .insert((chunk_x + dx, chunk_z + dz));
+                                        sleep_until(start + delay).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
-        }
-        'chunk_loading: for dx in -view_distance..view_distance {
-            for dz in -view_distance..view_distance {
-                if interrupt.load(Ordering::Relaxed) {
-                    break 'chunk_loading;
-                }
-                if dx * dx + dz * dz > view_distance * view_distance {
-                    continue;
-                }
-                if player
-                    .read()
-                    .await
-                    .as_player()
-                    .loaded_chunks
-                    .contains(&(chunk_x + dx, chunk_z + dz))
-                {
-                    continue;
-                }
-                if let Some(chunk) = self.get_chunk(chunk_x + dx, chunk_z + dz).await {
-                    let mut player_write = player.write().await;
-                    let player_write = player_write.as_player_mut();
-                    let client = player_write.client.write().await;
-                    let chunk = chunk.read().await.encode();
-                    client.send_packet(&chunk).await.unwrap();
-                    player_write
-                        .loaded_chunks
-                        .insert((chunk_x + dx, chunk_z + dz));
-                }
-            }
-        }
+        );
+
         player.write().await.as_player_mut().view_position = Some((chunk_x, chunk_z));
     }
 
