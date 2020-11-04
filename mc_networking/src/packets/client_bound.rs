@@ -449,6 +449,32 @@ mod play {
         }
     }
 
+    /// Sent by the server when an item in a slot (in a window) is added/removed.
+    ///
+    /// https://wiki.vg/Protocol#Set_Slot
+    #[derive(Clone, Debug)]
+    pub struct C15SetSlot {
+        /// The window which is being updated. 0 for player inventory. Note that all known window types include the player inventory.
+        /// This packet will only be sent for the currently opened window while the player is performing actions,
+        /// even if it affects the player inventory.
+        /// After the window is closed, a number of these packets are sent to update the player's inventory window (0).
+        pub window_id: i8,
+        /// The slot that should be updated
+        pub slot_id: i16,
+        pub slot_data: Slot,
+    }
+    impl ClientBoundPacket for C15SetSlot {
+        fn packet_id() -> i32 {
+            0x15
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_i8(self.window_id);
+            encoder.write_i16(self.slot_id);
+            encoder.write_bytes(&self.slot_data.encode());
+        }
+    }
+
     pub struct C17PluginMessageBuilder {
         pub channel: String,
         pub encoder: PacketEncoder,
