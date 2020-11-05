@@ -9,7 +9,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use mc_server_lib::entity::BoxedEntity;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::{sync::RwLock, task};
 
 pub struct RefreshCommand {
     pub chunk_holder: Arc<ChunkHolder<Generator>>,
@@ -37,7 +37,12 @@ impl CommandExecutor for RefreshCommand {
     ) -> Result<bool> {
         if let Some(player) = PlayerWrapper::new(executor).await {
             let id = player.read().await.entity_id();
-            self.chunk_holder.refresh_player_chunks(id).await;
+            task::spawn({
+                let chunk_holder = Arc::clone(&self.chunk_holder);
+                async move {
+                    chunk_holder.refresh_player_chunks(id).await;
+                }
+            });
             Ok(true)
         }
         else {

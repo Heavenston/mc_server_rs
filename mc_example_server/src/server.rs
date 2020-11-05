@@ -385,6 +385,7 @@ impl Server {
                             player_eid,
                             spawn_location.chunk_x(),
                             spawn_location.chunk_z(),
+                            false,
                         )
                         .await;
 

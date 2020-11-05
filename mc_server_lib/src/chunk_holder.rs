@@ -123,7 +123,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 .remove(&(x, z));
             let eid = player.entity_id().await;
             let location = player.read().await.location().clone();
-            self.update_player_view_position(eid, location.chunk_x(), location.chunk_z())
+            self.update_player_view_position(eid, location.chunk_x(), location.chunk_z(), false)
                 .await;
         }
     }
@@ -142,7 +142,15 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
         self.chunks.read().await.get(&(x, z)).cloned()
     }
 
-    pub async fn update_player_view_position(&self, player_id: i32, chunk_x: i32, chunk_z: i32) {
+    /// Update a player view position, unloading/loading chunks accordingly
+    /// if do_delay is true a delay is added between chunk load to reduce lag spikes (should be false on player spawning)
+    pub async fn update_player_view_position(
+        &self,
+        player_id: i32,
+        chunk_x: i32,
+        chunk_z: i32,
+        do_delay: bool,
+    ) {
         if let Some(interrupt) = self
             .update_view_position_interrupts
             .read()
@@ -205,7 +213,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     // Load new chunks in squares bigger around the player
                     'chunk_loading: for square_i in 0..view_distance {
                         let square_width = 1 + square_i * 2;
-                        let delay = Duration::from_millis(15);
+                        let delay = Duration::from_millis(if do_delay { 15 } else { 0 });
                         for dx in -square_width / 2..=square_width / 2 {
                             for dz in [-square_width / 2, square_width / 2].iter().cloned() {
                                 for (dx, dz) in &[(dx, dz), (dz, dx)] {
@@ -233,7 +241,9 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                                         player_write
                                             .loaded_chunks
                                             .insert((chunk_x + dx, chunk_z + dz));
-                                        sleep_until(start + delay).await;
+                                        if do_delay {
+                                            sleep_until(start + delay).await;
+                                        }
                                     }
                                 }
                             }
@@ -273,6 +283,9 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
         }
         entity.write().await.as_player_mut().loaded_chunks.clear();
         self.synced_player_chunks.write().await.remove(&player_id);
+        let location = entity.read().await.location().clone();
+        self.update_player_view_position(player_id, location.chunk_x(), location.chunk_z(), true)
+            .await;
     }
 
     pub async fn tick(this: Arc<Self>) {
@@ -337,7 +350,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                     .await
                     .insert(id, current_chunk);
                 tokio::task::spawn(async move {
-                    this.update_player_view_position(id, current_chunk.0, current_chunk.1)
+                    this.update_player_view_position(id, current_chunk.0, current_chunk.1, true)
                         .await;
                 });
             }
