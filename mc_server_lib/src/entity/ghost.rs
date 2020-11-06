@@ -24,18 +24,26 @@ fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
             return;
         }
         let target_player = target_player.unwrap();
+        let distance = target_player.read().await.as_player().held_item as f64 * 0.3;
 
         let current_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis() as f64;
-        let current_sec = (current_time / 2.0 % 1000.0) / 1000.0 + (entity.entity_id as f64 / 10.0);
+        let current_sec = current_time / 1000.0;
+
         let player_pos = target_player.read().await.location().clone();
-        let rotation = current_sec * f64::consts::PI * 2.0;
-        entity.location.x = player_pos.x + rotation.cos();
+        let rotation =
+            (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
+        entity.location.x = player_pos.x + rotation.cos() * distance;
         entity.location.y = player_pos.y + 1.5;
-        entity.location.z = player_pos.z + rotation.sin();
-        entity.location.yaw = rotation.to_degrees() as f32;
+        entity.location.z = player_pos.z + rotation.sin() * distance;
+        entity.location.yaw = rotation.to_degrees() as f32 + 90.0;
+
+        *entity.get_equipment_mut().main_hand =
+            target_player.read().await.get_equipment().main_hand.clone();
+        *entity.get_equipment_mut().off_hand =
+            target_player.read().await.get_equipment().off_hand.clone();
     })
 }
 
@@ -55,13 +63,20 @@ pub struct GhostEntity {
     pub off_hand: Slot,
 
     pub target_player: Weak<RwLock<BoxedEntity>>,
+    pub freeze_time: f64,
 }
 impl GhostEntity {
     pub fn new(eid: i32, uuid: Uuid, target_player: Weak<RwLock<BoxedEntity>>) -> Self {
         Self {
             entity_id: eid,
             uuid,
-            location: Location::default(),
+            location: Location {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw: 0.0,
+                pitch: 90.0,
+            },
             velocity: (0, 0, 0),
             on_ground: true,
             metadata: HashMap::new(),
@@ -74,6 +89,7 @@ impl GhostEntity {
             off_hand: Slot::default(),
 
             target_player,
+            freeze_time: 0.0,
         }
     }
 }
