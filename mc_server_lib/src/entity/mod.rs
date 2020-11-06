@@ -78,6 +78,10 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn metadata(&self) -> HashMap<u8, MetadataValue>;
     fn metadata_value(&self, id: u8) -> Option<MetadataValue>;
     fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool;
+
+    fn remove_scheduled(&self) -> bool {
+        false
+    }
 }
 impl_downcast!(sync Entity);
 
