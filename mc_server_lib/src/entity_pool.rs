@@ -62,6 +62,16 @@ impl EntityPool {
     }
     pub async fn tick(&self) {
         /*
+        TICK ALL ENTITIES
+        */
+        for (_, entity) in self.entities.read().await.iter() {
+            let tick_fn = entity.read().await.tick_fn();
+            if let Some(tick_fn) = tick_fn {
+                tick_fn(Arc::clone(entity)).await.unwrap();
+            }
+        }
+
+        /*
         Update entities positions
         */
         for (eid, entity) in self.entities.read().await.iter() {

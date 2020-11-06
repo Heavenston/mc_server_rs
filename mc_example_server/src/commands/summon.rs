@@ -2,7 +2,7 @@ use crate::server::ENTITY_ID_COUNTER;
 use mc_networking::data_types::command_data::{ArgumentNode, LiteralNode, Node};
 use mc_server_lib::{
     chat_manager::CommandExecutor,
-    entity::{living_entity::LivingEntity, BoxedEntity},
+    entity::{ghost::GhostEntity, living_entity::LivingEntity, BoxedEntity},
     entity_manager::PlayerWrapper,
     entity_pool::EntityPool,
     resource_manager::ResourceManager,
@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use serde_json::json;
 use std::sync::{atomic::Ordering, Arc};
 use tokio::sync::RwLock;
+use uuid::Uuid;
 
 pub struct SummonCommand {
     pub entity_pool: Arc<EntityPool>,
@@ -26,20 +27,28 @@ impl CommandExecutor for SummonCommand {
     fn graph(&self) -> Vec<Arc<dyn Node>> {
         vec![Arc::new(LiteralNode {
             is_executable: false,
-            children_nodes: vec![Arc::new(LiteralNode {
-                is_executable: false,
-                children_nodes: vec![Arc::new(ArgumentNode {
+            children_nodes: vec![
+                Arc::new(LiteralNode {
+                    is_executable: false,
+                    children_nodes: vec![Arc::new(ArgumentNode {
+                        is_executable: true,
+                        children_nodes: vec![],
+                        redirect_node: None,
+                        name: "type".to_string(),
+                        parser: "minecraft:resource_location".to_string(),
+                        properties: vec![],
+                        suggestions_type: None,
+                    })],
+                    redirect_node: None,
+                    name: "living".to_string(),
+                }),
+                Arc::new(LiteralNode {
                     is_executable: true,
                     children_nodes: vec![],
                     redirect_node: None,
-                    name: "type".to_string(),
-                    parser: "minecraft:resource_location".to_string(),
-                    properties: vec![],
-                    suggestions_type: None,
-                })],
-                redirect_node: None,
-                name: "living".to_string(),
-            })],
+                    name: "ghost".to_string(),
+                }),
+            ],
             redirect_node: None,
             name: self.names().first().unwrap().clone(),
         }) as Arc<dyn Node>]
@@ -56,6 +65,23 @@ impl CommandExecutor for SummonCommand {
                 return Ok(false);
             }
             match &*args[0] {
+                "ghost" => {
+                    let eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+                    let mut entity =
+                        GhostEntity::new(eid, Uuid::new_v4(), Arc::downgrade(&player.entity));
+                    entity.location = player.read().await.location().clone();
+                    entity.location.y += 1.5;
+                    entity.on_ground = player.read().await.on_ground();
+                    let entity = BoxedEntity::new(entity);
+                    let entity = Arc::new(RwLock::new(entity));
+                    self.entity_pool
+                        .entities
+                        .write()
+                        .await
+                        .add_entity(entity)
+                        .await;
+                    Ok(true)
+                }
                 "living" => {
                     if args.len() != 2 {
                         Ok(false)

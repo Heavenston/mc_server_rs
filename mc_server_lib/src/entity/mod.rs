@@ -1,6 +1,8 @@
+pub mod ghost;
 pub mod living_entity;
 pub mod player;
 
+use ghost::GhostEntity;
 use living_entity::LivingEntity;
 use mc_networking::{
     data_types::{MetadataValue, Slot},
@@ -15,7 +17,9 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
+use tokio::{sync::RwLock, task::JoinHandle};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,6 +58,9 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
+    fn tick_fn(&self) -> Option<fn(entity: Arc<RwLock<BoxedEntity>>) -> JoinHandle<()>> {
+        None
+    }
     fn get_spawn_packet(&self) -> RawPacket;
 
     fn get_equipment(&self) -> EntityEquipment<&Slot>;
@@ -77,6 +84,7 @@ impl_downcast!(sync Entity);
 pub enum BoxedEntity {
     Player(Box<Player>),
     LivingEntity(Box<LivingEntity>),
+    Ghost(Box<GhostEntity>),
     Unknown(Box<dyn Entity>),
 }
 impl BoxedEntity {
@@ -153,12 +161,59 @@ impl BoxedEntity {
         }
     }
 
+    pub fn is_ghost(&self) -> bool {
+        match self {
+            BoxedEntity::Ghost(..) => true,
+            _ => false,
+        }
+    }
+    pub fn as_ghost(&self) -> &Box<GhostEntity> {
+        match self {
+            BoxedEntity::Ghost(p) => p,
+            _ => panic!("Entity is not a ghost"),
+        }
+    }
+    pub fn as_ghost_mut(&mut self) -> &mut Box<GhostEntity> {
+        match self {
+            BoxedEntity::Ghost(p) => p,
+            _ => panic!("Entity is not a ghost"),
+        }
+    }
+    pub fn try_as_ghost(&self) -> Option<&Box<GhostEntity>> {
+        match self {
+            BoxedEntity::Ghost(p) => Some(p),
+            _ => None,
+        }
+    }
+    pub fn try_as_ghost_mut(&mut self) -> Option<&mut Box<GhostEntity>> {
+        match self {
+            BoxedEntity::Ghost(p) => Some(p),
+            _ => None,
+        }
+    }
+
     pub fn into_known(self) -> BoxedEntity {
         if let BoxedEntity::Unknown(entity) = self {
             if entity.is::<Player>() {
                 BoxedEntity::Player(
                     entity
                         .downcast::<Player>()
+                        .map_err(|_| Error::msg(""))
+                        .unwrap(),
+                )
+            }
+            else if entity.is::<LivingEntity>() {
+                BoxedEntity::LivingEntity(
+                    entity
+                        .downcast::<LivingEntity>()
+                        .map_err(|_| Error::msg(""))
+                        .unwrap(),
+                )
+            }
+            else if entity.is::<GhostEntity>() {
+                BoxedEntity::Ghost(
+                    entity
+                        .downcast::<GhostEntity>()
                         .map_err(|_| Error::msg(""))
                         .unwrap(),
                 )
@@ -176,6 +231,7 @@ impl BoxedEntity {
         match self {
             BoxedEntity::Player(player) => player.as_ref(),
             BoxedEntity::LivingEntity(entity) => entity.as_ref(),
+            BoxedEntity::Ghost(ghost) => ghost.as_ref(),
             BoxedEntity::Unknown(entity) => entity.as_ref(),
         }
     }
@@ -183,6 +239,7 @@ impl BoxedEntity {
         match self {
             BoxedEntity::Player(player) => player.as_mut(),
             BoxedEntity::LivingEntity(entity) => entity.as_mut(),
+            BoxedEntity::Ghost(ghost) => ghost.as_mut(),
             BoxedEntity::Unknown(entity) => entity.as_mut(),
         }
     }

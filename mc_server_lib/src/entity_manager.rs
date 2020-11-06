@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct PlayerWrapper {
-    entity: Arc<RwLock<BoxedEntity>>,
+    pub entity: Arc<RwLock<BoxedEntity>>,
 }
 impl PlayerWrapper {
     pub async fn new(entity: Arc<RwLock<BoxedEntity>>) -> Option<Self> {
