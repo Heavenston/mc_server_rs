@@ -22,3 +22,5 @@ hematite-nbt = "0.5.0"
 downcast-rs = "1.2.0"
 reqwest = { version = "0.10.8", features = ["default-tls"], default-features = false }
 sha2 = "0.9"
+url = "2.2"
+bincode = "1.3"

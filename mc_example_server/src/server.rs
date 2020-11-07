@@ -46,8 +46,10 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
+        info!("Downloading minecraft resources...");
         let resource_manager = Arc::new(ResourceManager::new());
-        resource_manager.load_from_server_generator().await.unwrap();
+        resource_manager.download().await.unwrap();
+        info!("Downloaded minecraft resources successfully");
 
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(
@@ -134,6 +136,7 @@ impl Server {
         let entity_pool = Arc::clone(&server.entity_pool);
         let chunk_holder = Arc::clone(&server.chunk_holder);
         let chat_manager = Arc::clone(&server.chat_manager);
+        let resource_manager = Arc::clone(&server.resource_manager);
 
         while let Some(event) = event_receiver.recv().await {
             match event {
@@ -141,8 +144,8 @@ impl Server {
                     response
                         .send(json!({
                             "version": {
-                                "name": "1.16.4",
-                                "protocol": 754
+                                "name": resource_manager.get_minecraft_version().await,
+                                "protocol": resource_manager.get_protocol_version().await
                             },
                             "players": {
                                 "max": server.max_players,
