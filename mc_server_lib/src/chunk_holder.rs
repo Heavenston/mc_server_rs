@@ -233,17 +233,17 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                                     if let Some(chunk) =
                                         self.get_chunk(chunk_x + dx, chunk_z + dz).await
                                     {
+                                        if do_delay {
+                                            sleep_until(start + delay).await;
+                                        }
                                         let mut player_write = player.write().await;
                                         let player_write = player_write.as_player_mut();
-                                        let client = player_write.client.write().await;
+                                        let client = player_write.client.read().await;
                                         let chunk = chunk.read().await.encode();
                                         client.send_packet(&chunk).await.unwrap();
                                         player_write
                                             .loaded_chunks
                                             .insert((chunk_x + dx, chunk_z + dz));
-                                        if do_delay {
-                                            sleep_until(start + delay).await;
-                                        }
                                     }
                                 }
                             }
