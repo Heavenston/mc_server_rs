@@ -8,8 +8,12 @@ use utils::*;
 
 use anyhow::{Error, Result};
 use log::*;
-use std::{cell::RefCell, collections::HashMap};
-use tokio::sync::RwLock;
+use std::{cell::RefCell, collections::HashMap, path::Path};
+use tokio::{
+    fs::{self, File},
+    io::AsyncWriteExt,
+    sync::RwLock,
+};
 
 const VERSION_MANIFEST_URL: &'static str =
     "https://launchermeta.mojang.com/mc/game/version_manifest.json";
@@ -63,13 +67,52 @@ impl ResourceManager {
             minecraft_data_generator: RwLock::new(None),
         }
     }
-    pub async fn download(&self) -> Result<()> {
-        let (prismarine_minecraft_data, minecraft_data_generator) =
-            tokio::join!(PrimarineMinecraftData::download(), async {
-                MinecraftDataGenerator::download(get_server_jar_url().await.unwrap()).await
-            });
-        *self.prismarine_minecraft_data.write().await = Some(prismarine_minecraft_data.unwrap());
-        *self.minecraft_data_generator.write().await = Some(minecraft_data_generator.unwrap());
+    pub async fn load(&self) -> Result<()> {
+        let cache_folder = std::env::current_dir()?.join("cache");
+        fs::create_dir_all(&cache_folder).await?;
+
+        let (prismarine_minecraft_data, minecraft_data_generator) = tokio::join!(
+            async {
+                let file_path = &cache_folder.join("primarine_minecraft_data");
+                if Path::new(&file_path).exists() {
+                    let bytes = fs::read(&file_path).await.unwrap();
+                    bincode::deserialize::<PrimarineMinecraftData>(&bytes).unwrap()
+                }
+                else {
+                    let primarine_minecraft_data =
+                        PrimarineMinecraftData::download().await.unwrap();
+                    File::create(file_path)
+                        .await
+                        .unwrap()
+                        .write_all(&bincode::serialize(&primarine_minecraft_data).unwrap())
+                        .await
+                        .unwrap();
+                    primarine_minecraft_data
+                }
+            },
+            async {
+                let file_path = &cache_folder.join("minecraft_data_generator");
+                if Path::new(&file_path).exists() {
+                    let bytes = fs::read(&file_path).await.unwrap();
+                    bincode::deserialize::<MinecraftDataGenerator>(&bytes).unwrap()
+                }
+                else {
+                    let minecraft_data_generator =
+                        MinecraftDataGenerator::download(get_server_jar_url().await.unwrap())
+                            .await
+                            .unwrap();
+                    File::create(file_path)
+                        .await
+                        .unwrap()
+                        .write_all(&bincode::serialize(&minecraft_data_generator).unwrap())
+                        .await
+                        .unwrap();
+                    minecraft_data_generator
+                }
+            }
+        );
+        *self.prismarine_minecraft_data.write().await = Some(prismarine_minecraft_data);
+        *self.minecraft_data_generator.write().await = Some(minecraft_data_generator);
         Ok(())
     }
 
@@ -137,27 +180,25 @@ impl ResourceManager {
         let minecraft_data_generator = minecraft_data_generator.as_ref().unwrap();
 
         let registry = match minecraft_data_generator.registries.get(registry_name) {
-            Some(n) => n.as_object().unwrap(),
+            Some(n) => n,
             None => return None,
         };
 
         let id;
         if let Some(value_name) = value_name {
-            match registry["entries"].as_object().unwrap().get(value_name) {
+            match registry.entries.get(value_name) {
                 Some(n) => {
-                    id = n["protocol_id"].as_i64().unwrap() as i32;
+                    id = *n;
                 }
                 None => return None,
             }
         }
         else {
-            let default = match registry.get("default") {
-                Some(default) => default.as_str().unwrap().to_string(),
+            let default = match registry.default.as_ref() {
+                Some(default) => default,
                 None => return None,
             };
-            id = registry["entries"][&default]["protocol_id"]
-                .as_i64()
-                .unwrap() as i32;
+            id = registry.entries[default];
         }
         Some(id)
     }

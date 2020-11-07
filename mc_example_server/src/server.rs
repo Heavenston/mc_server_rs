@@ -46,10 +46,10 @@ pub struct Server {
 
 impl Server {
     pub async fn new() -> Self {
-        info!("Downloading minecraft resources...");
+        info!("Loading minecraft resources...");
         let resource_manager = Arc::new(ResourceManager::new());
-        resource_manager.download().await.unwrap();
-        info!("Downloaded minecraft resources successfully");
+        resource_manager.load().await.unwrap();
+        info!("Loaded minecraft resources successfully");
 
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(

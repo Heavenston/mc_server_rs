@@ -3,3 +3,6 @@ target/
 # IDEs config folders
 .idea
 .vscode
+
+# mc_server_lib cache folder
+/cache

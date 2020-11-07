@@ -20,7 +20,7 @@ async fn download_minecraft_data_file(file: impl Into<PathBuf>) -> Result<serde_
     Ok(download_file_to_json(&url.to_string()).await?)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct PrimarineMinecraftData {
     pub minecraft_version: String,
     pub protocol_version: i32,

@@ -8,24 +8,30 @@ use tokio::{
     process::Command,
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+pub struct Registry {
+    pub default: Option<String>,
+    pub entries: HashMap<String, i32>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct BlockState {
     pub properties: Option<HashMap<String, String>>,
     pub id: i32,
     pub default: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct BlockStates {
     pub properties: Option<HashMap<String, Vec<String>>>,
     pub default: usize,
     pub states: Vec<BlockState>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct MinecraftDataGenerator {
     pub blocks_states: HashMap<String, BlockStates>,
-    pub registries: serde_json::Value,
+    pub registries: HashMap<String, Registry>,
 }
 impl MinecraftDataGenerator {
     pub async fn download(server_url: String) -> Result<Self> {
@@ -114,9 +120,27 @@ impl MinecraftDataGenerator {
             );
         }
 
-        let registries = serde_json::from_str(
+        let mut registries = HashMap::new();
+        for (k, registry) in serde_json::from_str::<HashMap<String, serde_json::Value>>(
             &fs::read_to_string(temp_folder.join("generated/reports/registries.json")).await?,
-        )?;
+        )? {
+            let registry = registry.as_object().unwrap();
+            registries.insert(
+                k,
+                Registry {
+                    default: registry
+                        .get("default")
+                        .map(|s| s.as_str().unwrap().to_string()),
+                    entries: HashMap::from_iter(
+                        registry["entries"]
+                            .as_object()
+                            .unwrap()
+                            .iter()
+                            .map(|(k, v)| (k.clone(), v["protocol_id"].as_i64().unwrap() as i32)),
+                    ),
+                },
+            );
+        }
 
         fs::remove_dir_all(temp_folder).await?;
 
