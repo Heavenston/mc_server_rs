@@ -7,7 +7,6 @@ use prismarine_minecraft_data::*;
 use utils::*;
 
 use anyhow::{Error, Result};
-use log::*;
 use std::{cell::RefCell, collections::HashMap, path::Path};
 use tokio::{
     fs::{self, File},
@@ -133,11 +132,6 @@ impl ResourceManager {
         if let Some(id) = BLOCK_STATES_CACHE.with(|c| c.borrow().get(&cache_key).cloned()) {
             return Ok(id);
         }
-        info!(
-            "CACHE MISS {} - {:?}",
-            cache_key,
-            std::thread::current().id()
-        );
 
         let minecraft_data_generator = self.minecraft_data_generator.read().await;
         let minecraft_data_generator = minecraft_data_generator.as_ref().unwrap();
