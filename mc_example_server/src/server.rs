@@ -576,7 +576,7 @@ impl Server {
                         .players
                         .read()
                         .await
-                        .get_filtered_players(|p| p.entity_id != player_eid)
+                        .get_players_except(player_eid)
                         .await;
                     EntityManager::broadcast_to(
                         &C05EntityAnimation {

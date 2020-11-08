@@ -1,6 +1,6 @@
 use crate::{
-    entity::{BoxedEntity, EntityEquipment},
-    entity_manager::{BoxedEntityManager, EntityManager, PlayerManager},
+    entity::EntityEquipment,
+    entity_manager::{BoxedEntityManager, EntityManager, PlayerManager, PlayerWrapper},
 };
 use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
@@ -44,24 +44,35 @@ impl EntityPool {
         first_location.distance2(&second_location) < (self.view_distance.pow(2) as f64)
     }
     /// Get all players in view distance of an entity
-    pub async fn get_players_around(&self, eid: i32) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        let mut players = HashMap::new();
-        for (player_eid, player) in self
-            .players
-            .read()
-            .await
-            .get_filtered_players(|p| p.entity_id != eid)
-            .await
-            .into_iter()
-        {
+    pub async fn get_players_around(&self, eid: i32) -> Vec<PlayerWrapper> {
+        let mut players = vec![];
+        let player_ids = self.players.read().await.ids().collect::<Vec<_>>();
+        for player_eid in player_ids {
+            if player_eid == eid {
+                continue;
+            }
             if self.can_see_each_other(player_eid, eid).await {
-                players.insert(player_eid, player);
+                players.push(
+                    self.players
+                        .read()
+                        .await
+                        .get_entity(player_eid)
+                        .unwrap()
+                        .clone(),
+                );
             }
         }
         players
     }
     pub async fn tick(&self) {
         let entities = self.entities.read().await.clone();
+        let players_ids = self
+            .players
+            .read()
+            .await
+            .iter()
+            .map(|(k, v)| (k, v.clone()))
+            .collect::<Vec<_>>();
         for (eid, entity) in entities {
             // Remove if remove_scheduled is true
             {
@@ -79,9 +90,10 @@ impl EntityPool {
             }
             // Sync entity position to players
             {
-                let previous_location = self.get_synced_entity_location(eid).await.clone();
-                let new_location = entity.read().await.location().clone();
-                if previous_location != new_location {
+                if &self.get_synced_entity_location(eid).await != entity.read().await.location() {
+                    let previous_location = self.get_synced_entity_location(eid).await.clone();
+                    let new_location = entity.read().await.location().clone();
+
                     let has_rotation_changed = !previous_location.rotation_eq(&new_location);
                     let has_position_changed = !previous_location.position_eq(&new_location);
                     self.synced_entities_location
@@ -238,23 +250,13 @@ impl EntityPool {
             // Sync visibility to players
             {
                 let entity_location = entity.read().await.location().clone();
-
-                let players = self
-                    .players
-                    .read()
-                    .await
-                    .get_filtered_players(|player| player.entity_id != eid)
-                    .await;
-                for (player_eid, player) in players {
+                for (player_eid, player) in players_ids.iter().cloned() {
+                    // Avoid sending player entity to itself
+                    if player_eid == eid {
+                        continue;
+                    }
                     let view_distance2 = self.view_distance.pow(2) as f64;
                     let player_location = player.read().await.location().clone();
-                    if let Some(view_position) = player.read().await.as_player().view_position {
-                        if view_position.0 != player_location.chunk_x()
-                            || view_position.1 != player_location.chunk_z()
-                        {
-                            continue;
-                        }
-                    }
                     let should_be_loaded =
                         entity_location.h_distance2(&player_location) < view_distance2;
                     let is_loaded = player
@@ -265,7 +267,7 @@ impl EntityPool {
                         .contains(&eid);
                     if !is_loaded && should_be_loaded {
                         self.players
-                            .write()
+                            .read()
                             .await
                             .send_raw_to_player(player_eid, &entity.read().await.get_spawn_packet())
                             .await
@@ -400,19 +402,23 @@ impl EntityPool {
     }
 
     async fn get_synced_entity_location(&self, eid: i32) -> Location {
-        if !self
+        let synced_location = self
             .synced_entities_location
             .read()
             .await
-            .contains_key(&eid)
-        {
-            self.synced_entities_location
-                .write()
-                .await
-                .insert(eid, Location::default());
+            .get(&eid)
+            .cloned();
+        match synced_location {
+            Some(loc) => loc,
+            None => {
+                let loc = Location::default();
+                self.synced_entities_location
+                    .write()
+                    .await
+                    .insert(eid, loc.clone());
+                loc
+            }
         }
-
-        self.synced_entities_location.read().await[&eid].clone()
     }
     async fn get_synced_entity_equipment(&self, eid: i32) -> EntityEquipment<Slot> {
         if !self

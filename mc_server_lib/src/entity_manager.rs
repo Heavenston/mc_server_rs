@@ -181,20 +181,9 @@ impl PlayerManager {
         }
         Ok(())
     }
-    pub async fn broadcast_to(
-        packet: &impl ClientBoundPacket,
-        players: HashMap<i32, Arc<RwLock<BoxedEntity>>>,
-    ) {
-        for (.., entity) in players {
-            let entity = entity.read().await;
-            let player = entity.downcast_ref::<Player>().unwrap();
-            player
-                .client
-                .read()
-                .await
-                .send_packet(packet)
-                .await
-                .unwrap();
+    pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: Vec<PlayerWrapper>) {
+        for player in players {
+            player.send_packet(packet).await.unwrap();
         }
     }
     pub async fn send_to_player(
@@ -224,19 +213,25 @@ impl PlayerManager {
     pub async fn get_filtered_players(
         &self,
         filter: impl Fn(&Player) -> bool,
-    ) -> HashMap<i32, Arc<RwLock<BoxedEntity>>> {
-        let mut players = HashMap::new();
-        for (eid, player) in self.iter() {
+    ) -> Vec<PlayerWrapper> {
+        let mut players = Vec::new();
+        for player in self.entities() {
             let result = {
                 let player = player.read().await;
                 let player = player.as_player().as_ref();
                 filter(player)
             };
             if result {
-                players.insert(eid, Arc::clone(player));
+                players.push(player.clone());
             }
         }
         players
+    }
+    pub async fn get_players_except(&self, except_id: i32) -> Vec<PlayerWrapper> {
+        self.iter()
+            .filter(|(id, ..)| id != &except_id)
+            .map(|(.., v)| v.clone())
+            .collect::<Vec<_>>()
     }
 }
 
