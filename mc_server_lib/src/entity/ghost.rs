@@ -36,7 +36,7 @@ fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
         let rotation =
             (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
         entity.location.x = player_pos.x + rotation.cos() * distance;
-        entity.location.y = player_pos.y + 1.5;
+        entity.location.y = player_pos.y + 1.7;
         entity.location.z = player_pos.z + rotation.sin() * distance;
         entity.location.yaw = rotation.to_degrees() as f32 + 90.0;
 
