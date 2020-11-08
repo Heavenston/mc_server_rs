@@ -72,10 +72,10 @@ impl ResourceManager {
 
         let (prismarine_minecraft_data, minecraft_data_generator) = tokio::join!(
             async {
-                let file_path = &cache_folder.join("primarine_minecraft_data");
+                let file_path = &cache_folder.join("primarine_minecraft_data.json");
                 if Path::new(&file_path).exists() {
                     let bytes = fs::read(&file_path).await.unwrap();
-                    bincode::deserialize::<PrimarineMinecraftData>(&bytes).unwrap()
+                    serde_json::from_slice::<PrimarineMinecraftData>(&bytes).unwrap()
                 }
                 else {
                     let primarine_minecraft_data =
@@ -83,17 +83,17 @@ impl ResourceManager {
                     File::create(file_path)
                         .await
                         .unwrap()
-                        .write_all(&bincode::serialize(&primarine_minecraft_data).unwrap())
+                        .write_all(&serde_json::to_vec(&primarine_minecraft_data).unwrap())
                         .await
                         .unwrap();
                     primarine_minecraft_data
                 }
             },
             async {
-                let file_path = &cache_folder.join("minecraft_data_generator");
+                let file_path = &cache_folder.join("minecraft_data_generator.json");
                 if Path::new(&file_path).exists() {
                     let bytes = fs::read(&file_path).await.unwrap();
-                    bincode::deserialize::<MinecraftDataGenerator>(&bytes).unwrap()
+                    serde_json::from_slice::<MinecraftDataGenerator>(&bytes).unwrap()
                 }
                 else {
                     let minecraft_data_generator =
@@ -103,7 +103,7 @@ impl ResourceManager {
                     File::create(file_path)
                         .await
                         .unwrap()
-                        .write_all(&bincode::serialize(&minecraft_data_generator).unwrap())
+                        .write_all(&serde_json::to_vec(&minecraft_data_generator).unwrap())
                         .await
                         .unwrap();
                     minecraft_data_generator
