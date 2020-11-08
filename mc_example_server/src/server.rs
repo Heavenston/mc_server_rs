@@ -640,7 +640,9 @@ impl Server {
 
     pub async fn start_ticker(server: Arc<Server>) {
         tokio::task::spawn(async move {
-            let mut tps_interval = tokio::time::interval(Duration::from_secs_f64(1.0 / 20.0));
+            let target_tps = 20.0;
+            let tps_delay = Duration::from_secs_f64(1.0 / target_tps);
+            let mut tps_interval = tokio::time::interval(tps_delay);
             let ticks = Arc::new(RwLock::new(0i32));
             let times = Arc::new(RwLock::new(0u128));
             // TPS Calculator
@@ -654,7 +656,11 @@ impl Server {
                         let n = (*ticks.read().await as f64) / 10f64;
                         *ticks.write().await = 0;
                         *server.tps.write().await = n;
-                        info!("{} TPS (~{}ms)", n, *times.read().await / 10);
+                        info!(
+                            "{} TPS (~{}ms)",
+                            n,
+                            *times.read().await / (target_tps * 10.0) as u128
+                        );
                         *times.write().await = 0;
                     }
                 }
@@ -689,7 +695,7 @@ impl Server {
                 let start = Instant::now();
                 server.tick().await;
                 let elapsed = start.elapsed().as_millis();
-                if elapsed > 100 {
+                if elapsed > tps_delay.as_millis() {
                     debug!("Tick took {}ms", elapsed);
                 }
                 *times.write().await += elapsed;
