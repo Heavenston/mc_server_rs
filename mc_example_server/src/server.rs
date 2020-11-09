@@ -24,7 +24,7 @@ use std::sync::{
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
     sync::{Barrier, RwLock},
-    time::{sleep, sleep_until, Duration, Instant},
+    time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -643,7 +643,8 @@ impl Server {
     pub async fn start_ticker(server: Arc<Server>) {
         tokio::task::spawn(async move {
             let target_tps = 20.0;
-            let tps_delay = Duration::from_secs_f64(1.0 / target_tps - 0.001);
+            let tps_delay = Duration::from_secs_f64(1.0 / target_tps);
+            let mut interval = tokio::time::interval(tps_delay);
             let ticks = Arc::new(RwLock::new(0i32));
             let times = Arc::new(RwLock::new(Duration::from_secs(0)));
             // TPS Calculator
@@ -652,7 +653,7 @@ impl Server {
                 let server = Arc::clone(&server);
                 let times = Arc::clone(&times);
                 async move {
-                    let monitor_time = Duration::from_secs(5);
+                    let monitor_time = Duration::from_secs_f64(2.5);
                     loop {
                         sleep(monitor_time).await;
                         let n = (*ticks.read().await as f64) / monitor_time.as_secs_f64();
@@ -697,14 +698,13 @@ impl Server {
                 }
             });
 
-            let mut start = Instant::now();
             loop {
-                sleep_until(start + tps_delay).await;
-                start = Instant::now();
+                interval.tick().await;
 
+                let start = Instant::now();
                 server.tick().await;
                 let elapsed = start.elapsed();
-                if elapsed > tps_delay {
+                if elapsed > tps_delay.mul_f64(2.0) {
                     debug!("Tick took {}ms", elapsed.as_millis());
                 }
                 *times.write().await += elapsed;
