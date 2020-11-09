@@ -87,6 +87,12 @@ impl Server {
                 resource_manager: resource_manager.clone(),
             }))
             .await;
+        chat_manager
+            .register_command(Arc::new(AdiosCommand {
+                entity_pool: Arc::clone(&entity_pool),
+                resource_manager: resource_manager.clone(),
+            }))
+            .await;
         chat_manager.register_command(Arc::new(FlyCommand)).await;
         Self {
             entity_pool,

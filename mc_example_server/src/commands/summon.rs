@@ -28,6 +28,21 @@ impl CommandExecutor for SummonCommand {
         vec!["summon".to_string()]
     }
     fn graph(&self) -> Vec<Arc<dyn Node>> {
+        let amount_arg = Arc::new(ArgumentNode {
+            is_executable: true,
+            children_nodes: vec![],
+            redirect_node: None,
+            name: "amount".to_string(),
+            parser: "brigadier:integer".to_string(),
+            properties: {
+                let mut encoder = PacketEncoder::new();
+                encoder.write_u8(0x01);
+                encoder.write_i32(1);
+                encoder.consume()
+            },
+            suggestions_type: None,
+        }) as Arc<dyn Node>;
+
         vec![Arc::new(LiteralNode {
             is_executable: false,
             children_nodes: vec![
@@ -35,7 +50,7 @@ impl CommandExecutor for SummonCommand {
                     is_executable: false,
                     children_nodes: vec![Arc::new(ArgumentNode {
                         is_executable: true,
-                        children_nodes: vec![],
+                        children_nodes: vec![Arc::clone(&amount_arg)],
                         redirect_node: None,
                         name: "type".to_string(),
                         parser: "minecraft:resource_location".to_string(),
@@ -47,20 +62,7 @@ impl CommandExecutor for SummonCommand {
                 }),
                 Arc::new(LiteralNode {
                     is_executable: true,
-                    children_nodes: vec![Arc::new(ArgumentNode {
-                        is_executable: true,
-                        children_nodes: vec![],
-                        redirect_node: None,
-                        name: "amount".to_string(),
-                        parser: "brigadier:integer".to_string(),
-                        properties: {
-                            let mut encoder = PacketEncoder::new();
-                            encoder.write_u8(0x01);
-                            encoder.write_i32(1);
-                            encoder.consume()
-                        },
-                        suggestions_type: None,
-                    })],
+                    children_nodes: vec![Arc::clone(&amount_arg)],
                     redirect_node: None,
                     name: "ghost".to_string(),
                 }),
@@ -111,7 +113,7 @@ impl CommandExecutor for SummonCommand {
                     Ok(true)
                 }
                 "living" => {
-                    if args.len() != 2 {
+                    if args.len() != 2 && args.len() != 3 {
                         Ok(false)
                     }
                     else {
@@ -128,21 +130,33 @@ impl CommandExecutor for SummonCommand {
                             .await
                         {
                             Some(id) => {
-                                let mut entity = LivingEntity::new(
-                                    ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-                                    uuid::Uuid::new_v4(),
-                                    id,
-                                );
-                                entity.location = player.read().await.location().clone();
-                                entity.on_ground = player.read().await.on_ground();
-                                let entity = BoxedEntity::new(entity);
-                                let entity = Arc::new(RwLock::new(entity));
-                                self.entity_pool
-                                    .entities
-                                    .write()
-                                    .await
-                                    .add_entity(entity)
-                                    .await;
+                                let amount = if args.len() == 3 {
+                                    let parsed = args[2].parse();
+                                    if let Err(..) = parsed {
+                                        return Ok(false);
+                                    }
+                                    parsed.unwrap()
+                                }
+                                else {
+                                    1
+                                };
+                                for _ in 0..amount {
+                                    let mut entity = LivingEntity::new(
+                                        ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
+                                        uuid::Uuid::new_v4(),
+                                        id,
+                                    );
+                                    entity.location = player.read().await.location().clone();
+                                    entity.on_ground = player.read().await.on_ground();
+                                    let entity = BoxedEntity::new(entity);
+                                    let entity = Arc::new(RwLock::new(entity));
+                                    self.entity_pool
+                                        .entities
+                                        .write()
+                                        .await
+                                        .add_entity(entity)
+                                        .await;
+                                }
                             }
                             None => player
                                 .send_message(json!({
