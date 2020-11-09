@@ -24,7 +24,7 @@ use std::sync::{
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
     sync::{Barrier, RwLock},
-    time::{sleep, Duration, Instant},
+    time::{sleep, sleep_until, Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -39,6 +39,7 @@ pub struct Server {
     players: RwLock<PlayerManager>,
     spawn_location: RwLock<Location>,
     tps: RwLock<f64>,
+    average_tick_duration: RwLock<Duration>,
     max_players: u16,
     view_distance: u16,
     brand: String,
@@ -104,6 +105,7 @@ impl Server {
                 pitch: 0.0,
             }),
             tps: RwLock::new(20.0),
+            average_tick_duration: RwLock::new(Duration::from_millis(0)),
         }
     }
 
@@ -641,27 +643,33 @@ impl Server {
     pub async fn start_ticker(server: Arc<Server>) {
         tokio::task::spawn(async move {
             let target_tps = 20.0;
-            let tps_delay = Duration::from_secs_f64(1.0 / target_tps);
-            let mut tps_interval = tokio::time::interval(tps_delay);
+            let tps_delay = Duration::from_secs_f64(1.0 / target_tps - 0.001);
             let ticks = Arc::new(RwLock::new(0i32));
-            let times = Arc::new(RwLock::new(0u128));
+            let times = Arc::new(RwLock::new(Duration::from_secs(0)));
             // TPS Calculator
             tokio::task::spawn({
                 let ticks = Arc::clone(&ticks);
                 let server = Arc::clone(&server);
                 let times = Arc::clone(&times);
                 async move {
+                    let monitor_time = Duration::from_secs(5);
                     loop {
-                        sleep(Duration::from_secs(10)).await;
-                        let n = (*ticks.read().await as f64) / 10f64;
+                        sleep(monitor_time).await;
+                        let n = (*ticks.read().await as f64) / monitor_time.as_secs_f64();
                         *ticks.write().await = 0;
                         *server.tps.write().await = n;
-                        info!(
+                        let average_time = times
+                            .read()
+                            .await
+                            .div_f64(target_tps * monitor_time.as_secs_f64());
+                        debug!(
                             "{} TPS (~{}ms)",
                             n,
-                            *times.read().await / (target_tps * 10.0) as u128
+                            times.read().await.as_millis()
+                                / (target_tps * monitor_time.as_secs_f64()) as u128
                         );
-                        *times.write().await = 0;
+                        *server.average_tick_duration.write().await = average_time.clone();
+                        *times.write().await = Duration::from_secs(0);
                     }
                 }
             });
@@ -689,14 +697,15 @@ impl Server {
                 }
             });
 
+            let mut start = Instant::now();
             loop {
-                tps_interval.tick().await;
+                sleep_until(start + tps_delay).await;
+                start = Instant::now();
 
-                let start = Instant::now();
                 server.tick().await;
-                let elapsed = start.elapsed().as_millis();
-                if elapsed > tps_delay.as_millis() {
-                    debug!("Tick took {}ms", elapsed);
+                let elapsed = start.elapsed();
+                if elapsed > tps_delay {
+                    debug!("Tick took {}ms", elapsed.as_millis());
                 }
                 *times.write().await += elapsed;
                 *ticks.write().await += 1;
@@ -722,6 +731,12 @@ impl Server {
                     "extra": [ {
                         "text": format!("{}", *self.tps.read().await),
                         "color": "green"
+                    }, {
+                        "text": format!("\n{}", self.average_tick_duration.read().await.as_millis()),
+                        "color": "green"
+                    }, {
+                        "text": "ms",
+                        "color": "white"
                     } ]
                 }),
             })
