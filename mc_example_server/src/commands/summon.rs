@@ -1,5 +1,8 @@
 use crate::server::ENTITY_ID_COUNTER;
-use mc_networking::data_types::command_data::{ArgumentNode, LiteralNode, Node};
+use mc_networking::data_types::{
+    command_data::{ArgumentNode, LiteralNode, Node},
+    encoder::PacketEncoder,
+};
 use mc_server_lib::{
     chat_manager::CommandExecutor,
     entity::{ghost::GhostEntity, living_entity::LivingEntity, BoxedEntity},
@@ -44,7 +47,20 @@ impl CommandExecutor for SummonCommand {
                 }),
                 Arc::new(LiteralNode {
                     is_executable: true,
-                    children_nodes: vec![],
+                    children_nodes: vec![Arc::new(ArgumentNode {
+                        is_executable: true,
+                        children_nodes: vec![],
+                        redirect_node: None,
+                        name: "amount".to_string(),
+                        parser: "brigadier:integer".to_string(),
+                        properties: {
+                            let mut encoder = PacketEncoder::new();
+                            encoder.write_u8(0x01);
+                            encoder.write_i32(1);
+                            encoder.consume()
+                        },
+                        suggestions_type: None,
+                    })],
                     redirect_node: None,
                     name: "ghost".to_string(),
                 }),
@@ -66,20 +82,32 @@ impl CommandExecutor for SummonCommand {
             }
             match &*args[0] {
                 "ghost" => {
-                    let eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                    let mut entity =
-                        GhostEntity::new(eid, Uuid::new_v4(), Arc::downgrade(&player.entity));
-                    entity.location = player.read().await.location().clone();
-                    entity.location.y += 1.5;
-                    entity.on_ground = player.read().await.on_ground();
-                    let entity = BoxedEntity::new(entity);
-                    let entity = Arc::new(RwLock::new(entity));
-                    self.entity_pool
-                        .entities
-                        .write()
-                        .await
-                        .add_entity(entity)
-                        .await;
+                    let amount = if args.len() == 2 {
+                        let parsed = args[1].parse();
+                        if let Err(..) = parsed {
+                            return Ok(false);
+                        }
+                        parsed.unwrap()
+                    }
+                    else {
+                        1
+                    };
+                    for _ in 0..amount {
+                        let eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+                        let mut entity =
+                            GhostEntity::new(eid, Uuid::new_v4(), Arc::downgrade(&player.entity));
+                        entity.location = player.read().await.location().clone();
+                        entity.location.y += 1.5;
+                        entity.on_ground = player.read().await.on_ground();
+                        let entity = BoxedEntity::new(entity);
+                        let entity = Arc::new(RwLock::new(entity));
+                        self.entity_pool
+                            .entities
+                            .write()
+                            .await
+                            .add_entity(entity)
+                            .await;
+                    }
                     Ok(true)
                 }
                 "living" => {
