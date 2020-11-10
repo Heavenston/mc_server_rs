@@ -772,6 +772,7 @@ dependencies = [
  "downcast-rs",
  "fxhash",
  "hematite-nbt",
+ "indexmap",
  "lazy_static",
  "log",
  "mc_networking",

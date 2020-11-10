@@ -2,12 +2,15 @@ use crate::entity::{player::Player, BoxedEntity};
 use mc_networking::packets::{client_bound::*, RawPacket};
 
 use anyhow::{Error, Result};
-use fxhash::FxHashMap;
+use fxhash::FxBuildHasher;
+use indexmap::IndexMap;
 use std::{
     ops::{Deref, Index},
     sync::Arc,
 };
 use tokio::sync::RwLock;
+
+type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
 #[derive(Clone)]
 pub struct PlayerWrapper {
@@ -122,7 +125,7 @@ impl From<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
 
 #[derive(Clone)]
 pub struct EntityManager<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> {
-    entities: FxHashMap<i32, T>,
+    entities: FxIndexMap<i32, T>,
 }
 
 pub type PlayerManager = EntityManager<PlayerWrapper>;
@@ -131,7 +134,7 @@ pub type BoxedEntityManager = EntityManager<Arc<RwLock<BoxedEntity>>>;
 impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
     pub fn new() -> Self {
         Self {
-            entities: FxHashMap::default(),
+            entities: Default::default(),
         }
     }
 
@@ -139,7 +142,7 @@ impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
         self.entities.len()
     }
 
-    pub fn get_entities(&self) -> &FxHashMap<i32, T> {
+    pub fn get_entities(&self) -> &FxIndexMap<i32, T> {
         &self.entities
     }
     pub fn has_entity(&self, entity_id: i32) -> bool {
@@ -239,7 +242,7 @@ impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> Index<i32> for EntityManager<T> 
 
 impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> IntoIterator for EntityManager<T> {
     type Item = (i32, T);
-    type IntoIter = std::collections::hash_map::IntoIter<i32, T>;
+    type IntoIter = indexmap::map::IntoIter<i32, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.entities.into_iter()
@@ -248,7 +251,7 @@ impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> IntoIterator for EntityManager<T
 
 impl<'a, T: Into<Arc<RwLock<BoxedEntity>>> + Clone> IntoIterator for &'a EntityManager<T> {
     type Item = (&'a i32, &'a T);
-    type IntoIter = std::collections::hash_map::Iter<'a, i32, T>;
+    type IntoIter = indexmap::map::Iter<'a, i32, T>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.entities.iter()

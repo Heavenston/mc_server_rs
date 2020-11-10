@@ -6,9 +6,12 @@ use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
 
 use anyhow::{Error, Result};
-use fxhash::FxHashMap;
+use fxhash::FxBuildHasher;
+use indexmap::IndexMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
 pub struct EntityPool {
     pub view_distance: u16,
@@ -16,8 +19,8 @@ pub struct EntityPool {
     pub entities: RwLock<BoxedEntityManager>,
     /// Players can be in multiple entity pools at the same time
     pub players: RwLock<PlayerManager>,
-    synced_entities_location: RwLock<FxHashMap<i32, Location>>,
-    synced_entities_equipments: RwLock<FxHashMap<i32, EntityEquipment<Slot>>>,
+    synced_entities_location: RwLock<FxIndexMap<i32, Location>>,
+    synced_entities_equipments: RwLock<FxIndexMap<i32, EntityEquipment<Slot>>>,
 }
 
 impl EntityPool {

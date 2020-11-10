@@ -3,7 +3,8 @@ use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
-use fxhash::FxHashMap;
+use fxhash::FxBuildHasher;
+use indexmap::IndexMap;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -12,6 +13,8 @@ use tokio::{
     sync::RwLock,
     time::{sleep_until, Duration, Instant},
 };
+
+type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
 #[async_trait]
 pub trait ChunkGenerator {
@@ -35,12 +38,12 @@ struct BlockChange {
 /// Manage chunks loading
 pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     chunk_generator: T,
-    chunks: RwLock<FxHashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
+    chunks: RwLock<FxIndexMap<(i32, i32), Arc<RwLock<Chunk>>>>,
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
-    synced_player_chunks: RwLock<FxHashMap<i32, (i32, i32)>>,
-    update_view_position_interrupts: RwLock<FxHashMap<i32, Arc<AtomicBool>>>,
-    block_changes: RwLock<FxHashMap<(i32, i32, i32), Vec<BlockChange>>>,
+    synced_player_chunks: RwLock<FxIndexMap<i32, (i32, i32)>>,
+    update_view_position_interrupts: RwLock<FxIndexMap<i32, Arc<AtomicBool>>>,
+    block_changes: RwLock<FxIndexMap<(i32, i32, i32), Vec<BlockChange>>>,
 }
 
 impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
