@@ -7,7 +7,8 @@ use prismarine_minecraft_data::*;
 use utils::*;
 
 use anyhow::{Error, Result};
-use std::{cell::RefCell, collections::HashMap, path::Path};
+use fxhash::FxHashMap;
+use std::{cell::RefCell, path::Path};
 use tokio::{
     fs::{self, File},
     io::AsyncWriteExt,
@@ -19,8 +20,8 @@ const VERSION_MANIFEST_URL: &'static str =
 const MINECRAFT_VERSION: &'static str = "1.16.4";
 
 std::thread_local! {
-    static BLOCK_STATES_CACHE: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
-    static REGISTRY_CACHE: RefCell<HashMap<String, i32>> = RefCell::new(HashMap::new());
+    static BLOCK_STATES_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
+    static REGISTRY_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
 }
 
 async fn get_server_jar_url() -> Result<String> {
@@ -118,11 +119,11 @@ impl ResourceManager {
     pub async fn get_block_state_id(
         &self,
         block_name: &str,
-        block_properties: Option<HashMap<String, String>>,
+        block_properties: Option<FxHashMap<String, String>>,
     ) -> Result<i32> {
         let cache_key = block_properties
             .as_ref()
-            .unwrap_or(&HashMap::new())
+            .unwrap_or(&FxHashMap::default())
             .values()
             .cloned()
             .collect::<Vec<_>>()
