@@ -257,14 +257,16 @@ impl EntityPool {
                     }
                     let view_distance2 = self.view_distance.pow(2) as f64;
                     let player_location = player.read().await.location().clone();
-                    let should_be_loaded =
-                        entity_location.h_distance2(&player_location) < view_distance2;
                     let is_loaded = player
                         .read()
                         .await
                         .as_player()
                         .loaded_entities
                         .contains(&eid);
+                    // TODO: Remove limit
+                    let should_be_loaded =
+                        (player.read().await.as_player().loaded_entities.len() < 300 || is_loaded)
+                            && entity_location.h_distance2(&player_location) < view_distance2;
                     if !is_loaded && should_be_loaded {
                         self.players
                             .read()
