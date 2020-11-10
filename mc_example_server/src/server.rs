@@ -743,6 +743,12 @@ impl Server {
                     }, {
                         "text": "ms",
                         "color": "white"
+                    }, {
+                        "text": format!("\n{}", self.entity_pool.entities.read().await.size()),
+                        "color": "green"
+                    }, {
+                        "text": " entities",
+                        "color": "white"
                     } ]
                 }),
             })
