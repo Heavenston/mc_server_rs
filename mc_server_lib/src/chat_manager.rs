@@ -9,9 +9,10 @@ use mc_networking::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use fxhash::FxHashMap;
 use log::*;
 use serde_json::json;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[async_trait]
@@ -28,7 +29,7 @@ pub trait CommandExecutor: Send + Sync {
 }
 
 pub struct ChatManager {
-    commands_mapping: RwLock<HashMap<String, Arc<dyn CommandExecutor>>>,
+    commands_mapping: RwLock<FxHashMap<String, Arc<dyn CommandExecutor>>>,
     commands: RwLock<Vec<Arc<dyn CommandExecutor>>>,
 
     pub players: RwLock<PlayerManager>,

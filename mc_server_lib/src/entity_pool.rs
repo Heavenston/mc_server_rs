@@ -6,7 +6,8 @@ use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
 
 use anyhow::{Error, Result};
-use std::{collections::HashMap, sync::Arc};
+use fxhash::FxHashMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub struct EntityPool {
@@ -15,8 +16,8 @@ pub struct EntityPool {
     pub entities: RwLock<BoxedEntityManager>,
     /// Players can be in multiple entity pools at the same time
     pub players: RwLock<PlayerManager>,
-    synced_entities_location: RwLock<HashMap<i32, Location>>,
-    synced_entities_equipments: RwLock<HashMap<i32, EntityEquipment<Slot>>>,
+    synced_entities_location: RwLock<FxHashMap<i32, Location>>,
+    synced_entities_equipments: RwLock<FxHashMap<i32, EntityEquipment<Slot>>>,
 }
 
 impl EntityPool {

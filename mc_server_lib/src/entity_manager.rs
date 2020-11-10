@@ -2,8 +2,8 @@ use crate::entity::{player::Player, BoxedEntity};
 use mc_networking::packets::{client_bound::*, RawPacket};
 
 use anyhow::{Error, Result};
+use fxhash::FxHashMap;
 use std::{
-    collections::HashMap,
     ops::{Deref, Index},
     sync::Arc,
 };
@@ -122,7 +122,7 @@ impl From<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
 
 #[derive(Clone)]
 pub struct EntityManager<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> {
-    entities: HashMap<i32, T>,
+    entities: FxHashMap<i32, T>,
 }
 
 pub type PlayerManager = EntityManager<PlayerWrapper>;
@@ -131,7 +131,7 @@ pub type BoxedEntityManager = EntityManager<Arc<RwLock<BoxedEntity>>>;
 impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
     pub fn new() -> Self {
         Self {
-            entities: HashMap::new(),
+            entities: FxHashMap::default(),
         }
     }
 
@@ -139,7 +139,7 @@ impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
         self.entities.len()
     }
 
-    pub fn get_entities(&self) -> &HashMap<i32, T> {
+    pub fn get_entities(&self) -> &FxHashMap<i32, T> {
         &self.entities
     }
     pub fn has_entity(&self, entity_id: i32) -> bool {

@@ -3,12 +3,10 @@ use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
+use fxhash::FxHashMap;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 use tokio::{
     sync::RwLock,
@@ -37,12 +35,12 @@ struct BlockChange {
 /// Manage chunks loading
 pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     chunk_generator: T,
-    chunks: RwLock<HashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
+    chunks: RwLock<FxHashMap<(i32, i32), Arc<RwLock<Chunk>>>>,
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
-    synced_player_chunks: RwLock<HashMap<i32, (i32, i32)>>,
-    update_view_position_interrupts: RwLock<HashMap<i32, Arc<AtomicBool>>>,
-    block_changes: RwLock<HashMap<(i32, i32, i32), Vec<BlockChange>>>,
+    synced_player_chunks: RwLock<FxHashMap<i32, (i32, i32)>>,
+    update_view_position_interrupts: RwLock<FxHashMap<i32, Arc<AtomicBool>>>,
+    block_changes: RwLock<FxHashMap<(i32, i32, i32), Vec<BlockChange>>>,
 }
 
 impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
@@ -50,7 +48,7 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
         Self {
             chunk_generator,
             view_distance,
-            chunks: RwLock::new(HashMap::new()),
+            chunks: RwLock::default(),
             players: RwLock::new(PlayerManager::new()),
             synced_player_chunks: RwLock::default(),
             update_view_position_interrupts: RwLock::default(),
