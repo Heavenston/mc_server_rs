@@ -1,6 +1,5 @@
-use crate::data_types::VarLong;
 use crate::{
-    data_types::{Angle, VarInt},
+    data_types::{Angle, VarInt, VarLong},
     packets::RawPacket,
 };
 
