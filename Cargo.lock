@@ -737,6 +737,7 @@ dependencies = [
  "byteorder",
  "downcast-rs",
  "hematite-nbt",
+ "lazy_static",
  "log",
  "mc_networking",
  "mc_utils",

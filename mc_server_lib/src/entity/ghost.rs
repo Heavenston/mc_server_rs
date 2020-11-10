@@ -5,19 +5,24 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
+use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
-    f64,
+    f32, f64,
     sync::{Arc, Weak},
-    time::{SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::RwLock;
+use tokio::{sync::RwLock, time::Instant};
 use uuid::Uuid;
+
+lazy_static! {
+    static ref START_INSTANT: Instant = Instant::now();
+}
 
 fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
     tokio::task::spawn(async move {
         let mut entity = entity.write().await;
         let entity = entity.as_ghost_mut();
+
         let target_player = entity.target_player.upgrade();
         if target_player.is_none() {
             // TODO: Add dead entities
@@ -26,11 +31,7 @@ fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
         let target_player = target_player.unwrap();
         let distance = target_player.read().await.as_player().held_item as f64 * 0.3;
 
-        let current_time = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as f64;
-        let current_sec = current_time / 1000.0;
+        let current_sec = START_INSTANT.elapsed().as_millis() as f64 / 1000.0;
 
         let player_pos = target_player.read().await.location().clone();
         let rotation =
@@ -39,11 +40,6 @@ fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
         entity.location.y = player_pos.y + 1.7;
         entity.location.z = player_pos.z + rotation.sin() * distance;
         entity.location.yaw = rotation.to_degrees() as f32 + 90.0;
-
-        *entity.get_equipment_mut().main_hand =
-            target_player.read().await.get_equipment().main_hand.clone();
-        *entity.get_equipment_mut().off_hand =
-            target_player.read().await.get_equipment().off_hand.clone();
     })
 }
 
