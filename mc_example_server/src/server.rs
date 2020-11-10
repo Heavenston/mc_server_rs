@@ -663,18 +663,10 @@ impl Server {
                     loop {
                         sleep(monitor_time).await;
                         let n = (*ticks.read().await as f64) / monitor_time.as_secs_f64();
-                        *ticks.write().await = 0;
                         *server.tps.write().await = n;
-                        let average_time = times
-                            .read()
-                            .await
-                            .div_f64(target_tps * monitor_time.as_secs_f64());
-                        debug!(
-                            "{} TPS (~{}ms)",
-                            n,
-                            times.read().await.as_millis()
-                                / (target_tps * monitor_time.as_secs_f64()) as u128
-                        );
+                        let average_time = times.read().await.div_f64(*ticks.read().await as f64);
+                        *ticks.write().await = 0;
+                        debug!("{} TPS (~{}ms)", n, average_time.as_millis());
                         *server.average_tick_duration.write().await = average_time.clone();
                         *times.write().await = Duration::from_secs(0);
                     }
