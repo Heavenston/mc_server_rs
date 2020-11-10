@@ -121,20 +121,14 @@ impl From<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
 }
 
 #[derive(Clone)]
-pub struct EntityManager<T>
-where
-    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
-{
+pub struct EntityManager<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> {
     entities: HashMap<i32, T>,
 }
 
 pub type PlayerManager = EntityManager<PlayerWrapper>;
 pub type BoxedEntityManager = EntityManager<Arc<RwLock<BoxedEntity>>>;
 
-impl<T> EntityManager<T>
-where
-    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
-{
+impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
     pub fn new() -> Self {
         Self {
             entities: HashMap::new(),
@@ -235,10 +229,7 @@ impl PlayerManager {
     }
 }
 
-impl<T> Index<i32> for EntityManager<T>
-where
-    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
-{
+impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> Index<i32> for EntityManager<T> {
     type Output = T;
 
     fn index(&self, index: i32) -> &Self::Output {
@@ -246,10 +237,7 @@ where
     }
 }
 
-impl<T> IntoIterator for EntityManager<T>
-where
-    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
-{
+impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> IntoIterator for EntityManager<T> {
     type Item = (i32, T);
     type IntoIter = std::collections::hash_map::IntoIter<i32, T>;
 
@@ -258,10 +246,7 @@ where
     }
 }
 
-impl<'a, T> IntoIterator for &'a EntityManager<T>
-where
-    T: Into<Arc<RwLock<BoxedEntity>>> + Clone,
-{
+impl<'a, T: Into<Arc<RwLock<BoxedEntity>>> + Clone> IntoIterator for &'a EntityManager<T> {
     type Item = (&'a i32, &'a T);
     type IntoIter = std::collections::hash_map::Iter<'a, i32, T>;
 
