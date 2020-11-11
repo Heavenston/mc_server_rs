@@ -1,8 +1,12 @@
 use crate::{commands::*, generator::Generator};
 use mc_networking::{
     client::{client_event::*, Client},
+    data_types::Slot,
     map,
-    packets::{client_bound::*, server_bound::S1BPlayerDiggingStatus},
+    packets::{
+        client_bound::*,
+        server_bound::{S1BPlayerDiggingFace, S1BPlayerDiggingStatus},
+    },
 };
 use mc_server_lib::{
     chat_manager::ChatManager,
@@ -618,8 +622,66 @@ impl Server {
                             .await;
                     }
                 }
-                ClientEvent::PlayerBlockPlacement { .. } => {
-                    todo!();
+                ClientEvent::PlayerBlockPlacement {
+                    hand,
+                    position,
+                    face,
+                    cursor_position_x,
+                    cursor_position_y,
+                    cursor_position_z,
+                    inside_block,
+                } => {
+                    let player = player.as_ref().unwrap();
+                    let mut player = player.write().await;
+                    let equipment = player.get_equipment_mut();
+                    let slot = match hand {
+                        0 => equipment.main_hand, // Main hand
+                        _ => equipment.off_hand,  // Off hand (2)
+                    };
+                    if let Slot::Present {
+                        item_id,
+                        item_count,
+                        nbt,
+                    } = slot
+                    {
+                        let item_name = resource_manager
+                            .get_registry_value_name("minecraft:item", Some(*item_id))
+                            .await
+                            .unwrap();
+                        let block_id = resource_manager.get_block_state_id(&item_name, None).await;
+                        if let Ok(block_id) = block_id {
+                            let mut new_block_pos = position.clone();
+                            match face {
+                                S1BPlayerDiggingFace::Top => {
+                                    new_block_pos.y += 1;
+                                }
+                                S1BPlayerDiggingFace::Bottom => {
+                                    new_block_pos.y -= 1;
+                                }
+                                S1BPlayerDiggingFace::North => {
+                                    new_block_pos.z -= 1;
+                                }
+                                S1BPlayerDiggingFace::East => {
+                                    new_block_pos.x += 1;
+                                }
+                                S1BPlayerDiggingFace::South => {
+                                    new_block_pos.z += 1;
+                                }
+                                S1BPlayerDiggingFace::West => {
+                                    new_block_pos.x -= 1;
+                                }
+                                _ => (),
+                            }
+                            chunk_holder
+                                .set_block(
+                                    new_block_pos.x,
+                                    new_block_pos.y as u8,
+                                    new_block_pos.z,
+                                    block_id as u16,
+                                )
+                                .await;
+                        }
+                    }
                 }
                 ClientEvent::CreativeInventoryAction { slot_id, slot } => {
                     let player = player.as_ref().unwrap();
