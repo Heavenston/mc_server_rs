@@ -94,33 +94,46 @@ impl ResourceManager {
         let (prismarine_minecraft_data, minecraft_data_generator) = tokio::join!(
             async {
                 let file_path = &cache_folder.join("primarine_minecraft_data");
+                let mut primarine_minecraft_data = None;
+
                 if Path::new(&file_path).exists() {
-                    read_compressed_bincode_file(&file_path).await.unwrap()
+                    primarine_minecraft_data = read_compressed_bincode_file(&file_path).await.ok();
                 }
-                else {
-                    let primarine_minecraft_data =
-                        PrimarineMinecraftData::download().await.unwrap();
-                    write_compressed_bincode_file(&file_path, &primarine_minecraft_data)
-                        .await
-                        .unwrap();
-                    primarine_minecraft_data
+                if primarine_minecraft_data.is_none() {
+                    primarine_minecraft_data =
+                        Some(PrimarineMinecraftData::download().await.unwrap());
+                    write_compressed_bincode_file(
+                        &file_path,
+                        primarine_minecraft_data.as_ref().unwrap(),
+                    )
+                    .await
+                    .unwrap();
                 }
+
+                primarine_minecraft_data.unwrap()
             },
             async {
                 let file_path = &cache_folder.join("minecraft_data_generator");
+                let mut minecraft_data_generator = None;
+
                 if Path::new(&file_path).exists() {
-                    read_compressed_bincode_file(&file_path).await.unwrap()
+                    minecraft_data_generator = read_compressed_bincode_file(&file_path).await.ok();
                 }
-                else {
-                    let minecraft_data_generator =
+                if minecraft_data_generator.is_none() {
+                    minecraft_data_generator = Some(
                         MinecraftDataGenerator::download(get_server_jar_url().await.unwrap())
                             .await
-                            .unwrap();
-                    write_compressed_bincode_file(&file_path, &minecraft_data_generator)
-                        .await
-                        .unwrap();
-                    minecraft_data_generator
+                            .unwrap(),
+                    );
+                    write_compressed_bincode_file(
+                        &file_path,
+                        minecraft_data_generator.as_ref().unwrap(),
+                    )
+                    .await
+                    .unwrap();
                 }
+
+                minecraft_data_generator.unwrap()
             }
         );
         *self.prismarine_minecraft_data.write().await = Some(prismarine_minecraft_data);
