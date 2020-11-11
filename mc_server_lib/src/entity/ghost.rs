@@ -9,6 +9,8 @@ use lazy_static::lazy_static;
 use std::{
     collections::HashMap,
     f32, f64,
+    future::Future,
+    pin::Pin,
     sync::{Arc, Weak},
 };
 use tokio::{sync::RwLock, time::Instant};
@@ -18,29 +20,27 @@ lazy_static! {
     static ref START_INSTANT: Instant = Instant::now();
 }
 
-fn tick(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()> {
-    tokio::task::spawn(async move {
-        let mut entity = entity.write().await;
-        let entity = entity.as_ghost_mut();
+async fn tick(entity: Arc<RwLock<BoxedEntity>>) {
+    let mut entity = entity.write().await;
+    let entity = entity.as_ghost_mut();
 
-        let target_player = entity.target_player.upgrade();
-        if target_player.is_none() {
-            // TODO: Add dead entities
-            return;
-        }
-        let target_player = target_player.unwrap();
-        let distance = target_player.read().await.as_player().held_item as f64 * 0.3;
+    let target_player = entity.target_player.upgrade();
+    if target_player.is_none() {
+        // TODO: Add dead entities
+        return;
+    }
+    let target_player = target_player.unwrap();
+    let distance = target_player.read().await.as_player().held_item as f64 * 0.3;
 
-        let current_sec = START_INSTANT.elapsed().as_millis() as f64 / 1000.0;
+    let current_sec = START_INSTANT.elapsed().as_millis() as f64 / 1000.0;
 
-        let player_pos = target_player.read().await.location().clone();
-        let rotation =
-            (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
-        entity.location.x = player_pos.x + rotation.cos() * distance;
-        entity.location.y = player_pos.y + 1.7;
-        entity.location.z = player_pos.z + rotation.sin() * distance;
-        entity.location.yaw = rotation.to_degrees() as f32 + 90.0;
-    })
+    let player_pos = target_player.read().await.location().clone();
+    let rotation =
+        (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
+    entity.location.x = player_pos.x + rotation.cos() * distance;
+    entity.location.y = player_pos.y + 1.7;
+    entity.location.z = player_pos.z + rotation.sin() * distance;
+    entity.location.yaw = rotation.to_degrees() as f32 + 90.0;
 }
 
 pub struct GhostEntity {
@@ -99,8 +99,9 @@ impl Entity for GhostEntity {
 
     fn tick_fn(
         &self,
-    ) -> Option<fn(entity: Arc<RwLock<BoxedEntity>>) -> tokio::task::JoinHandle<()>> {
-        Some(tick)
+        entity: &Arc<RwLock<BoxedEntity>>,
+    ) -> Option<Pin<Box<dyn Send + Sync + Future<Output = ()>>>> {
+        Some(Box::pin(tick(Arc::clone(entity))))
     }
     fn get_spawn_packet(&self) -> RawPacket {
         C02SpawnLivingEntity {

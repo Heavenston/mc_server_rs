@@ -8,7 +8,6 @@ use mc_utils::Location;
 use anyhow::{Error, Result};
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
@@ -87,9 +86,9 @@ impl EntityPool {
             }
             // TICK THE ENTITY
             {
-                let tick_fn = entity.read().await.tick_fn();
-                if let Some(tick_fn) = tick_fn {
-                    tick_fn(Arc::clone(&entity)).await.unwrap();
+                let tick_future = entity.read().await.tick_fn(&entity);
+                if let Some(tick_future) = tick_future {
+                    tick_future.await;
                 }
             }
             // Sync entity position to players

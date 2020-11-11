@@ -16,10 +16,12 @@ use downcast_rs::{impl_downcast, DowncastSync};
 use std::{
     borrow::Borrow,
     collections::HashMap,
+    future::Future,
     ops::{Deref, DerefMut},
+    pin::Pin,
     sync::Arc,
 };
-use tokio::{sync::RwLock, task::JoinHandle};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,7 +60,10 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
-    fn tick_fn(&self) -> Option<fn(entity: Arc<RwLock<BoxedEntity>>) -> JoinHandle<()>> {
+    fn tick_fn(
+        &self,
+        #[allow(unused_variables)] entity: &Arc<RwLock<BoxedEntity>>,
+    ) -> Option<Pin<Box<dyn Send + Sync + Future<Output = ()>>>> {
         None
     }
     fn get_spawn_packet(&self) -> RawPacket;
