@@ -76,26 +76,29 @@ impl EntityPool {
             .iter()
             .map(|(k, v)| (k, v.clone()))
             .collect::<Vec<_>>();
-        for (eid, entity) in entities {
+        for (eid, entity_arc) in entities {
+            let mut entity = entity_arc.read().await;
             // Remove if remove_scheduled is true
             {
-                if entity.read().await.remove_scheduled() {
+                if entity.remove_scheduled() {
                     self.entities.write().await.remove_entity(eid);
                     continue;
                 }
             }
             // TICK THE ENTITY
             {
-                let tick_future = entity.read().await.tick_fn(&entity);
+                let tick_future = entity.tick_fn(&entity_arc);
                 if let Some(tick_future) = tick_future {
+                    drop(entity);
                     tick_future.await;
+                    entity = entity_arc.read().await;
                 }
             }
             // Sync entity position to players
             {
-                if &self.get_synced_entity_location(eid).await != entity.read().await.location() {
-                    let previous_location = self.get_synced_entity_location(eid).await.clone();
-                    let new_location = entity.read().await.location().clone();
+                if &self.get_synced_entity_location(eid).await != entity.location() {
+                    let previous_location = self.get_synced_entity_location(eid).await;
+                    let new_location = entity.location();
 
                     let has_rotation_changed = !previous_location.rotation_eq(&new_location);
                     let has_position_changed = !previous_location.position_eq(&new_location);
@@ -104,8 +107,7 @@ impl EntityPool {
                         .await
                         .insert(eid, new_location.clone());
 
-                    let on_ground = entity.read().await.on_ground();
-
+                    let on_ground = entity.on_ground();
                     let players = self.get_players_around(eid).await;
 
                     if has_rotation_changed {
@@ -114,7 +116,7 @@ impl EntityPool {
                                 entity_id: eid,
                                 head_yaw: new_location.yaw_angle(),
                             },
-                            players.clone(),
+                            &players,
                         )
                         .await;
                     }
@@ -130,7 +132,7 @@ impl EntityPool {
                                 pitch: new_location.pitch_angle(),
                                 on_ground,
                             },
-                            players,
+                            &players,
                         )
                         .await;
                     }
@@ -151,7 +153,7 @@ impl EntityPool {
                                 pitch: new_location.pitch_angle(),
                                 on_ground,
                             },
-                            players,
+                            &players,
                         )
                         .await;
                     }
@@ -170,7 +172,7 @@ impl EntityPool {
                                     .ceil() as i16,
                                 on_ground,
                             },
-                            players,
+                            &players,
                         )
                         .await;
                     }
@@ -182,13 +184,16 @@ impl EntityPool {
                                 pitch: new_location.pitch_angle(),
                                 on_ground,
                             },
-                            players,
+                            &players,
                         )
                         .await;
                     }
                     else {
-                        EntityManager::broadcast_to(&C2AEntityMovement { entity_id: eid }, players)
-                            .await;
+                        EntityManager::broadcast_to(
+                            &C2AEntityMovement { entity_id: eid },
+                            &players,
+                        )
+                        .await;
                     }
                 }
             }
@@ -197,7 +202,6 @@ impl EntityPool {
                 let packet = {
                     let synced_equipment = self.get_synced_entity_equipment(eid).await;
                     let synced_equipment = synced_equipment.to_ref();
-                    let entity = entity.read().await;
                     let equipment = entity.get_equipment();
                     if synced_equipment != equipment {
                         let mut packet = C47EntityEquipment {
@@ -247,12 +251,13 @@ impl EntityPool {
                     }
                 };
                 if let Some(packet) = packet {
-                    PlayerManager::broadcast_to(&packet, self.get_players_around(eid).await).await;
+                    drop(entity);
+                    PlayerManager::broadcast_to(&packet, &self.get_players_around(eid).await).await;
+                    entity = entity_arc.read().await;
                 }
             }
             // Sync visibility to players
             {
-                let entity_location = entity.read().await.location().clone();
                 for (player_eid, player) in players_ids.iter().cloned() {
                     // Avoid sending player entity to itself
                     if player_eid == eid {
@@ -269,12 +274,10 @@ impl EntityPool {
                     // TODO: Remove limit
                     let should_be_loaded =
                         (player.read().await.as_player().loaded_entities.len() < 300 || is_loaded)
-                            && entity_location.h_distance2(&player_location) < view_distance2;
+                            && entity.location().h_distance2(&player_location) < view_distance2;
                     if !is_loaded && should_be_loaded {
-                        self.players
-                            .read()
-                            .await
-                            .send_raw_to_player(player_eid, &entity.read().await.get_spawn_packet())
+                        player
+                            .send_raw_packet(&entity.get_spawn_packet())
                             .await
                             .unwrap();
                         player
@@ -284,21 +287,16 @@ impl EntityPool {
                             .loaded_entities
                             .insert(eid);
                         // Send head look
-                        self.players
-                            .read()
-                            .await
-                            .send_to_player(
-                                player_eid,
-                                &C3AEntityHeadLook {
-                                    entity_id: eid,
-                                    head_yaw: entity.read().await.location().yaw_angle(),
-                                },
-                            )
+                        player
+                            .send_packet(&C3AEntityHeadLook {
+                                entity_id: eid,
+                                head_yaw: entity.location().yaw_angle(),
+                            })
                             .await
                             .unwrap();
                         // Send entity equipment
                         {
-                            let equipment = entity.read().await.get_equipment().to_owned();
+                            let equipment = entity.get_equipment().to_owned();
                             let mut packet = C47EntityEquipment {
                                 entity_id: eid,
                                 equipment: vec![],
@@ -345,15 +343,10 @@ impl EntityPool {
                     }
                     if is_loaded && !should_be_loaded {
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
-                        self.players
-                            .read()
-                            .await
-                            .send_to_player(
-                                player_eid,
-                                &C36DestroyEntities {
-                                    entities: vec![eid],
-                                },
-                            )
+                        player
+                            .send_packet(&C36DestroyEntities {
+                                entities: vec![eid],
+                            })
                             .await
                             .unwrap();
                         player
@@ -468,7 +461,7 @@ impl EntityPool {
                 pitch: location.pitch_angle(),
                 on_ground: self.entities.read().await[id].read().await.on_ground(),
             },
-            self.get_players_around(id).await,
+            &self.get_players_around(id).await,
         )
         .await;
         if let Some(player) = self.entities.read().await[id].read().await.try_as_player() {
@@ -504,7 +497,7 @@ impl EntityPool {
                 entity_id,
                 metadata,
             },
-            self.get_players_around(entity_id).await,
+            &self.get_players_around(entity_id).await,
         )
         .await;
 

@@ -35,6 +35,18 @@ impl PlayerWrapper {
             .await?;
         Ok(())
     }
+    pub async fn send_raw_packet(&self, packet: &RawPacket) -> Result<()> {
+        self.read()
+            .await
+            .as_player()
+            .client
+            .read()
+            .await
+            .send_raw_packet(packet)
+            .await?;
+        Ok(())
+    }
+
     pub async fn send_message(&self, message: serde_json::Value) -> Result<()> {
         self.send_packet(&C0EChatMessage {
             json_data: message,
@@ -178,7 +190,7 @@ impl PlayerManager {
         }
         Ok(())
     }
-    pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: Vec<PlayerWrapper>) {
+    pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: &Vec<PlayerWrapper>) {
         for player in players {
             player.send_packet(packet).await.unwrap();
         }

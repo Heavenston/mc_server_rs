@@ -591,7 +591,7 @@ impl Server {
                             entity_id: player_eid,
                             animation: if hand == 0 { 0 } else { 3 },
                         },
-                        servers,
+                        &servers,
                     )
                     .await;
                 }
