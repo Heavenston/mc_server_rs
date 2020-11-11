@@ -626,10 +626,10 @@ impl Server {
                     hand,
                     position,
                     face,
-                    cursor_position_x,
-                    cursor_position_y,
-                    cursor_position_z,
-                    inside_block,
+                    cursor_position_x: _,
+                    cursor_position_y: _,
+                    cursor_position_z: _,
+                    inside_block: _,
                 } => {
                     let player = player.as_ref().unwrap();
                     let mut player = player.write().await;
@@ -640,8 +640,8 @@ impl Server {
                     };
                     if let Slot::Present {
                         item_id,
-                        item_count,
-                        nbt,
+                        item_count: _,
+                        nbt: _,
                     } = slot
                     {
                         let item_name = resource_manager
@@ -670,7 +670,6 @@ impl Server {
                                 S1BPlayerDiggingFace::West => {
                                     new_block_pos.x -= 1;
                                 }
-                                _ => (),
                             }
                             chunk_holder
                                 .set_block(
