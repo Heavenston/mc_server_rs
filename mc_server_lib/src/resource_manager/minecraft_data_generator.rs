@@ -1,8 +1,9 @@
 use super::utils::*;
 
 use anyhow::{Error, Result};
+use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, iter::FromIterator, process::Stdio};
+use std::{iter::FromIterator, process::Stdio};
 use tokio::{
     fs::{self, File},
     process::Command,
@@ -11,29 +12,29 @@ use tokio::{
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct Registry {
     pub default: Option<String>,
-    pub entries: HashMap<String, i32>,
+    pub entries: FxHashMap<String, i32>,
     pub inverted_default: Option<i32>,
-    pub inverted_entries: HashMap<i32, String>,
+    pub inverted_entries: FxHashMap<i32, String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct BlockState {
-    pub properties: Option<HashMap<String, String>>,
+    pub properties: Option<FxHashMap<String, String>>,
     pub id: i32,
     pub default: bool,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct BlockStates {
-    pub properties: Option<HashMap<String, Vec<String>>>,
+    pub properties: Option<FxHashMap<String, Vec<String>>>,
     pub default: usize,
     pub states: Vec<BlockState>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct MinecraftDataGenerator {
-    pub blocks_states: HashMap<String, BlockStates>,
-    pub registries: HashMap<String, Registry>,
+    pub blocks_states: FxHashMap<String, BlockStates>,
+    pub registries: FxHashMap<String, Registry>,
 }
 impl MinecraftDataGenerator {
     pub async fn download(server_url: String) -> Result<Self> {
@@ -62,12 +63,12 @@ impl MinecraftDataGenerator {
         let blocks: serde_json::Value = serde_json::from_str(
             &fs::read_to_string(temp_folder.join("generated/reports/blocks.json")).await?,
         )?;
-        let mut blocks_states = HashMap::new();
+        let mut blocks_states = FxHashMap::default();
         for (block_name, value) in blocks.as_object().unwrap() {
             let value = value.as_object().unwrap();
             let properties = if value.contains_key("properties") {
                 let raw_properties = value["properties"].as_object().unwrap();
-                let mut properties = HashMap::new();
+                let mut properties = FxHashMap::default();
                 for (prop_name, prop_values) in raw_properties {
                     let prop_values = prop_values
                         .as_array()
@@ -97,7 +98,7 @@ impl MinecraftDataGenerator {
                 }
                 states.push(BlockState {
                     properties: if state.contains_key("properties") {
-                        Some(HashMap::from_iter(
+                        Some(FxHashMap::from_iter(
                             state["properties"]
                                 .as_object()
                                 .unwrap()
@@ -122,12 +123,12 @@ impl MinecraftDataGenerator {
             );
         }
 
-        let mut registries = HashMap::new();
-        for (k, registry) in serde_json::from_str::<HashMap<String, serde_json::Value>>(
+        let mut registries = FxHashMap::default();
+        for (k, registry) in serde_json::from_str::<FxHashMap<String, serde_json::Value>>(
             &fs::read_to_string(temp_folder.join("generated/reports/registries.json")).await?,
         )? {
             let registry = registry.as_object().unwrap();
-            let entries = HashMap::from_iter(
+            let entries = FxHashMap::from_iter(
                 registry["entries"]
                     .as_object()
                     .unwrap()
@@ -142,7 +143,7 @@ impl MinecraftDataGenerator {
                 Registry {
                     inverted_default: default.as_ref().map(|d| entries[d]),
                     inverted_entries: {
-                        let mut ie = HashMap::new();
+                        let mut ie = FxHashMap::default();
                         for (k, v) in &entries {
                             ie.insert(*v, k.clone());
                         }
