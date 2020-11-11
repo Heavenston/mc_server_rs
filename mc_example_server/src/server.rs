@@ -24,6 +24,7 @@ use std::sync::{
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
     sync::{Barrier, RwLock},
+    task::JoinHandle,
     time::{sleep, Duration, Instant},
 };
 use uuid::Uuid;
@@ -115,23 +116,28 @@ impl Server {
         }
     }
 
-    pub async fn listen(server: Arc<Server>, addr: impl ToSocketAddrs) -> Result<()> {
+    pub async fn listen(
+        server: Arc<Server>,
+        addr: impl ToSocketAddrs,
+    ) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addr).await?;
-        loop {
-            let (socket, ..) = listener.accept().await?;
-            let (client, event_receiver) = Client::new(socket);
-            let client = Arc::new(RwLock::new(client));
-
-            tokio::task::spawn({
-                let server = Arc::clone(&server);
-                let client = Arc::clone(&client);
-                async move {
-                    Server::handle_client(server, client, event_receiver)
-                        .await
-                        .unwrap();
-                }
-            });
-        }
+        let join_handle = tokio::task::spawn(async move {
+            loop {
+                let (socket, ..) = listener.accept().await?;
+                let (client, event_receiver) = Client::new(socket);
+                let client = Arc::new(RwLock::new(client));
+                tokio::task::spawn({
+                    let server = Arc::clone(&server);
+                    let client = Arc::clone(&client);
+                    async move {
+                        Server::handle_client(server, client, event_receiver)
+                            .await
+                            .unwrap();
+                    }
+                });
+            }
+        });
+        Ok(join_handle)
     }
 
     async fn handle_client(

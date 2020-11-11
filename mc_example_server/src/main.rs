@@ -76,12 +76,22 @@ async fn main() {
     else {
         log::LevelFilter::Info
     });
+
+    info!("Loading server...");
     let server = Arc::new(Server::new().await);
     Server::start_ticker(Arc::clone(&server)).await;
+    info!("Server loaded");
 
     let port = clap_matches.value_of("port").unwrap();
 
-    if let Err(error) = Server::listen(Arc::clone(&server), format!("0.0.0.0:{}", port)).await {
-        error!("Server stopped with error: {}", error);
+    info!("Starting server on port {}", port);
+    match Server::listen(Arc::clone(&server), format!("0.0.0.0:{}", port)).await {
+        Ok(j) => {
+            info!("Server started");
+            if let Err(error) = j.await {
+                error!("Server stopped with error: {}", error)
+            }
+        }
+        Err(error) => error!("Could not start server: {}", error),
     }
 }
