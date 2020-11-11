@@ -1,5 +1,5 @@
 use crate::{
-    entity::EntityEquipment,
+    entity::{BoxedEntity, EntityEquipment},
     entity_manager::{BoxedEntityManager, EntityManager, PlayerManager, PlayerWrapper},
 };
 use mc_networking::{data_types::Slot, packets::client_bound::*};
@@ -12,6 +12,17 @@ use tokio::sync::RwLock;
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
+fn default_visibility_function(
+    entity_bool: &EntityPool,
+    first: &BoxedEntity,
+    second: &BoxedEntity,
+) -> bool {
+    first.location().distance2(second.location()) < (entity_bool.view_distance.pow(2) as f64)
+}
+
+type EntityVisibilityFunction =
+    Box<dyn Send + Sync + Fn(&EntityPool, &BoxedEntity, &BoxedEntity) -> bool>;
+
 pub struct EntityPool {
     pub view_distance: u16,
     /// Entities must only be on one entity pool at the same time
@@ -20,31 +31,30 @@ pub struct EntityPool {
     pub players: RwLock<PlayerManager>,
     synced_entities_location: RwLock<FxIndexMap<i32, Location>>,
     synced_entities_equipments: RwLock<FxIndexMap<i32, EntityEquipment<Slot>>>,
+    entity_visibility_function: EntityVisibilityFunction,
 }
 
 impl EntityPool {
-    pub fn new(view_distance: u16) -> Self {
+    pub fn new(
+        view_distance: u16,
+        entity_visibility_function: Option<EntityVisibilityFunction>,
+    ) -> Self {
         Self {
             view_distance,
             entities: RwLock::new(BoxedEntityManager::new()),
             players: RwLock::new(PlayerManager::new()),
             synced_entities_location: RwLock::default(),
             synced_entities_equipments: RwLock::default(),
+            entity_visibility_function: entity_visibility_function
+                .unwrap_or(Box::new(default_visibility_function)),
         }
     }
 
     pub async fn can_see_each_other(&self, first: i32, second: i32) -> bool {
-        let first_location = self.entities.read().await[first]
-            .read()
-            .await
-            .location()
-            .clone();
-        let second_location = self.entities.read().await[second]
-            .read()
-            .await
-            .location()
-            .clone();
-        first_location.distance2(&second_location) < (self.view_distance.pow(2) as f64)
+        let entities = self.entities.read().await;
+        let first = entities[first].read().await;
+        let second = entities[second].read().await;
+        (self.entity_visibility_function)(self, &*first, &*second)
     }
     /// Get all players in view distance of an entity
     pub async fn get_players_around(&self, eid: i32) -> Vec<PlayerWrapper> {

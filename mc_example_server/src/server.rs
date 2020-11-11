@@ -63,7 +63,7 @@ impl Server {
             view_distance as i32,
         ));
 
-        let entity_pool = Arc::new(EntityPool::new(10 * 16));
+        let entity_pool = Arc::new(EntityPool::new(view_distance * 16, None));
 
         let chat_manager = Arc::new(ChatManager::new());
         chat_manager
