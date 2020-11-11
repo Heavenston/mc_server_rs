@@ -730,11 +730,8 @@ impl Server {
                         "text": format!("{}", *self.tps.read().await),
                         "color": "green"
                     }, {
-                        "text": format!("\n{}", self.average_tick_duration.read().await.as_millis()),
+                        "text": format!("\n{:?}", self.average_tick_duration.read().await),
                         "color": "green"
-                    }, {
-                        "text": "ms",
-                        "color": "white"
                     }, {
                         "text": format!("\n{}", self.entity_pool.entities.read().await.size()),
                         "color": "green"
