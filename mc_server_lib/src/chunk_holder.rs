@@ -92,6 +92,22 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                 block,
             });
     }
+    pub async fn get_block(&self, x: i32, y: u8, z: i32) -> u16 {
+        let chunk_pos = (
+            ((x as f64) / 16.0).floor() as i32,
+            ((z as f64) / 16.0).floor() as i32,
+        );
+        let (local_x, local_y, local_z) = (
+            x.rem_euclid(16) as u8,
+            y.rem_euclid(16),
+            z.rem_euclid(16) as u8,
+        );
+        self.chunks.read().await[&chunk_pos]
+            .read()
+            .await
+            .data
+            .get_block(local_x, local_y, local_z)
+    }
 
     /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
     pub async fn generate_chunk(&self, x: i32, z: i32, chunk_generator: impl ChunkGenerator) {
