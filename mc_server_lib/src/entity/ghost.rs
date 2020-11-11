@@ -30,11 +30,14 @@ async fn tick(entity: Arc<RwLock<BoxedEntity>>) {
         return;
     }
     let target_player = target_player.unwrap();
-    let distance = target_player.read().await.as_player().held_item as f64 * 0.3;
+
+    let target_player = target_player.read().await;
+    let distance = target_player.as_player().held_item as f64 * 0.3;
+    let player_pos = target_player.location().clone();
+    drop(target_player);
 
     let current_sec = START_INSTANT.elapsed().as_millis() as f64 / 1000.0;
 
-    let player_pos = target_player.read().await.location().clone();
     let rotation =
         (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
     entity.location.x = player_pos.x + rotation.cos() * distance;
