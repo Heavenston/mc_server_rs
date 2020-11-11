@@ -8,7 +8,12 @@ use utils::*;
 
 use anyhow::{Error, Result};
 use fxhash::FxHashMap;
-use std::{cell::RefCell, path::Path};
+use serde::{de::DeserializeOwned, Serialize};
+use std::{
+    cell::RefCell,
+    io::Read,
+    path::{Path, PathBuf},
+};
 use tokio::{
     fs::{self, File},
     io::AsyncWriteExt,
@@ -23,6 +28,20 @@ std::thread_local! {
     static BLOCK_STATES_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
     static REGISTRY_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
     static REGISTRY_KEY_CACHE: RefCell<FxHashMap<String, String>> = RefCell::new(FxHashMap::default());
+}
+
+async fn read_compressed_bincode_file<T: DeserializeOwned>(path: &PathBuf) -> Result<T> {
+    let data = fs::read(path).await?;
+    let decompress_stream = flate2::read::ZlibDecoder::new(&data[..]);
+    Ok(bincode::deserialize_from(decompress_stream)?)
+}
+async fn write_compressed_bincode_file(path: &PathBuf, data: &impl Serialize) -> Result<()> {
+    let uncompressed_bincode = bincode::serialize(data)?;
+    let mut compressed = vec![];
+    flate2::read::ZlibEncoder::new(&uncompressed_bincode[..], flate2::Compression::fast())
+        .read_to_end(&mut compressed)?;
+    File::create(path).await?.write_all(&compressed).await?;
+    Ok(())
 }
 
 async fn get_server_jar_url() -> Result<String> {
@@ -74,38 +93,30 @@ impl ResourceManager {
 
         let (prismarine_minecraft_data, minecraft_data_generator) = tokio::join!(
             async {
-                let file_path = &cache_folder.join("primarine_minecraft_data.json");
+                let file_path = &cache_folder.join("primarine_minecraft_data");
                 if Path::new(&file_path).exists() {
-                    let bytes = fs::read(&file_path).await.unwrap();
-                    serde_json::from_slice::<PrimarineMinecraftData>(&bytes).unwrap()
+                    read_compressed_bincode_file(&file_path).await.unwrap()
                 }
                 else {
                     let primarine_minecraft_data =
                         PrimarineMinecraftData::download().await.unwrap();
-                    File::create(file_path)
-                        .await
-                        .unwrap()
-                        .write_all(&serde_json::to_vec(&primarine_minecraft_data).unwrap())
+                    write_compressed_bincode_file(&file_path, &primarine_minecraft_data)
                         .await
                         .unwrap();
                     primarine_minecraft_data
                 }
             },
             async {
-                let file_path = &cache_folder.join("minecraft_data_generator.json");
+                let file_path = &cache_folder.join("minecraft_data_generator");
                 if Path::new(&file_path).exists() {
-                    let bytes = fs::read(&file_path).await.unwrap();
-                    serde_json::from_slice::<MinecraftDataGenerator>(&bytes).unwrap()
+                    read_compressed_bincode_file(&file_path).await.unwrap()
                 }
                 else {
                     let minecraft_data_generator =
                         MinecraftDataGenerator::download(get_server_jar_url().await.unwrap())
                             .await
                             .unwrap();
-                    File::create(file_path)
-                        .await
-                        .unwrap()
-                        .write_all(&serde_json::to_vec(&minecraft_data_generator).unwrap())
+                    write_compressed_bincode_file(&file_path, &minecraft_data_generator)
                         .await
                         .unwrap();
                     minecraft_data_generator
