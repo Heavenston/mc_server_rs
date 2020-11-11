@@ -12,6 +12,8 @@ use tokio::{
 pub struct Registry {
     pub default: Option<String>,
     pub entries: HashMap<String, i32>,
+    pub inverted_default: Option<i32>,
+    pub inverted_entries: HashMap<i32, String>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -125,19 +127,29 @@ impl MinecraftDataGenerator {
             &fs::read_to_string(temp_folder.join("generated/reports/registries.json")).await?,
         )? {
             let registry = registry.as_object().unwrap();
+            let entries = HashMap::from_iter(
+                registry["entries"]
+                    .as_object()
+                    .unwrap()
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v["protocol_id"].as_i64().unwrap() as i32)),
+            );
+            let default = registry
+                .get("default")
+                .map(|s| s.as_str().unwrap().to_string());
             registries.insert(
                 k,
                 Registry {
-                    default: registry
-                        .get("default")
-                        .map(|s| s.as_str().unwrap().to_string()),
-                    entries: HashMap::from_iter(
-                        registry["entries"]
-                            .as_object()
-                            .unwrap()
-                            .iter()
-                            .map(|(k, v)| (k.clone(), v["protocol_id"].as_i64().unwrap() as i32)),
-                    ),
+                    inverted_default: default.as_ref().map(|d| entries[d]),
+                    inverted_entries: {
+                        let mut ie = HashMap::new();
+                        for (k, v) in &entries {
+                            ie.insert(*v, k.clone());
+                        }
+                        ie
+                    },
+                    default,
+                    entries,
                 },
             );
         }

@@ -22,6 +22,7 @@ const MINECRAFT_VERSION: &'static str = "1.16.4";
 std::thread_local! {
     static BLOCK_STATES_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
     static REGISTRY_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
+    static REGISTRY_KEY_CACHE: RefCell<FxHashMap<String, String>> = RefCell::new(FxHashMap::default());
 }
 
 async fn get_server_jar_url() -> Result<String> {
@@ -165,6 +166,8 @@ impl ResourceManager {
 
         Ok(id)
     }
+    /// Get the id of a registry value
+    /// Uses registry default (if any) if value_name is None
     pub async fn get_registry(&self, registry_name: &str, value_name: Option<&str>) -> Option<i32> {
         let cache_key = registry_name.to_string() + value_name.unwrap_or("");
         if let Some(id) = REGISTRY_CACHE.with(|c| c.borrow().get(&cache_key).cloned()) {
@@ -196,6 +199,44 @@ impl ResourceManager {
             id = registry.entries[default];
         }
         Some(id)
+    }
+    /// Get the name of a registry value from it's id
+    /// Uses registry default (if any) if id is None
+    pub async fn get_registry_value_name(
+        &self,
+        registry_name: &str,
+        id: Option<i32>,
+    ) -> Option<String> {
+        let cache_key = id.map(|n| n.to_string()).unwrap_or("".into()) + "-key-" + registry_name;
+        if let Some(value_name) = REGISTRY_KEY_CACHE.with(|c| c.borrow().get(&cache_key).cloned()) {
+            return Some(value_name);
+        }
+
+        let minecraft_data_generator = self.minecraft_data_generator.read().await;
+        let minecraft_data_generator = minecraft_data_generator.as_ref().unwrap();
+
+        let registry = match minecraft_data_generator.registries.get(registry_name) {
+            Some(n) => n,
+            None => return None,
+        };
+
+        let value_name;
+        if let Some(id) = id {
+            match registry.inverted_entries.get(&id) {
+                Some(n) => {
+                    value_name = n.clone();
+                }
+                None => return None,
+            }
+        }
+        else {
+            let default = match registry.inverted_default.as_ref() {
+                Some(default) => default,
+                None => return None,
+            };
+            value_name = registry.inverted_entries[default].clone();
+        }
+        Some(value_name)
     }
 
     pub async fn get_protocol_version(&self) -> i32 {
