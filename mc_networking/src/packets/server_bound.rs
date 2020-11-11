@@ -443,7 +443,7 @@ mod play {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     #[repr(u8)]
     pub enum S1BPlayerDiggingStatus {
         StartedDigging = 0,

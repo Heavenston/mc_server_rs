@@ -165,6 +165,7 @@ mod play {
             command_data, encoder::PacketEncoder, Angle, MetadataValue, Position, Slot, VarInt,
         },
         nbt_map::NBTMap,
+        packets::server_bound::S1BPlayerDiggingStatus,
     };
 
     use anyhow::Result;
@@ -344,6 +345,30 @@ mod play {
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_varint(self.entity_id);
             encoder.write_u8(self.animation);
+        }
+    }
+
+    /// https://wiki.vg/Protocol#Acknowledge_Player_Digging
+    #[derive(Clone, Debug)]
+    pub struct C07AcknowledgePlayerDigging {
+        /// Position where the digging was happening
+        pub position: Position,
+        /// Block state ID of the block that should be at that position now.
+        pub block: VarInt,
+        pub status: S1BPlayerDiggingStatus,
+        /// True if the digging succeeded; false if the client should undo any changes it made locally.
+        pub successful: bool,
+    }
+    impl ClientBoundPacket for C07AcknowledgePlayerDigging {
+        fn packet_id() -> i32 {
+            0x1F
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_u64(self.position.encode());
+            encoder.write_varint(self.block);
+            encoder.write_varint(self.status as VarInt);
+            encoder.write_bool(self.successful);
         }
     }
 
