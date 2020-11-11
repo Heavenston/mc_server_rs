@@ -97,16 +97,12 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             ((x as f64) / 16.0).floor() as i32,
             ((z as f64) / 16.0).floor() as i32,
         );
-        let (local_x, local_y, local_z) = (
-            x.rem_euclid(16) as u8,
-            y.rem_euclid(16),
-            z.rem_euclid(16) as u8,
-        );
+        let (local_x, local_z) = (x.rem_euclid(16) as u8, z.rem_euclid(16) as u8);
         self.chunks.read().await[&chunk_pos]
             .read()
             .await
             .data
-            .get_block(local_x, local_y, local_z)
+            .get_block(local_x, y, local_z)
     }
 
     /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
