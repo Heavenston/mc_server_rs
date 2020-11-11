@@ -361,7 +361,7 @@ mod play {
     }
     impl ClientBoundPacket for C07AcknowledgePlayerDigging {
         fn packet_id() -> i32 {
-            0x1F
+            0x07
         }
 
         fn encode(&self, encoder: &mut PacketEncoder) {
