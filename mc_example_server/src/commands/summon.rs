@@ -94,21 +94,18 @@ impl CommandExecutor for SummonCommand {
                     else {
                         1
                     };
+                    let player_location = player.read().await.location().clone();
+                    let mut entities = self.entity_pool.entities.write().await;
                     for _ in 0..amount {
                         let eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let mut entity =
                             GhostEntity::new(eid, Uuid::new_v4(), Arc::downgrade(&player.entity));
-                        entity.location = player.read().await.location().clone();
+                        entity.location = player_location.clone();
                         entity.location.y += 1.5;
-                        entity.on_ground = player.read().await.on_ground();
+                        entity.on_ground = false;
                         let entity = BoxedEntity::new(entity);
                         let entity = Arc::new(RwLock::new(entity));
-                        self.entity_pool
-                            .entities
-                            .write()
-                            .await
-                            .add_entity(entity)
-                            .await;
+                        entities.add_entity(entity).await;
                     }
                     Ok(true)
                 }
@@ -140,22 +137,20 @@ impl CommandExecutor for SummonCommand {
                                 else {
                                     1
                                 };
+                                let player_location = player.read().await.location().clone();
+                                let on_ground = player.read().await.on_ground();
+                                let mut entities = self.entity_pool.entities.write().await;
                                 for _ in 0..amount {
                                     let mut entity = LivingEntity::new(
                                         ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
                                         uuid::Uuid::new_v4(),
                                         id,
                                     );
-                                    entity.location = player.read().await.location().clone();
-                                    entity.on_ground = player.read().await.on_ground();
+                                    entity.location = player_location.clone();
+                                    entity.on_ground = on_ground;
                                     let entity = BoxedEntity::new(entity);
                                     let entity = Arc::new(RwLock::new(entity));
-                                    self.entity_pool
-                                        .entities
-                                        .write()
-                                        .await
-                                        .add_entity(entity)
-                                        .await;
+                                    entities.add_entity(entity).await;
                                 }
                             }
                             None => player
