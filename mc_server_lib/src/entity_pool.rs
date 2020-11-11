@@ -273,8 +273,7 @@ impl EntityPool {
                         .contains(&eid);
                     // TODO: Remove limit
                     let should_be_loaded =
-                        (player.read().await.as_player().loaded_entities.len() < 300 || is_loaded)
-                            && entity.location().h_distance2(&player_location) < view_distance2;
+                        entity.location().h_distance2(&player_location) < view_distance2;
                     if !is_loaded && should_be_loaded {
                         player
                             .send_raw_packet(&entity.get_spawn_packet())
