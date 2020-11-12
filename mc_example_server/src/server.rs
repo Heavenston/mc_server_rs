@@ -606,20 +606,43 @@ impl Server {
                     .await;
                 }
                 ClientEvent::PlayerDigging {
-                    position, status, ..
+                    position,
+                    status,
+                    face: _,
                 } => {
-                    let player = player.as_ref().unwrap();
                     if status == S1BPlayerDiggingStatus::StartedDigging
-                        && player.read().await.as_player().gamemode == 1
+                        || status == S1BPlayerDiggingStatus::FinishedDigging
+                        || status == S1BPlayerDiggingStatus::CancelledDigging
                     {
-                        chunk_holder
-                            .set_block(position.x, position.y as u8, position.z, 0)
+                        let mut successful = true;
+
+                        let player = player.as_ref().unwrap();
+                        if status == S1BPlayerDiggingStatus::StartedDigging {
+                            if player.read().await.as_player().gamemode == 1 {
+                                chunk_holder
+                                    .set_block(position.x, position.y as u8, position.z, 0)
+                                    .await;
+                            }
+                            else {
+                                successful = false;
+                            }
+                        }
+
+                        if status == S1BPlayerDiggingStatus::FinishedDigging {
+                            successful = false;
+                        }
+                        let block = chunk_holder
+                            .get_block(position.x, position.y as u8, position.z)
                             .await;
-                    }
-                    if status == S1BPlayerDiggingStatus::FinishedDigging {
-                        chunk_holder
-                            .set_block(position.x, position.y as u8, position.z, 0)
-                            .await;
+                        player
+                            .send_packet(&C07AcknowledgePlayerDigging {
+                                position: position.clone(),
+                                block: block as i32,
+                                status: S1BPlayerDiggingStatus::CancelledDigging,
+                                successful,
+                            })
+                            .await
+                            .unwrap();
                     }
                 }
                 ClientEvent::PlayerBlockPlacement {
