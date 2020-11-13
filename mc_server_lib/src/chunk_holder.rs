@@ -67,6 +67,9 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         self.players.write().await.add_entity(player).await;
     }
     pub async fn remove_player(&self, id: i32) {
+        if let Some(interrupt) = self.update_view_position_interrupts.read().await.get(&id) {
+            interrupt.store(true, Ordering::Relaxed);
+        }
         let player = self.players.write().await.remove_entity(id).unwrap();
         let player = player.read().await;
         let player = player.as_player();
@@ -88,18 +91,24 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
 
         Some(chunk)
     }
-    async fn save_chunk(&self, x: i32, z: i32) -> bool {
+    async fn save_chunk(&self, x: i32, z: i32) {
         let chunk = self.chunks.write().await.remove(&(x, z));
         if chunk.is_none() {
-            return true;
+            return;
         }
         let chunk = match Arc::try_unwrap(chunk.unwrap()) {
             Ok(c) => c,
-            Err(..) => return false,
+            Err(c) => {
+                panic!(
+                    "Chunk {}-{} still has {} references",
+                    x,
+                    z,
+                    Arc::strong_count(&c)
+                );
+            }
         };
         let chunk = chunk.into_inner();
         self.chunk_provider.save_chunk_data(x, z, chunk.data).await;
-        true
     }
 
     pub async fn set_block(&self, x: i32, y: u8, z: i32, block: u16) {
@@ -157,7 +166,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
     async fn reduce_chunk_load_count(&self, x: i32, z: i32) {
         if let Some(n) = self.chunk_loadings.read().await.get(&(x, z)) {
             if n.fetch_sub(1, Ordering::Relaxed) - 1 <= 0 {
-                assert!(self.save_chunk(x, z).await, "Could not save chunk");
+                self.save_chunk(x, z).await;
             }
         }
     }
