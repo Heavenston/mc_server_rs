@@ -743,7 +743,10 @@ impl Server {
                         sleep(monitor_time).await;
                         let n = (*ticks.read().await as f64) / monitor_time.as_secs_f64();
                         *server.tps.write().await = n;
-                        let average_time = times.read().await.div_f64(*ticks.read().await as f64);
+                        let average_time = times
+                            .read()
+                            .await
+                            .div_f64((*ticks.read().await as f64).max(1.0));
                         *ticks.write().await = 0;
                         debug!("{} TPS (~{}ms)", n, average_time.as_millis());
                         *server.average_tick_duration.write().await = average_time.clone();
