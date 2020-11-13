@@ -210,8 +210,10 @@ impl EntityPool {
             // Sync equipment to players
             {
                 let packet = {
+                    drop(entity);
                     let synced_equipment = self.get_synced_entity_equipment(eid).await;
                     let synced_equipment = synced_equipment.to_ref();
+                    entity = entity_arc.read().await;
                     let equipment = entity.get_equipment();
                     if synced_equipment != equipment {
                         let mut packet = C47EntityEquipment {
