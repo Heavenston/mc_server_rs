@@ -15,7 +15,7 @@ use std::sync::{
 };
 use tokio::{
     sync::RwLock,
-    time::{sleep_until, Duration, Instant},
+    time::{sleep, sleep_until, Duration, Instant},
 };
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
@@ -105,15 +105,9 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             match Arc::try_unwrap(chunk) {
                 Ok(c) => break c,
                 Err(c) => {
-                    tokio::task::yield_now().await;
+                    sleep(Duration::from_millis(i / 2)).await;
                     chunk = c;
-                    debug!("CHUNK UNWRAP MISS");
-                    /*panic!(
-                        "Chunk {}-{} still has {} references",
-                        x,
-                        z,
-                        Arc::strong_count(&c)
-                    );*/
+                    debug!("CHUNK UNWRAP MISS {}/100", i);
                 }
             }
         };
