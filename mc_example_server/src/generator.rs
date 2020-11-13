@@ -1,10 +1,14 @@
 use mc_networking::map;
-use mc_server_lib::{chunk_holder::ChunkGenerator, resource_manager::ResourceManager};
+use mc_server_lib::{chunk_holder::ChunkProvider, resource_manager::ResourceManager};
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
 use noise::{NoiseFn, Perlin};
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
+use tokio::{
+    fs::{self, File},
+    io::AsyncWriteExt,
+};
 
 pub struct Generator {
     grass: bool,
@@ -13,9 +17,12 @@ pub struct Generator {
     base_height: i32,
     height_diff: i32,
     resource_manager: Arc<ResourceManager>,
+    world_folder: PathBuf,
 }
 impl Generator {
     pub fn new(grass: bool, resource_manager: Arc<ResourceManager>) -> Self {
+        let world_folder = std::env::current_dir().unwrap().join("world");
+        std::fs::create_dir_all(&world_folder).unwrap();
         Self {
             grass,
             noise: Perlin::new(),
@@ -23,11 +30,10 @@ impl Generator {
             base_height: 80,
             height_diff: 100,
             resource_manager,
+            world_folder,
         }
     }
-}
-#[async_trait]
-impl ChunkGenerator for Generator {
+
     async fn generate_chunk_data(&self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
         let stone = self
             .resource_manager
@@ -75,5 +81,26 @@ impl ChunkGenerator for Generator {
             }
         }
         data
+    }
+}
+#[async_trait]
+impl ChunkProvider for Generator {
+    async fn load_chunk_data(&self, x: i32, z: i32) -> Option<Box<ChunkData>> {
+        let chunk_file_path = self.world_folder.join(format!("{}-{}.chunk", x, z));
+        if chunk_file_path.exists() {
+            let bytes = fs::read(chunk_file_path).await.unwrap();
+            let chunk_data = Box::new(bincode::deserialize::<ChunkData>(&bytes).unwrap());
+            Some(chunk_data)
+        }
+        else {
+            let r = Some(self.generate_chunk_data(x, z).await);
+            r
+        }
+    }
+    async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>) {
+        let chunk_file_path = self.world_folder.join(format!("{}-{}.chunk", x, z));
+        let mut chunk_file = File::create(&chunk_file_path).await.unwrap();
+        let bytes = bincode::serialize(chunk_data.as_ref()).unwrap();
+        chunk_file.write_all(&bytes).await.unwrap();
     }
 }

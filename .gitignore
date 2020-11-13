@@ -4,5 +4,6 @@ target/
 .idea
 .vscode
 
-# mc_server_lib cache folder
+# project folders
 /cache
+/world

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicI16, Ordering},
     Arc,
 };
 use tokio::{
@@ -17,15 +17,14 @@ use tokio::{
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
 #[async_trait]
-pub trait ChunkGenerator {
-    /// If true is returned, the chunk is ignored and nothing is sent to the client
-    /// in that case, he chunk should probably be empty
+pub trait ChunkProvider {
+    /// Get a chunk data
+    /// If None is returned, the chunk is ignored and nothing is sent to the client
+    /// in that case, the chunk should probably be empty instead
     /// if it's really needed, the chunk should be handled be handled by another ChunkHolder
-    async fn should_ignore(&self, _x: i32, _z: i32) -> bool {
-        false
-    }
-    /// Generate a new chunk data
-    async fn generate_chunk_data(&self, x: i32, z: i32) -> Box<ChunkData>;
+    async fn load_chunk_data(&self, x: i32, z: i32) -> Option<Box<ChunkData>>;
+    /// Save chunk data, may be loaded later
+    async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>);
 }
 
 struct BlockChange {
@@ -36,9 +35,10 @@ struct BlockChange {
 }
 
 /// Manage chunks loading
-pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
-    chunk_generator: T,
+pub struct ChunkHolder<T: ChunkProvider + Send + Sync> {
+    chunk_provider: T,
     chunks: RwLock<FxIndexMap<(i32, i32), Arc<RwLock<Chunk>>>>,
+    chunk_loadings: RwLock<FxIndexMap<(i32, i32), AtomicI16>>,
     view_distance: i32,
     pub players: RwLock<PlayerManager>,
     synced_player_chunks: RwLock<FxIndexMap<i32, (i32, i32)>>,
@@ -46,17 +46,45 @@ pub struct ChunkHolder<T: ChunkGenerator + Send + Sync> {
     block_changes: RwLock<FxIndexMap<(i32, i32, i32), Vec<BlockChange>>>,
 }
 
-impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
-    pub fn new(chunk_generator: T, view_distance: i32) -> Self {
+impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
+    pub fn new(chunk_provider: T, view_distance: i32) -> Self {
         Self {
-            chunk_generator,
+            chunk_provider,
             view_distance,
             chunks: RwLock::default(),
             players: RwLock::new(PlayerManager::new()),
+            chunk_loadings: RwLock::default(),
             synced_player_chunks: RwLock::default(),
             update_view_position_interrupts: RwLock::default(),
             block_changes: RwLock::default(),
         }
+    }
+
+    async fn load_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
+        let chunk_data = self.chunk_provider.load_chunk_data(x, z).await;
+        if chunk_data.is_none() {
+            return None;
+        }
+        let chunk_data = chunk_data.unwrap();
+
+        let chunk = Chunk::new(x, z, chunk_data);
+        let chunk = Arc::new(RwLock::new(chunk));
+        self.chunks.write().await.insert((x, z), chunk.clone());
+
+        Some(chunk)
+    }
+    async fn save_chunk(&self, x: i32, z: i32) -> bool {
+        let chunk = self.chunks.write().await.remove(&(x, z));
+        if chunk.is_none() {
+            return true;
+        }
+        let chunk = match Arc::try_unwrap(chunk.unwrap()) {
+            Ok(c) => c,
+            Err(..) => return false,
+        };
+        let chunk = chunk.into_inner();
+        self.chunk_provider.save_chunk_data(x, z, chunk.data).await;
+        true
     }
 
     pub async fn set_block(&self, x: i32, y: u8, z: i32, block: u16) {
@@ -105,52 +133,9 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
             .get_block(local_x, y, local_z)
     }
 
-    /// Regenerate a chunk using a new chunk_generator and reload the chunk to every player
-    pub async fn generate_chunk(&self, x: i32, z: i32, chunk_generator: impl ChunkGenerator) {
-        let data = chunk_generator.generate_chunk_data(x, z).await;
-        let chunk = self.chunks.read().await.get(&(x, z)).cloned();
-        match chunk {
-            Some(chunk) => {
-                chunk.write().await.data = data;
-            }
-            None => {
-                self.chunks
-                    .write()
-                    .await
-                    .insert((x, z), Arc::new(RwLock::new(Chunk::new(x, z, data))));
-            }
-        }
-        for player in self.players.read().await.entities() {
-            player
-                .send_packet(&C1CUnloadChunk {
-                    chunk_x: x,
-                    chunk_z: z,
-                })
-                .await
-                .unwrap();
-            player
-                .write()
-                .await
-                .as_player_mut()
-                .loaded_chunks
-                .remove(&(x, z));
-            let eid = player.entity_id().await;
-            let location = player.read().await.location().clone();
-            self.update_player_view_position(eid, location.chunk_x(), location.chunk_z(), false)
-                .await;
-        }
-    }
-
     pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
-        if !self.chunks.read().await.contains_key(&(x, z))
-            && !self.chunk_generator.should_ignore(x, z).await
-        {
-            let chunk = Arc::new(RwLock::new(Chunk::new(
-                x,
-                z,
-                self.chunk_generator.generate_chunk_data(x, z).await,
-            )));
-            self.chunks.write().await.insert((x, z), Arc::clone(&chunk));
+        if !self.chunks.read().await.contains_key(&(x, z)) {
+            return self.load_chunk(x, z).await;
         }
         self.chunks.read().await.get(&(x, z)).cloned()
     }
@@ -202,6 +187,14 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                         let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
                         if dx.abs() > view_distance || dz.abs() > view_distance {
                             let start = Instant::now();
+                            if let Some(n) = self.chunk_loadings.read().await.get(&chunk) {
+                                if n.fetch_sub(1, Ordering::Relaxed) - 1 <= 0 {
+                                    assert!(
+                                        self.save_chunk(chunk.0, chunk.1).await,
+                                        "Could not save chunk"
+                                    );
+                                }
+                            }
                             player
                                 .send_packet(&C1CUnloadChunk {
                                     chunk_x: chunk.0,
@@ -248,6 +241,25 @@ impl<T: 'static + ChunkGenerator + Send + Sync> ChunkHolder<T> {
                                     {
                                         if do_delay {
                                             sleep_until(start + delay).await;
+                                        }
+                                        // CHUNK_LOADINS
+                                        {
+                                            let exists = self
+                                                .chunk_loadings
+                                                .read()
+                                                .await
+                                                .contains_key(&(chunk_x + dx, chunk_z + dz));
+                                            if exists {
+                                                self.chunk_loadings.read().await
+                                                    [&(chunk_x + dx, chunk_z + dz)]
+                                                    .fetch_add(1, Ordering::Relaxed);
+                                            }
+                                            else {
+                                                self.chunk_loadings.write().await.insert(
+                                                    (chunk_x + dx, chunk_z + dz),
+                                                    AtomicI16::new(1),
+                                                );
+                                            }
                                         }
                                         let mut player_write = player.write().await;
                                         let player_write = player_write.as_player_mut();

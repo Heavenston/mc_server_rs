@@ -70,12 +70,6 @@ impl Server {
             .register_command(Arc::new(GamemodeCommand))
             .await;
         chat_manager
-            .register_command(Arc::new(RegenCommand {
-                chunk_holder: Arc::clone(&chunk_holder),
-                resource_manager: resource_manager.clone(),
-            }))
-            .await;
-        chat_manager
             .register_command(Arc::new(TpCommand {
                 entity_pool: Arc::clone(&entity_pool),
             }))
