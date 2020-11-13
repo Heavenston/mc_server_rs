@@ -1,4 +1,7 @@
-use crate::{chunk::Chunk, entity_manager::PlayerManager};
+use crate::{
+    chunk::Chunk,
+    entity_manager::{PlayerManager, PlayerWrapper},
+};
 use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
@@ -40,7 +43,7 @@ pub struct ChunkHolder<T: ChunkProvider + Send + Sync> {
     chunks: RwLock<FxIndexMap<(i32, i32), Arc<RwLock<Chunk>>>>,
     chunk_loadings: RwLock<FxIndexMap<(i32, i32), AtomicI16>>,
     view_distance: i32,
-    pub players: RwLock<PlayerManager>,
+    players: RwLock<PlayerManager>,
     synced_player_chunks: RwLock<FxIndexMap<i32, (i32, i32)>>,
     update_view_position_interrupts: RwLock<FxIndexMap<i32, Arc<AtomicBool>>>,
     block_changes: RwLock<FxIndexMap<(i32, i32, i32), Vec<BlockChange>>>,
@@ -57,6 +60,18 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             synced_player_chunks: RwLock::default(),
             update_view_position_interrupts: RwLock::default(),
             block_changes: RwLock::default(),
+        }
+    }
+
+    pub async fn add_player(&self, player: PlayerWrapper) {
+        self.players.write().await.add_entity(player).await;
+    }
+    pub async fn remove_player(&self, id: i32) {
+        let player = self.players.write().await.remove_entity(id).unwrap();
+        let player = player.read().await;
+        let player = player.as_player();
+        for (x, z) in player.loaded_chunks.clone() {
+            self.reduce_chunk_load_count(x, z).await;
         }
     }
 
@@ -139,6 +154,29 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         }
         self.chunks.read().await.get(&(x, z)).cloned()
     }
+    async fn reduce_chunk_load_count(&self, x: i32, z: i32) {
+        if let Some(n) = self.chunk_loadings.read().await.get(&(x, z)) {
+            if n.fetch_sub(1, Ordering::Relaxed) - 1 <= 0 {
+                assert!(self.save_chunk(x, z).await, "Could not save chunk");
+            }
+        }
+    }
+    async fn increase_chunk_load_count(&self, x: i32, z: i32) {
+        let chunk_loadings = self.chunk_loadings.read().await;
+        match chunk_loadings.get(&(x, z)) {
+            Some(counter) => {
+                counter.fetch_add(1, Ordering::Relaxed);
+            }
+            None => {
+                // Must drop the ReadGuard to avoid a deadlock
+                drop(chunk_loadings);
+                self.chunk_loadings
+                    .write()
+                    .await
+                    .insert((x, z), AtomicI16::new(1));
+            }
+        }
+    }
 
     /// Update a player view position, unloading/loading chunks accordingly
     /// if do_delay is true a delay is added between chunk load to reduce lag spikes (should be false on player spawning)
@@ -187,14 +225,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                         let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
                         if dx.abs() > view_distance || dz.abs() > view_distance {
                             let start = Instant::now();
-                            if let Some(n) = self.chunk_loadings.read().await.get(&chunk) {
-                                if n.fetch_sub(1, Ordering::Relaxed) - 1 <= 0 {
-                                    assert!(
-                                        self.save_chunk(chunk.0, chunk.1).await,
-                                        "Could not save chunk"
-                                    );
-                                }
-                            }
+                            self.reduce_chunk_load_count(chunk.0, chunk.1).await;
                             player
                                 .send_packet(&C1CUnloadChunk {
                                     chunk_x: chunk.0,
@@ -242,25 +273,8 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                         if do_delay {
                                             sleep_until(start + delay).await;
                                         }
-                                        // CHUNK_LOADINS
-                                        {
-                                            let exists = self
-                                                .chunk_loadings
-                                                .read()
-                                                .await
-                                                .contains_key(&(chunk_x + dx, chunk_z + dz));
-                                            if exists {
-                                                self.chunk_loadings.read().await
-                                                    [&(chunk_x + dx, chunk_z + dz)]
-                                                    .fetch_add(1, Ordering::Relaxed);
-                                            }
-                                            else {
-                                                self.chunk_loadings.write().await.insert(
-                                                    (chunk_x + dx, chunk_z + dz),
-                                                    AtomicI16::new(1),
-                                                );
-                                            }
-                                        }
+                                        self.increase_chunk_load_count(chunk_x + dx, chunk_z + dz)
+                                            .await;
                                         let mut player_write = player.write().await;
                                         let player_write = player_write.as_player_mut();
                                         let client = player_write.client.read().await;

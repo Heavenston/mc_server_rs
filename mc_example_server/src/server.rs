@@ -378,12 +378,7 @@ impl Server {
                         .add_entity(Arc::clone(player))
                         .await;
 
-                    chunk_holder
-                        .players
-                        .write()
-                        .await
-                        .add_entity(Arc::clone(player))
-                        .await;
+                    chunk_holder.add_player(player.clone()).await;
 
                     chat_manager
                         .players
@@ -452,7 +447,7 @@ impl Server {
                     server.players.write().await.remove_entity(player_eid);
                     entity_pool.entities.write().await.remove_entity(player_eid);
                     entity_pool.players.write().await.remove_entity(player_eid);
-                    chunk_holder.players.write().await.remove_entity(player_eid);
+                    chunk_holder.remove_player(player_eid).await;
                     chat_manager.players.write().await.remove_entity(player_eid);
                     let uuid = player.unwrap().read().await.uuid().clone();
                     server
