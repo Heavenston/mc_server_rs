@@ -5,10 +5,7 @@ use mc_utils::ChunkData;
 use async_trait::async_trait;
 use noise::{NoiseFn, Perlin};
 use std::{path::PathBuf, sync::Arc};
-use tokio::{
-    fs::{self, File},
-    io::AsyncWriteExt,
-};
+use tokio::{io::AsyncWriteExt, task::spawn_blocking};
 
 pub struct Generator {
     grass: bool,
@@ -86,20 +83,28 @@ impl Generator {
 #[async_trait]
 impl ChunkProvider for Generator {
     async fn load_chunk_data(&self, x: i32, z: i32) -> Option<Box<ChunkData>> {
-        let chunk_file_path = self.world_folder.join(format!("{}-{}.chunk", x, z));
-        if chunk_file_path.exists() {
-            let bytes = fs::read(chunk_file_path).await.unwrap();
-            let chunk_data = Box::new(bincode::deserialize::<ChunkData>(&bytes).unwrap());
-            Some(chunk_data)
-        }
-        else {
-            let r = Some(self.generate_chunk_data(x, z).await);
-            r
+        let world_folder = self.world_folder.clone();
+        let chunk_data = spawn_blocking(move || {
+            let chunk_file_path = world_folder.join(format!("{}-{}.chunk", x, z));
+            if chunk_file_path.exists() {
+                let bytes = std::fs::read(&chunk_file_path).unwrap();
+                let chunk_data = Box::new(bincode::deserialize::<ChunkData>(&bytes).unwrap());
+                Some(chunk_data)
+            }
+            else {
+                None
+            }
+        })
+        .await
+        .unwrap();
+        match chunk_data {
+            Some(c) => Some(c),
+            None => Some(self.generate_chunk_data(x, z).await),
         }
     }
     async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>) {
         let chunk_file_path = self.world_folder.join(format!("{}-{}.chunk", x, z));
-        let mut chunk_file = File::create(&chunk_file_path).await.unwrap();
+        let mut chunk_file = tokio::fs::File::create(&chunk_file_path).await.unwrap();
         let bytes = bincode::serialize(chunk_data.as_ref()).unwrap();
         chunk_file.write_all(&bytes).await.unwrap();
     }
