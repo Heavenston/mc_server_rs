@@ -3,8 +3,14 @@ use mc_networking::{
     packets::client_bound::{C20ChunkData, C20ChunkDataSection},
 };
 
-#[derive(Clone)]
+use serde::{Deserialize, Serialize};
+use serde_big_array::*;
+
+big_array! { BigArray; }
+
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ChunkDataSection {
+    #[serde(with = "BigArray")]
     blocks: [usize; 4096],
     palette: Vec<i32>,
 }
@@ -56,10 +62,11 @@ impl ChunkDataSection {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ChunkData {
     sections: [Option<Box<ChunkDataSection>>; 17],
     // TODO: Make biomes mutable
+    #[serde(with = "BigArray")]
     biomes: [i32; 1024],
 }
 impl ChunkData {
