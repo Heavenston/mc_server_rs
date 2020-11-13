@@ -8,6 +8,7 @@ use mc_utils::ChunkData;
 use async_trait::async_trait;
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
+use log::*;
 use std::sync::{
     atomic::{AtomicBool, AtomicI16, Ordering},
     Arc,
@@ -96,15 +97,24 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         if chunk.is_none() {
             return;
         }
-        let chunk = match Arc::try_unwrap(chunk.unwrap()) {
-            Ok(c) => c,
-            Err(c) => {
-                panic!(
-                    "Chunk {}-{} still has {} references",
-                    x,
-                    z,
-                    Arc::strong_count(&c)
-                );
+        let mut chunk = chunk.unwrap();
+        let mut i = 0;
+        let chunk = loop {
+            assert!(i < 100, "Could not unwrap chunk");
+            i += 1;
+            match Arc::try_unwrap(chunk) {
+                Ok(c) => break c,
+                Err(c) => {
+                    tokio::task::yield_now().await;
+                    chunk = c;
+                    debug!("CHUNK UNWRAP MISS");
+                    /*panic!(
+                        "Chunk {}-{} still has {} references",
+                        x,
+                        z,
+                        Arc::strong_count(&c)
+                    );*/
+                }
             }
         };
         let chunk = chunk.into_inner();
@@ -281,6 +291,9 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                     {
                                         if do_delay {
                                             sleep_until(start + delay).await;
+                                        }
+                                        if interrupt.load(Ordering::Relaxed) {
+                                            break 'chunk_loading;
                                         }
                                         self.increase_chunk_load_count(chunk_x + dx, chunk_z + dz)
                                             .await;
