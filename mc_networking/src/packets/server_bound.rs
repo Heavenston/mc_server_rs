@@ -294,6 +294,42 @@ mod play {
         }
     }
 
+    /// This packet is sent by the player when it clicks on a slot in a window.
+    ///
+    /// https://wiki.vg/Protocol#Click_Window
+    #[derive(Clone, Debug)]
+    pub struct S09ClickWindow {
+        /// The ID of the window which was clicked. 0 for player inventory.
+        pub window_id: u8,
+        /// The clicked slot number, see wiki.vg
+        pub slot_id: i16,
+        /// The button used in the click, see below
+        pub button: i8,
+        /// A unique number for the action, implemented by Notchian as a counter,
+        /// starting at 1 (different counter for every window ID).
+        pub action_number: i16,
+        /// Inventory operation mode, see wiki.vg
+        pub mode: VarInt,
+        /// The clicked slot. Has to be empty (item ID = -1) for drop mode.
+        pub clicked_item: Slot,
+    }
+    impl ServerBoundPacket for S09ClickWindow {
+        fn packet_id() -> i32 {
+            0x09
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+            Ok(Self {
+                window_id: decoder.read_u8()?,
+                slot_id: decoder.read_i16()?,
+                button: decoder.read_i8()?,
+                action_number: decoder.read_i16()?,
+                mode: decoder.read_varint()?,
+                clicked_item: Slot::decode_sync(decoder)?,
+            })
+        }
+    }
+
     /// Sent by the client after C1FKeepAlive
     ///
     /// https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29
