@@ -258,7 +258,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                 .as_player_mut()
                                 .loaded_chunks
                                 .remove(&chunk);
-                            sleep_until(start + Duration::from_millis(10)).await;
+                            sleep_until(start + Duration::from_millis(20)).await;
                         }
                     }
                 }
@@ -269,7 +269,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                     // Load new chunks in squares bigger around the player
                     'chunk_loading: for square_i in 0..view_distance {
                         let square_width = 1 + square_i * 2;
-                        let delay = Duration::from_millis(if do_delay { 15 } else { 0 });
+                        let delay = Duration::from_millis(if do_delay { 20 } else { 0 });
                         for dx in -square_width / 2..=square_width / 2 {
                             for dz in [-square_width / 2, square_width / 2].iter().cloned() {
                                 for (dx, dz) in &[(dx, dz), (dz, dx)] {
