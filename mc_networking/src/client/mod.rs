@@ -103,21 +103,26 @@ impl Client {
     }
 
     pub async fn send_raw_packet(&self, packet: &RawPacket) -> Result<()> {
-        self.write
+        match self
+            .write
             .lock()
             .await
             .write_all(&packet.encode(*self.compression.read().await))
-            .await?;
-        Ok(())
+            .await
+        {
+            Ok(..) => Ok(()),
+            Err(e) => {
+                if e.kind() == tokio::io::ErrorKind::ConnectionAborted {
+                    info!("Sent a packet to a disconnected Client");
+                    return Ok(());
+                }
+                Err(e.into())
+            }
+        }
     }
     pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
         let raw_packet = packet.to_rawpacket();
-        self.write
-            .lock()
-            .await
-            .write_all(&raw_packet.encode(*self.compression.read().await))
-            .await?;
-        Ok(())
+        self.send_raw_packet(&raw_packet).await
     }
 
     pub async fn hold_item_change(&self, slot: i8) -> Result<()> {
