@@ -719,6 +719,14 @@ impl Server {
                     let player = player.as_ref().unwrap();
                     player.write().await.as_player_mut().held_item = slot as u8;
                 }
+                ClientEvent::ClickWindow {
+                    window_id: _,
+                    slot_id: _,
+                    button: _,
+                    action_number: _,
+                    mode: _,
+                    clicked_item: _,
+                } => todo!(),
             }
         }
 

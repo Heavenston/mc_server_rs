@@ -416,6 +416,17 @@ async fn listen_client_packets(
                 else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()
                 }
+                else if raw_packet.packet_id == S09ClickWindow::packet_id() {
+                    let click_window = S09ClickWindow::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::ClickWindow {
+                        window_id: click_window.window_id,
+                        slot_id: click_window.slot_id,
+                        button: click_window.button,
+                        action_number: click_window.action_number,
+                        mode: click_window.mode,
+                        clicked_item: click_window.clicked_item,
+                    })?;
+                }
                 else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let mut data = keep_alive_data.write().await;

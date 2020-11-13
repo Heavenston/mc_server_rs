@@ -90,4 +90,21 @@ pub enum ClientEvent {
         /// The slot which the player has selected (0–8)
         slot: i16,
     },
+    /// This is sent by the player when it clicks on a slot in a window.
+    /// https://wiki.vg/Protocol#Click_Window
+    ClickWindow {
+        /// The ID of the window which was clicked. 0 for player inventory.
+        window_id: u8,
+        /// The clicked slot number, see wiki.vg
+        slot_id: i16,
+        /// The button used in the click, see below
+        button: i8,
+        /// A unique number for the action, implemented by Notchian as a counter,
+        /// starting at 1 (different counter for every window ID).
+        action_number: i16,
+        /// Inventory operation mode, see wiki.vg
+        mode: i32,
+        /// The clicked slot. Has to be empty (item ID = -1) for drop mode.
+        clicked_item: Slot,
+    },
 }
