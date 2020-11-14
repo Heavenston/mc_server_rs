@@ -11,7 +11,7 @@ big_array! { BigArray; }
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ChunkDataSection {
     #[serde(with = "BigArray")]
-    blocks: [usize; 4096],
+    blocks: [u16; 4096],
     palette: Vec<i32>,
 }
 impl ChunkDataSection {
@@ -30,17 +30,17 @@ impl ChunkDataSection {
             .enumerate()
             .find(|(_, b)| **b == block as i32)
         {
-            self.blocks[x + (z * 16) + (y * 256)] = pb;
+            self.blocks[x + (z * 16) + (y * 256)] = pb as u16;
         }
         else {
-            self.blocks[x + (z * 16) + (y * 256)] = self.palette.len();
+            self.blocks[x + (z * 16) + (y * 256)] = self.palette.len() as u16;
             self.palette.push(block as i32);
         }
     }
 
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
         let (x, y, z) = (x as usize, y as usize, z as usize);
-        self.palette[self.blocks[x + (z * 16) + (y * 256)]] as u16
+        self.palette[self.blocks[x + (z * 16) + (y * 256)] as usize] as u16
     }
 
     fn encode(&self) -> C20ChunkDataSection {
