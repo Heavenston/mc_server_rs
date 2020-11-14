@@ -599,7 +599,7 @@ mod play {
     pub struct S1CEntityAction {
         /// Player ID
         pub entity_id: VarInt,
-        /// The ID of the action, see website
+        /// The ID of the action, see wiki.vg
         pub action_id: VarInt,
         /// Only used by the “start jump with horse” action, in which case it ranges from 0 to 100. In all other cases it is 0.
         pub jump_boost: VarInt,
@@ -642,6 +642,8 @@ mod play {
     }
 
     /// Sent when the player changes the slot selection
+    ///
+    /// https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29
     #[derive(Clone, Debug)]
     pub struct S25HeldItemChange {
         /// The slot which the player has selected (0–8)
