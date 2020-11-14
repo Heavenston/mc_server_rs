@@ -3,6 +3,7 @@ use mc_server_lib::{chunk_holder::ChunkProvider, resource_manager::ResourceManag
 use mc_utils::ChunkData;
 
 use async_trait::async_trait;
+use log::*;
 use noise::{NoiseFn, Perlin};
 use std::{path::PathBuf, sync::Arc};
 use tokio::{io::AsyncWriteExt, task::spawn_blocking};
@@ -88,9 +89,15 @@ impl ChunkProvider for Generator {
             let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
             if chunk_file_path.exists() {
                 let bytes = std::fs::read(&chunk_file_path).unwrap();
-                match bincode::deserialize::<Box<ChunkData>>(&bytes) {
-                    Ok(n) => Some(n),
-                    Err(..) => None,
+                match bincode::deserialize::<ChunkData>(&bytes) {
+                    Ok(n) => Some(Box::new(n)),
+                    Err(e) => {
+                        warn!(
+                            "Could not serialize chunk {} {} (it may have been corrupted): {}",
+                            x, z, e
+                        );
+                        None
+                    }
                 }
             }
             else {
