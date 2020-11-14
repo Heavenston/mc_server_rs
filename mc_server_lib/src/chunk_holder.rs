@@ -120,7 +120,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             ((x as f64) / 16.0).floor() as i32,
             ((z as f64) / 16.0).floor() as i32,
         );
-        let chunk = self.chunks.read().await.get(&chunk_pos).cloned().unwrap();
+        let chunk = self.chunks.read().await[&chunk_pos].clone();
         let (local_x, local_y, local_z) = (
             x.rem_euclid(16) as u8,
             y.rem_euclid(16),
