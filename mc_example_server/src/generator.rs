@@ -88,8 +88,8 @@ impl ChunkProvider for Generator {
             let chunk_file_path = world_folder.join(format!("{}-{}.chunk", x, z));
             if chunk_file_path.exists() {
                 let bytes = std::fs::read(&chunk_file_path).unwrap();
-                match bincode::deserialize::<ChunkData>(&bytes) {
-                    Ok(n) => Some(Box::new(n)),
+                match bincode::deserialize::<Box<ChunkData>>(&bytes) {
+                    Ok(n) => Some(n),
                     Err(..) => None,
                 }
             }
