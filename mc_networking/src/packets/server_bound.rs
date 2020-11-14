@@ -322,6 +322,27 @@ mod play {
         }
     }
 
+    /// Mods and plugins can use this to send their data.
+    ///
+    /// https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29
+    #[derive(Clone, Debug)]
+    pub struct S0BPluginMessage {
+        pub channel: String,
+        pub data: Vec<u8>,
+    }
+    impl ServerBoundPacket for S0BPluginMessage {
+        fn packet_id() -> i32 {
+            0x0B
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+            Ok(Self {
+                channel: decoder.read_string()?,
+                data: decoder.read_to_end()?,
+            })
+        }
+    }
+
     /// Sent by the client after C1FKeepAlive
     ///
     /// https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29
