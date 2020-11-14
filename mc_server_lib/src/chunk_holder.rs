@@ -160,11 +160,10 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             ((z as f64) / 16.0).floor() as i32,
         );
         let (local_x, local_z) = (x.rem_euclid(16) as u8, z.rem_euclid(16) as u8);
-        self.chunks.read().await[&chunk_pos]
-            .read()
-            .await
-            .data
-            .get_block(local_x, y, local_z)
+        match self.chunks.read().await.get(&chunk_pos) {
+            Some(chunk) => chunk.read().await.data.get_block(local_x, y, local_z),
+            None => 0,
+        }
     }
 
     pub async fn get_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
