@@ -779,10 +779,10 @@ impl Server {
                             if !finished.load(Ordering::SeqCst) {
                                 warn!("Tick takes more than 500ms !");
                             }
-                            sleep_until(start + Duration::from_millis(1500)).await;
+                            sleep_until(start + Duration::from_millis(9500)).await;
                             if !finished.load(Ordering::SeqCst) {
                                 error!(
-                                    "A tick take more than 2s at stage {}, closing server",
+                                    "A tick take more than 10s at stage {}, closing server",
                                     server.tick_stage.load(Ordering::SeqCst)
                                 );
                                 std::process::exit(0);
