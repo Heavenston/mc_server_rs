@@ -494,6 +494,13 @@ async fn listen_client_packets(
                         clicked_item: click_window.clicked_item,
                     })?;
                 }
+                else if raw_packet.packet_id == S0BPluginMessage::packet_id() {
+                    let plugin_message = S0BPluginMessage::decode(raw_packet)?;
+                    event_sender.try_send(ClientEvent::PluginMessage {
+                        channel: plugin_message.channel,
+                        data: plugin_message.data,
+                    })?;
+                }
                 else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let mut data = keep_alive_data.write().await;

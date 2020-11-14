@@ -51,6 +51,14 @@ pub enum ClientEvent {
         /// The clicked slot. Has to be empty (item ID = -1) for drop mode.
         clicked_item: Slot,
     },
+    /// Mods and plugins can use this to send their data.
+    ///
+    /// https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29
+    /// Correspond to the packet S0BPluginMessage
+    PluginMessage {
+        channel: String,
+        data: Vec<u8>,
+    },
     /// Correspond to packet S12PlayerPosition
     PlayerPosition {
         x: f64,

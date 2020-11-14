@@ -729,6 +729,13 @@ impl Server {
                     mode: _,
                     clicked_item: _,
                 } => todo!(),
+                ClientEvent::PluginMessage { channel, data } => {
+                    debug!(
+                        "Plugin Message, Channel: {}, Data: {}",
+                        channel,
+                        String::from_utf8_lossy(&data)
+                    );
+                }
             }
         }
 
