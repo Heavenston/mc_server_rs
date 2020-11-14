@@ -85,7 +85,7 @@ impl ChunkProvider for Generator {
     async fn load_chunk_data(&self, x: i32, z: i32) -> Option<Box<ChunkData>> {
         let world_folder = self.world_folder.clone();
         let chunk_data = spawn_blocking(move || {
-            let chunk_file_path = world_folder.join(format!("{}-{}.chunk", x, z));
+            let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
             if chunk_file_path.exists() {
                 let bytes = std::fs::read(&chunk_file_path).unwrap();
                 match bincode::deserialize::<Box<ChunkData>>(&bytes) {
@@ -105,7 +105,7 @@ impl ChunkProvider for Generator {
         }
     }
     async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>) {
-        let chunk_file_path = self.world_folder.join(format!("{}-{}.chunk", x, z));
+        let chunk_file_path = self.world_folder.join(format!("{}.{}.chunk", x, z));
         let mut chunk_file = tokio::fs::File::create(&chunk_file_path).await.unwrap();
         let bytes = bincode::serialize(chunk_data.as_ref()).unwrap();
         chunk_file.write_all(&bytes).await.unwrap();
