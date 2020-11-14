@@ -166,9 +166,9 @@ mod play {
         },
         nbt_map::NBTMap,
         packets::server_bound::S1BPlayerDiggingStatus,
+        DecodingResult as Result,
     };
 
-    use anyhow::Result;
     use serde::Serialize;
     use std::{collections::HashMap, sync::Arc};
     use uuid::Uuid;

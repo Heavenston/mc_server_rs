@@ -1,19 +1,25 @@
-use crate::{data_types::encoder::PacketDecoder, packets::RawPacket};
-
-use anyhow::{Error, Result};
+use crate::{
+    data_types::encoder::PacketDecoder, packets::RawPacket, DecodingError, DecodingResult,
+};
 
 pub trait ServerBoundPacket: Sized {
     fn packet_id() -> i32;
-    fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self>;
+    fn run_decoder(decoder: &mut PacketDecoder) -> DecodingResult<Self>;
 
-    fn decode(raw_packet: RawPacket) -> Result<Self> {
+    fn decode(raw_packet: RawPacket) -> DecodingResult<Self> {
         if raw_packet.packet_id != Self::packet_id() {
-            return Err(Error::msg("Invalid packet id"));
+            return Err(DecodingError::parse_error(
+                &format!("packet 0x{:x}", Self::packet_id()),
+                "invalid packet id",
+            ));
         }
         let mut packet_decoder = PacketDecoder::new(raw_packet);
         let result = Self::run_decoder(&mut packet_decoder);
         if packet_decoder.remaining() > 0 {
-            return Err(Error::msg("Packet not fully consumed"));
+            return Err(DecodingError::parse_error(
+                &format!("packet 0x{:x}", Self::packet_id()),
+                "not all bytes have been read after decoding",
+            ));
         }
         result
     }
@@ -21,10 +27,10 @@ pub trait ServerBoundPacket: Sized {
 
 mod handshake {
     use super::ServerBoundPacket;
-    use crate::data_types::VarInt;
-
-    use crate::data_types::encoder::PacketDecoder;
-    use anyhow::Result;
+    use crate::{
+        data_types::{encoder::PacketDecoder, VarInt},
+        DecodingResult,
+    };
 
     /// This causes the server to switch into the target state.
     ///
@@ -41,7 +47,7 @@ mod handshake {
             0x00
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> DecodingResult<Self> {
             Ok(Self {
                 protocol_version: decoder.read_varint()?,
                 server_addr: decoder.read_string()?,
@@ -55,10 +61,7 @@ pub use handshake::*;
 
 mod status {
     use super::ServerBoundPacket;
-    use crate::{data_types::encoder::PacketDecoder, packets::RawPacket};
-
-    use anyhow::{Error, Result};
-    use std::convert::{TryFrom, TryInto};
+    use crate::{data_types::encoder::PacketDecoder, DecodingResult as Result};
 
     /// Initiate SLP and should be responded with C00Response
     ///
@@ -93,26 +96,15 @@ mod status {
             })
         }
     }
-    impl TryFrom<RawPacket> for S01Ping {
-        type Error = Error;
-
-        fn try_from(value: RawPacket) -> Result<Self, Self::Error> {
-            if value.packet_id != Self::packet_id() {
-                return Err(Error::msg("Invalid packet id"));
-            }
-            Ok(S01Ping {
-                payload: i64::from_be_bytes(value.data.as_ref().try_into()?),
-            })
-        }
-    }
 }
 pub use status::*;
 
 mod login {
     use super::ServerBoundPacket;
-    use crate::data_types::{encoder::PacketDecoder, VarInt};
-
-    use anyhow::Result;
+    use crate::{
+        data_types::{encoder::PacketDecoder, VarInt},
+        DecodingResult as Result,
+    };
 
     /// Initiate login state
     ///
@@ -195,10 +187,10 @@ pub use login::*;
 
 mod play {
     use super::ServerBoundPacket;
-    use crate::data_types::{Position, Slot, VarInt};
-
-    use crate::data_types::encoder::PacketDecoder;
-    use anyhow::Error;
+    use crate::{
+        data_types::{encoder::PacketDecoder, Position, Slot, VarInt},
+        DecodingError as Error, DecodingResult as Result,
+    };
 
     /// Sent by client as confirmation of C36PlayerPositionAndLook.
     ///
@@ -212,7 +204,7 @@ mod play {
             0x00
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 teleport_id: decoder.read_varint()?,
             })
@@ -232,7 +224,7 @@ mod play {
             0x03
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 message: decoder.read_string()?,
             })
@@ -252,7 +244,7 @@ mod play {
             0x04
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 action_id: decoder.read_varint()?,
             })
@@ -282,7 +274,7 @@ mod play {
             0x05
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 local: decoder.read_string()?,
                 view_distance: decoder.read_i8()?,
@@ -318,7 +310,7 @@ mod play {
             0x09
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 window_id: decoder.read_u8()?,
                 slot_id: decoder.read_i16()?,
@@ -342,7 +334,7 @@ mod play {
             0x10
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 id: decoder.read_i64()?,
             })
@@ -368,7 +360,7 @@ mod play {
             0x12
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 x: decoder.read_f64()?,
                 feet_y: decoder.read_f64()?,
@@ -401,7 +393,7 @@ mod play {
             0x13
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 x: decoder.read_f64()?,
                 feet_y: decoder.read_f64()?,
@@ -430,7 +422,7 @@ mod play {
             0x14
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 yaw: decoder.read_f32()?,
                 pitch: decoder.read_f32()?,
@@ -451,7 +443,7 @@ mod play {
             0x15
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 on_ground: decoder.read_bool()?,
             })
@@ -472,7 +464,7 @@ mod play {
             0x1A
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 flags: decoder.read_u8()?,
             })
@@ -537,7 +529,7 @@ mod play {
             0x1B
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let status = match decoder.read_varint()? {
                 0 => S1BPlayerDiggingStatus::StartedDigging,
                 1 => S1BPlayerDiggingStatus::CancelledDigging,
@@ -546,7 +538,12 @@ mod play {
                 4 => S1BPlayerDiggingStatus::DropItem,
                 5 => S1BPlayerDiggingStatus::ShootArrowOrFinishEating,
                 6 => S1BPlayerDiggingStatus::SwapItemInHand,
-                _ => return Err(Error::msg("invalid player digging status")),
+                _ => {
+                    return Err(Error::parse_error(
+                        "packet 0x1B",
+                        "invalid player digging status",
+                    ))
+                }
             };
             let position = Position::decode(decoder.read_i64()?);
             let face = match decoder.read_u8()? {
@@ -556,7 +553,12 @@ mod play {
                 3 => S1BPlayerDiggingFace::South,
                 4 => S1BPlayerDiggingFace::West,
                 5 => S1BPlayerDiggingFace::East,
-                _ => return Err(Error::msg("invalid player digging face")),
+                _ => {
+                    return Err(Error::parse_error(
+                        "packet 0x1B",
+                        "invalid player digging face",
+                    ))
+                }
             };
 
             Ok(Self {
@@ -586,7 +588,7 @@ mod play {
             0x1C
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 entity_id: decoder.read_varint()?,
                 action_id: decoder.read_varint()?,
@@ -610,7 +612,7 @@ mod play {
             0x28
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 slot_id: decoder.read_i16()?,
                 slot: Slot::decode_sync(decoder)?,
@@ -629,7 +631,7 @@ mod play {
             0x25
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 slot: decoder.read_i16()?,
             })
@@ -649,7 +651,7 @@ mod play {
             0x2C
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 hand: decoder.read_varint()?,
             })
@@ -681,7 +683,7 @@ mod play {
             0x2E
         }
 
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self, Error> {
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
                 hand: decoder.read_varint()?,
                 position: Position::decode(decoder.read_i64()?),
@@ -692,7 +694,12 @@ mod play {
                     3 => S1BPlayerDiggingFace::South,
                     4 => S1BPlayerDiggingFace::West,
                     5 => S1BPlayerDiggingFace::East,
-                    _ => return Err(Error::msg("invalid player digging face")),
+                    _ => {
+                        return Err(Error::parse_error(
+                            "packet 0x2E",
+                            "invalid player digging face",
+                        ))
+                    }
                 },
                 cursor_position_x: decoder.read_f32()?,
                 cursor_position_y: decoder.read_f32()?,

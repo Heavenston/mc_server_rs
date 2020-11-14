@@ -1,9 +1,8 @@
 pub mod client_bound;
 pub mod server_bound;
 
-use crate::data_types::encoder::varint;
+use crate::{data_types::encoder::varint, DecodingResult};
 
-use anyhow::Result;
 use byteorder::ReadBytesExt;
 use flate2::{
     read::{ZlibDecoder, ZlibEncoder},
@@ -86,7 +85,8 @@ impl RawPacket {
         }
     }
 
-    fn decode<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
+    /// Decodes the data part of a Packet (packet_id + data)
+    fn decode<T: Read + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         let packet_id = varint::decode_sync(stream)?;
         let mut data = vec![];
         while let Ok(b) = stream.read_u8() {
@@ -100,7 +100,7 @@ impl RawPacket {
     pub async fn decode_async<T: AsyncRead + Unpin>(
         stream: &mut T,
         compression: PacketCompression,
-    ) -> Result<Self> {
+    ) -> DecodingResult<Self> {
         if *compression > 0 {
             let packet_length = varint::decode_async(stream).await?;
             let mut taker = stream.take(packet_length as u64);
@@ -135,7 +135,7 @@ impl RawPacket {
     pub fn decode_sync<T: Read + Unpin>(
         stream: &mut T,
         compression: PacketCompression,
-    ) -> Result<Self> {
+    ) -> DecodingResult<Self> {
         if *compression > 0 {
             let packet_length = varint::decode_sync(stream)?;
             let mut taker = stream.take(packet_length as u64);

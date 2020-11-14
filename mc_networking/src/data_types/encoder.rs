@@ -1,12 +1,12 @@
 use crate::{
     data_types::{Angle, VarInt, VarLong},
     packets::RawPacket,
+    DecodingResult,
 };
 
-use anyhow::Result;
 use byteorder::{ReadBytesExt, BE};
 use bytes::Buf;
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Read, Result as IoResult, Write};
 use uuid::Uuid;
 
 pub struct PacketEncoder {
@@ -113,87 +113,87 @@ impl PacketDecoder {
         self.data.remaining()
     }
 
-    pub fn read_u8(&mut self) -> Result<u8> {
+    pub fn read_u8(&mut self) -> DecodingResult<u8> {
         Ok(self.data.read_u8()?)
     }
 
-    pub fn read_i8(&mut self) -> Result<i8> {
+    pub fn read_i8(&mut self) -> DecodingResult<i8> {
         Ok(self.data.read_i8()?)
     }
 
-    pub fn read_u16(&mut self) -> Result<u16> {
+    pub fn read_u16(&mut self) -> DecodingResult<u16> {
         Ok(self.data.read_u16::<BE>()?)
     }
 
-    pub fn read_i16(&mut self) -> Result<i16> {
+    pub fn read_i16(&mut self) -> DecodingResult<i16> {
         Ok(self.data.read_i16::<BE>()?)
     }
 
-    pub fn read_u32(&mut self) -> Result<u32> {
+    pub fn read_u32(&mut self) -> DecodingResult<u32> {
         Ok(self.data.read_u32::<BE>()?)
     }
 
-    pub fn read_i32(&mut self) -> Result<i32> {
+    pub fn read_i32(&mut self) -> DecodingResult<i32> {
         Ok(self.data.read_i32::<BE>()?)
     }
 
-    pub fn read_u64(&mut self) -> Result<u64> {
+    pub fn read_u64(&mut self) -> DecodingResult<u64> {
         Ok(self.data.read_u64::<BE>()?)
     }
 
-    pub fn read_i64(&mut self) -> Result<i64> {
+    pub fn read_i64(&mut self) -> DecodingResult<i64> {
         Ok(self.data.read_i64::<BE>()?)
     }
 
-    pub fn read_f32(&mut self) -> Result<f32> {
+    pub fn read_f32(&mut self) -> DecodingResult<f32> {
         Ok(self.data.read_f32::<BE>()?)
     }
 
-    pub fn read_f64(&mut self) -> Result<f64> {
+    pub fn read_f64(&mut self) -> DecodingResult<f64> {
         Ok(self.data.read_f64::<BE>()?)
     }
 
-    pub fn read_bool(&mut self) -> Result<bool> {
+    pub fn read_bool(&mut self) -> DecodingResult<bool> {
         Ok(self.read_u8()? == 1)
     }
 
-    pub fn read_varint(&mut self) -> Result<VarInt> {
+    pub fn read_varint(&mut self) -> DecodingResult<VarInt> {
         Ok(varint::decode_sync(&mut self.data)?)
     }
 
-    pub fn read_varlong(&mut self) -> Result<VarLong> {
+    pub fn read_varlong(&mut self) -> DecodingResult<VarLong> {
         Ok(varlong::decode_sync(&mut self.data)?)
     }
 
-    pub fn read_bytes(&mut self, amount: usize) -> Result<Vec<u8>> {
+    pub fn read_bytes(&mut self, amount: usize) -> DecodingResult<Vec<u8>> {
         let mut bytes = vec![0; amount];
         self.data.read_exact(bytes.as_mut_slice())?;
         Ok(bytes)
     }
 
-    pub fn read_to_end(&mut self) -> Result<Vec<u8>> {
+    pub fn read_to_end(&mut self) -> DecodingResult<Vec<u8>> {
         let mut bytes = vec![];
         self.data.read_to_end(&mut bytes)?;
         Ok(bytes)
     }
 
-    pub fn read_string(&mut self) -> Result<String> {
+    pub fn read_string(&mut self) -> DecodingResult<String> {
         Ok(string::decode_sync(&mut self.data)?)
     }
 
-    pub fn read_uuid(&mut self) -> Result<Uuid> {
+    pub fn read_uuid(&mut self) -> DecodingResult<Uuid> {
         Ok(Uuid::from_slice(self.read_bytes(16)?.as_slice())?)
     }
 }
 impl Read for PacketDecoder {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         self.data.read(buf)
     }
 }
 
 pub mod varint {
-    use crate::data_types::VarInt;
-    use anyhow::{Error, Result};
+    use crate::{data_types::VarInt, DecodingError, DecodingResult};
+
     use byteorder::ReadBytesExt;
     use std::io::{Cursor, Read};
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -214,7 +214,7 @@ pub mod varint {
         }
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<VarInt> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarInt> {
         let mut num_read: i32 = 0;
         let mut result = 0i32;
         let mut read;
@@ -225,7 +225,7 @@ pub mod varint {
 
             num_read += 1;
             if num_read > 5 {
-                return Err(Error::msg("VarInt is too big!"));
+                return Err(DecodingError::parse_error("varint", "too many bytes"));
             }
             if read & 0b1000_0000 == 0 {
                 break;
@@ -233,7 +233,7 @@ pub mod varint {
         }
         Ok(result)
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<VarInt> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<VarInt> {
         let mut num_read = 0;
         let mut result = 0i32;
         let mut read;
@@ -244,7 +244,7 @@ pub mod varint {
 
             num_read += 1;
             if num_read > 5 {
-                return Err(Error::msg("VarInt is too big!"));
+                return Err(DecodingError::parse_error("varint", "too many bytes"));
             }
             if read & 0b1000_0000 == 0 {
                 break;
@@ -252,13 +252,13 @@ pub mod varint {
         }
         Ok(result)
     }
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<VarInt> {
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<VarInt> {
         decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 }
 pub mod varlong {
-    use crate::data_types::VarLong;
-    use anyhow::{Error, Result};
+    use crate::{data_types::VarLong, DecodingError, DecodingResult};
+
     use byteorder::ReadBytesExt;
     use std::io::{Cursor, Read};
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -279,7 +279,7 @@ pub mod varlong {
         }
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<VarLong> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarLong> {
         let mut num_read: i64 = 0;
         let mut result = 0i64;
         let mut read;
@@ -290,7 +290,7 @@ pub mod varlong {
 
             num_read += 1;
             if num_read > 5 {
-                return Err(Error::msg("VarInt is too big!"));
+                return Err(DecodingError::parse_error("varlong", "too many bytes"));
             }
             if read & 0b1000_0000 == 0 {
                 break;
@@ -298,7 +298,7 @@ pub mod varlong {
         }
         Ok(result)
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<VarLong> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<VarLong> {
         let mut num_read = 0;
         let mut result = 0i64;
         let mut read;
@@ -309,7 +309,7 @@ pub mod varlong {
 
             num_read += 1;
             if num_read > 5 {
-                return Err(Error::msg("VarInt is too big!"));
+                return Err(DecodingError::parse_error("varlong", "too many bytes"));
             }
             if read & 0b1000_0000 == 0 {
                 break;
@@ -317,14 +317,14 @@ pub mod varlong {
         }
         Ok(result)
     }
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<VarLong> {
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<VarLong> {
         decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 }
 pub mod string {
     use super::varint;
+    use crate::DecodingResult;
 
-    use anyhow::Result;
     use byteorder::ReadBytesExt;
     use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -337,7 +337,7 @@ pub mod string {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<String> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<String> {
         let size = varint::decode_async(stream).await?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 
@@ -347,7 +347,7 @@ pub mod string {
 
         return Ok(String::from_utf8_lossy(&data).into());
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<String> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<String> {
         let size = varint::decode_sync(stream)?;
         let mut data: Vec<u8> = Vec::with_capacity(size as usize);
 

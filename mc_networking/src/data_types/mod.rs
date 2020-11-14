@@ -1,6 +1,5 @@
-use crate::data_types::encoder::PacketEncoder;
+use crate::{data_types::encoder::PacketEncoder, DecodingError, DecodingResult};
 
-use anyhow::{Error, Result};
 use byteorder::ReadBytesExt;
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -24,7 +23,7 @@ pub enum Slot {
     },
 }
 impl Slot {
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         if stream.read_u8()? == 1 {
             let item_id = encoder::varint::decode_sync(stream)?;
             let item_count = stream.read_u8()?;
@@ -40,7 +39,8 @@ impl Slot {
                     nbt::Blob::new()
                 }
                 else {
-                    nbt::Blob::from_reader(&mut Cursor::new(remaining))?
+                    nbt::Blob::from_reader(&mut Cursor::new(remaining))
+                        .map_err(|s| std::io::Error::from(s))?
                 },
             })
         }
@@ -49,7 +49,7 @@ impl Slot {
         }
     }
 
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<Self> {
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<Self> {
         Self::decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 
@@ -124,21 +124,21 @@ impl Particle {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         Ok(Self {
             id: encoder::varint::decode_async(stream).await?,
             data: encoder::varint::decode_async(stream).await?,
         })
     }
 
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> Result<Self> {
+    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         Ok(Self {
             id: encoder::varint::decode_sync(stream)?,
             data: encoder::varint::decode_sync(stream)?,
         })
     }
 
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> Result<Self> {
+    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<Self> {
         Self::decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 }
@@ -325,7 +325,7 @@ impl MetadataValue {
         data
     }
 
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> Result<Self> {
+    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         let kind = encoder::varint::decode_async(stream).await?;
 
         #[allow(overlapping_patterns)]
@@ -350,7 +350,7 @@ impl MetadataValue {
             // 17 OptVarInt
             // 18 Pose
             0..=18 => unimplemented!(), // TODO: Implement everything
-            _ => Err(Error::msg("Invalid type")),
+            _ => Err(DecodingError::parse_error("metadata value", "invalid type")),
         }
     }
 }

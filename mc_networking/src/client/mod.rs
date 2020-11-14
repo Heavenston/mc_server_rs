@@ -1,14 +1,18 @@
 pub mod client_event;
 
-use crate::packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket};
+use crate::{
+    data_types::Angle,
+    packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket},
+    DecodingError,
+};
 use client_event::*;
 
-use crate::data_types::Angle;
-use anyhow::{Error, Result};
 use log::*;
 use serde_json::json;
-use std::{convert::TryInto, net::Shutdown, sync::Arc};
+use std::{net::Shutdown, sync::Arc};
+use thiserror::Error;
 use tokio::{
+    io::Result as IoResult,
     net::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpStream,
@@ -61,27 +65,49 @@ impl Client {
                 )
                 .await
                 {
-                    if let Some(e) = e.downcast_ref::<std::io::Error>() {
-                        if e.kind() == std::io::ErrorKind::UnexpectedEof
-                            && *state.read().await == ClientState::Play
-                        {
-                            *state.write().await = ClientState::Disconnected;
-                            listener_sender.try_send(ClientEvent::Logout).unwrap();
+                    match e {
+                        ClientListenError::IoError(e)
+                        | ClientListenError::DecodingError(DecodingError::IoError {
+                            source: e,
+                            ..
+                        }) => {
+                            if e.kind() == std::io::ErrorKind::UnexpectedEof
+                                && *state.read().await == ClientState::Play
+                            {
+                                *state.write().await = ClientState::Disconnected;
+                                listener_sender.try_send(ClientEvent::Logout).unwrap();
+                            }
+                            else if *state.read().await == ClientState::Play {
+                                error!(
+                                    "Unexpected error while handling {:?}, {:#?}",
+                                    write.lock().await.as_ref().peer_addr().unwrap(),
+                                    e
+                                );
+                            }
                         }
-                        else {
+                        ClientListenError::EventSenderSendError(e) => {
+                            warn!(
+                                "could not send event {:?} from client {:?}",
+                                e,
+                                write.lock().await.as_ref().peer_addr().unwrap()
+                            );
+                            *state.write().await = ClientState::Disconnected;
+                            write
+                                .lock()
+                                .await
+                                .as_ref()
+                                .shutdown(Shutdown::Both)
+                                .unwrap();
+                            // TODO: Send a disconnect packet to client
+                        }
+
+                        e => {
                             error!(
                                 "Unexpected error while handling {:?}, {:#?}",
                                 write.lock().await.as_ref().peer_addr().unwrap(),
                                 e
                             );
                         }
-                    }
-                    else {
-                        error!(
-                            "Unexpected error while handling {:?}, {:#?}",
-                            write.lock().await.as_ref().peer_addr().unwrap(),
-                            e
-                        );
                     }
                 };
             }
@@ -102,7 +128,7 @@ impl Client {
         self.state.read().await.clone()
     }
 
-    pub async fn send_raw_packet(&self, packet: &RawPacket) -> Result<()> {
+    pub async fn send_raw_packet(&self, packet: &RawPacket) -> IoResult<()> {
         match self
             .write
             .lock()
@@ -126,17 +152,17 @@ impl Client {
             }
         }
     }
-    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> Result<()> {
+    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> IoResult<()> {
         let raw_packet = packet.to_rawpacket();
         self.send_raw_packet(&raw_packet).await
     }
 
-    pub async fn hold_item_change(&self, slot: i8) -> Result<()> {
+    pub async fn hold_item_change(&self, slot: i8) -> IoResult<()> {
         self.send_packet(&C3FHoldItemChange { slot }).await?;
         Ok(())
     }
 
-    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
+    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> IoResult<()> {
         self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
             .await?;
         Ok(())
@@ -150,7 +176,7 @@ impl Client {
         creative_mode: bool,
         flying_speed: f32,
         fov_modifier: f32,
-    ) -> Result<()> {
+    ) -> IoResult<()> {
         self.send_packet(&C30PlayerAbilities {
             flags: (invulnerable as u8) * 0x01
                 | (flying as u8) * 0x02
@@ -163,12 +189,12 @@ impl Client {
         Ok(())
     }
 
-    pub async fn destroy_entities(&self, entities: Vec<i32>) -> Result<()> {
+    pub async fn destroy_entities(&self, entities: Vec<i32>) -> IoResult<()> {
         self.send_packet(&C36DestroyEntities { entities }).await?;
         Ok(())
     }
 
-    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> Result<()> {
+    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> IoResult<()> {
         self.send_packet(&C3AEntityHeadLook {
             entity_id,
             head_yaw,
@@ -177,7 +203,7 @@ impl Client {
         Ok(())
     }
 
-    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> Result<()> {
+    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> IoResult<()> {
         self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
             .await?;
         Ok(())
@@ -266,13 +292,36 @@ async fn handle_keep_alive(
     }
 }
 
+#[derive(Error, Debug)]
+enum ClientListenError {
+    #[error("decoding error: {0:?}")]
+    DecodingError(#[from] DecodingError),
+    #[error("io error: {0}")]
+    IoError(#[from] std::io::Error),
+    #[error("could not send an event down the event sender: {0:?}")]
+    EventSenderSendError(#[from] mpsc::error::TrySendError<ClientEvent>),
+    #[error("could not receive an event response")]
+    ResponseRecvError(#[from] oneshot::error::RecvError),
+    #[error(
+        "received an invalid packet (id {packet_id:x}, name {packet_name:?}) on state {state:?}: \
+         {message}"
+    )]
+    InvalidPacket {
+        packet_id: i32,
+        state: ClientState,
+        packet_name: Option<String>,
+        message: String,
+    },
+}
+type ClientListenResult<T> = Result<T, ClientListenError>;
+
 async fn listen_client_packets(
     compression: Arc<RwLock<PacketCompression>>,
     mut read: OwnedReadHalf,
     write: Arc<Mutex<OwnedWriteHalf>>,
     event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
-) -> Result<()> {
+) -> ClientListenResult<()> {
     let keep_alive_data = Arc::new(RwLock::new(KeepAliveData {
         compression: Arc::clone(&compression),
         has_responded: false,
@@ -303,7 +352,14 @@ async fn listen_client_packets(
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
                     2 => ClientState::Login,
-                    _ => return Err(Error::msg("Invalid handshake packet")),
+                    _ => {
+                        return Err(ClientListenError::InvalidPacket {
+                            packet_id: 0x00,
+                            state: current_state,
+                            packet_name: Some("Handshake".to_string()),
+                            message: "invalid next state".to_string(),
+                        })
+                    }
                 };
                 debug!("New state: {:?}", state.read().await.clone());
             }
@@ -316,7 +372,7 @@ async fn listen_client_packets(
                         event_sender.try_send(ClientEvent::ServerListPing {
                             response: response_sender,
                         })?;
-                        response_receiver.await?
+                        response_receiver.await.unwrap()
                     };
                     let response = C00Response {
                         json_response: event_response,
@@ -329,7 +385,7 @@ async fn listen_client_packets(
                         .await?;
                 }
                 else if raw_packet.packet_id == S01Ping::packet_id() {
-                    let packet: S01Ping = raw_packet.try_into()?;
+                    let packet: S01Ping = S01Ping::decode(raw_packet)?;
                     let pong = C01Pong {
                         payload: packet.payload,
                     }
@@ -344,7 +400,12 @@ async fn listen_client_packets(
                     break;
                 }
                 else {
-                    return Err(Error::msg("Invalid packet_id"));
+                    return Err(ClientListenError::InvalidPacket {
+                        packet_id: raw_packet.packet_id,
+                        state: current_state,
+                        packet_name: None,
+                        message: "unknown packet id".to_string(),
+                    });
                 }
             }
 
@@ -503,12 +564,10 @@ async fn listen_client_packets(
                 }
                 else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
                     let creative_inventory_action = S28CreativeInventoryAction::decode(raw_packet)?;
-                    event_sender
-                        .try_send(ClientEvent::CreativeInventoryAction {
-                            slot_id: creative_inventory_action.slot_id,
-                            slot: creative_inventory_action.slot,
-                        })
-                        .unwrap();
+                    event_sender.try_send(ClientEvent::CreativeInventoryAction {
+                        slot_id: creative_inventory_action.slot_id,
+                        slot: creative_inventory_action.slot,
+                    })?;
                 }
                 else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
