@@ -22,14 +22,14 @@ use anyhow::Result;
 use log::*;
 use serde_json::json;
 use std::sync::{
-    atomic::{AtomicI32, Ordering},
+    atomic::{AtomicBool, AtomicI32, Ordering},
     Arc,
 };
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
-    sync::{Barrier, RwLock},
+    sync::{mpsc, RwLock},
     task::JoinHandle,
-    time::{sleep, Duration, Instant},
+    time::{sleep, sleep_until, Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -48,6 +48,7 @@ pub struct Server {
     max_players: u16,
     view_distance: u16,
     brand: String,
+    tick_stage: AtomicI32,
 }
 
 impl Server {
@@ -111,6 +112,7 @@ impl Server {
             }),
             tps: RwLock::new(20.0),
             average_tick_duration: RwLock::new(Duration::from_millis(0)),
+            tick_stage: AtomicI32::new(0),
         }
     }
 
@@ -763,25 +765,29 @@ impl Server {
                 }
             });
 
-            let barrier = Arc::new(Barrier::new(2));
-            let finished = Arc::new(RwLock::new(false));
+            let (ticks_send, mut ticks_receive) = mpsc::channel(10);
             // Infinite tick check
             tokio::task::spawn({
-                let barrier = Arc::clone(&barrier);
-                let finished = Arc::clone(&finished);
+                let server = Arc::clone(&server);
                 async move {
                     loop {
-                        barrier.wait().await;
-                        sleep(Duration::from_millis(500)).await;
-                        if !*finished.read().await {
-                            warn!("Tick takes more than 500ms !");
-                        }
-                        sleep(Duration::from_millis(9500)).await;
-                        if !*finished.read().await {
-                            warn!("A tick take more than 10s, closing server");
-                            std::process::exit(0);
-                        }
-                        *finished.write().await = true;
+                        let finished: Arc<AtomicBool> = ticks_receive.recv().await.unwrap();
+                        let start = Instant::now();
+                        let server = Arc::clone(&server);
+                        tokio::task::spawn(async move {
+                            sleep_until(start + Duration::from_millis(500)).await;
+                            if !finished.load(Ordering::SeqCst) {
+                                warn!("Tick takes more than 500ms !");
+                            }
+                            sleep_until(start + Duration::from_millis(1500)).await;
+                            if !finished.load(Ordering::SeqCst) {
+                                error!(
+                                    "A tick take more than 2s at stage {}, closing server",
+                                    server.tick_stage.load(Ordering::SeqCst)
+                                );
+                                std::process::exit(0);
+                            }
+                        });
                     }
                 }
             });
@@ -789,6 +795,8 @@ impl Server {
             loop {
                 interval.tick().await;
 
+                let finished = Arc::new(AtomicBool::new(false));
+                ticks_send.try_send(finished.clone()).unwrap();
                 let start = Instant::now();
                 server.tick().await;
                 let elapsed = start.elapsed();
@@ -797,14 +805,17 @@ impl Server {
                 }
                 *times.write().await += elapsed;
                 *ticks.write().await += 1;
-                *finished.write().await = true;
+                finished.store(true, Ordering::SeqCst);
             }
         });
     }
 
     pub async fn tick(&self) {
+        self.tick_stage.store(1, Ordering::SeqCst);
         self.entity_pool.tick().await;
+        self.tick_stage.store(2, Ordering::SeqCst);
         ChunkHolder::tick(Arc::clone(&self.chunk_holder)).await;
+        self.tick_stage.store(3, Ordering::SeqCst);
         self.players
             .write()
             .await
@@ -833,5 +844,6 @@ impl Server {
             })
             .await
             .unwrap();
+        self.tick_stage.store(0, Ordering::SeqCst);
     }
 }
