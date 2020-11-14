@@ -112,8 +112,14 @@ impl Client {
         {
             Ok(..) => Ok(()),
             Err(e) => {
-                if e.kind() == tokio::io::ErrorKind::ConnectionAborted {
+                if e.kind() == tokio::io::ErrorKind::ConnectionAborted
+                    || e.kind() == tokio::io::ErrorKind::ConnectionReset
+                {
                     info!("Sent a packet to a disconnected Client");
+                    if *self.state.read().await == ClientState::Play {
+                        *self.state.write().await = ClientState::Disconnected;
+                        self.event_sender.try_send(ClientEvent::Logout).unwrap();
+                    }
                     return Ok(());
                 }
                 Err(e.into())
