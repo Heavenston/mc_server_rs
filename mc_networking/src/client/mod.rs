@@ -587,6 +587,9 @@ async fn listen_client_packets(
                         inside_block: player_block_placement.inside_block,
                     })?;
                 }
+                else {
+                    debug!("Unknown packet id received {:02x}", raw_packet.packet_id);
+                }
             }
 
             ClientState::Disconnected => {
