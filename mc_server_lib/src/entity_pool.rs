@@ -108,17 +108,20 @@ impl EntityPool {
             {
                 if &self.get_synced_entity_location(eid).await != entity.location() {
                     let previous_location = self.get_synced_entity_location(eid).await;
-                    let new_location = entity.location();
 
-                    let has_rotation_changed = !previous_location.rotation_eq(&new_location);
-                    let has_position_changed = !previous_location.position_eq(&new_location);
+                    let has_rotation_changed = !previous_location.rotation_eq(&entity.location());
+                    let has_position_changed = !previous_location.position_eq(&entity.location());
                     self.synced_entities_location
                         .write()
                         .await
-                        .insert(eid, new_location.clone());
+                        .insert(eid, entity.location().clone());
 
                     let on_ground = entity.on_ground();
+                    drop(entity);
                     let players = self.get_players_around(eid).await;
+                    entity = entity_arc.read().await;
+
+                    let new_location = entity.location();
 
                     if has_rotation_changed {
                         EntityManager::broadcast_to(
