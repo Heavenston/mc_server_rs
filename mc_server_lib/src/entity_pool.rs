@@ -148,13 +148,13 @@ impl EntityPool {
                                 entity_id: eid,
                                 delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 yaw: new_location.yaw_angle(),
                                 pitch: new_location.pitch_angle(),
                                 on_ground,
@@ -169,13 +169,13 @@ impl EntityPool {
                                 entity_id: eid,
                                 delta_x: ((new_location.x * 32f64 - previous_location.x * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 delta_y: ((new_location.y * 32f64 - previous_location.y * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 delta_z: ((new_location.z * 32f64 - previous_location.z * 32f64)
                                     * 128f64)
-                                    .ceil() as i16,
+                                    .round() as i16,
                                 on_ground,
                             },
                             &players,
