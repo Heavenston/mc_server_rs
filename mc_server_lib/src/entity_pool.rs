@@ -127,7 +127,10 @@ impl EntityPool {
                         .await;
                     }
 
-                    if previous_location.distance2(&new_location) > 8.0 * 8.0 {
+                    if (previous_location.x - new_location.x).abs() > 8.0
+                        || (previous_location.y - new_location.y).abs() > 8.0
+                        || (previous_location.z - new_location.z).abs() > 8.0
+                    {
                         EntityManager::broadcast_to(
                             &C56EntityTeleport {
                                 entity_id: eid,
