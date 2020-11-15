@@ -19,9 +19,7 @@ use std::{
     future::Future,
     ops::{Deref, DerefMut},
     pin::Pin,
-    sync::Arc,
 };
-use tokio::sync::RwLock;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -60,10 +58,7 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
-    fn tick_fn(
-        &self,
-        #[allow(unused_variables)] entity: &Arc<RwLock<BoxedEntity>>,
-    ) -> Option<Pin<Box<dyn Send + Sync + Future<Output = ()>>>> {
+    fn tick_fn<'a>(&'a mut self) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
         None
     }
     fn get_spawn_packet(&self) -> RawPacket;

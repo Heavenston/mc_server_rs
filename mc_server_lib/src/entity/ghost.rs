@@ -6,13 +6,7 @@ use mc_networking::{
 use mc_utils::Location;
 
 use lazy_static::lazy_static;
-use std::{
-    collections::HashMap,
-    f32, f64,
-    future::Future,
-    pin::Pin,
-    sync::{Arc, Weak},
-};
+use std::{collections::HashMap, f32, f64, future::Future, pin::Pin, sync::Weak};
 use tokio::{sync::RwLock, time::Instant};
 use uuid::Uuid;
 
@@ -20,10 +14,7 @@ lazy_static! {
     static ref START_INSTANT: Instant = Instant::now();
 }
 
-async fn tick(entity: Arc<RwLock<BoxedEntity>>) {
-    let mut entity = entity.write().await;
-    let entity = entity.as_ghost_mut();
-
+async fn tick<'a>(entity: &'a mut GhostEntity) {
     let target_player = entity.target_player.upgrade();
     if target_player.is_none() {
         // TODO: Add dead entities
@@ -100,11 +91,8 @@ impl Entity for GhostEntity {
         &self.uuid
     }
 
-    fn tick_fn(
-        &self,
-        entity: &Arc<RwLock<BoxedEntity>>,
-    ) -> Option<Pin<Box<dyn Send + Sync + Future<Output = ()>>>> {
-        Some(Box::pin(tick(Arc::clone(entity))))
+    fn tick_fn<'a>(&'a mut self) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
+        Some(Box::pin(tick(self)))
     }
     fn get_spawn_packet(&self) -> RawPacket {
         C02SpawnLivingEntity {

@@ -72,6 +72,7 @@ impl EntityPool {
     }
     pub async fn tick(&self) {
         let entities = self.entities.read().await.clone();
+        let mut synced_entities_location = self.synced_entities_location.write().await;
         let players_ids = self
             .players
             .read()
@@ -80,7 +81,7 @@ impl EntityPool {
             .map(|(k, v)| (k, v.clone()))
             .collect::<Vec<_>>();
         for (eid, entity_arc) in entities {
-            let mut entity = entity_arc.read().await;
+            let mut entity = entity_arc.write().await;
             // Remove if remove_scheduled is true
             {
                 if entity.remove_scheduled() {
@@ -90,29 +91,30 @@ impl EntityPool {
             }
             // TICK THE ENTITY
             {
-                let tick_future = entity.tick_fn(&entity_arc);
+                let tick_future = entity.tick_fn();
                 if let Some(tick_future) = tick_future {
-                    drop(entity);
                     tick_future.await;
-                    entity = entity_arc.read().await;
                 }
             }
             // Sync entity position to players
             {
-                if &self.get_synced_entity_location(eid).await != entity.location() {
-                    let previous_location = self.get_synced_entity_location(eid).await;
+                let has_location_changed = synced_entities_location
+                    .get(&eid)
+                    .map(|l| l != entity.location())
+                    .unwrap_or(true);
+                if has_location_changed {
+                    let previous_location = synced_entities_location
+                        .get(&eid)
+                        .unwrap_or(entity.location())
+                        .clone();
+                    let new_location = entity.location();
 
-                    let has_rotation_changed = !previous_location.rotation_eq(&entity.location());
-                    let has_position_changed = !previous_location.position_eq(&entity.location());
-                    self.synced_entities_location
-                        .write()
-                        .await
-                        .insert(eid, entity.location().clone());
+                    let has_rotation_changed = !previous_location.rotation_eq(&new_location);
+                    let has_position_changed = !previous_location.position_eq(&new_location);
+                    synced_entities_location.insert(eid, new_location.clone());
 
                     let on_ground = entity.on_ground();
                     let players = self.get_players_around(&*entity).await;
-
-                    let new_location = entity.location();
 
                     if has_rotation_changed {
                         EntityManager::broadcast_to(
@@ -207,7 +209,7 @@ impl EntityPool {
                     drop(entity);
                     let synced_equipment = self.get_synced_entity_equipment(eid).await;
                     let synced_equipment = synced_equipment.to_ref();
-                    entity = entity_arc.read().await;
+                    entity = entity_arc.write().await;
                     let equipment = entity.get_equipment();
                     if synced_equipment != equipment {
                         let mut packet = C47EntityEquipment {
@@ -403,25 +405,6 @@ impl EntityPool {
         }
     }
 
-    async fn get_synced_entity_location(&self, eid: i32) -> Location {
-        let synced_location = self
-            .synced_entities_location
-            .read()
-            .await
-            .get(&eid)
-            .cloned();
-        match synced_location {
-            Some(loc) => loc,
-            None => {
-                let loc = Location::default();
-                self.synced_entities_location
-                    .write()
-                    .await
-                    .insert(eid, loc.clone());
-                loc
-            }
-        }
-    }
     async fn get_synced_entity_equipment(&self, eid: i32) -> EntityEquipment<Slot> {
         if !self
             .synced_entities_equipments
