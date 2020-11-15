@@ -5,7 +5,7 @@ use crate::{
 use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
 use tokio::sync::RwLock;
@@ -50,32 +50,25 @@ impl EntityPool {
         }
     }
 
-    pub async fn can_see_each_other(&self, first: i32, second: i32) -> bool {
-        let entities = self.entities.read().await;
-        let first = entities[first].read().await;
-        let second = entities[second].read().await;
+    /// Calls the provided entity visibility function pointer
+    pub async fn can_see_each_other(&self, first: &BoxedEntity, second: &BoxedEntity) -> bool {
         (self.entity_visibility_function)(self, &*first, &*second)
     }
     /// Get all players in view distance of an entity
-    pub async fn get_players_around(&self, eid: i32) -> Vec<PlayerWrapper> {
-        let mut players = vec![];
-        let player_ids = self.players.read().await.ids().collect::<Vec<_>>();
-        for player_eid in player_ids {
-            if player_eid == eid {
+    pub async fn get_players_around(&self, source: &BoxedEntity) -> Vec<PlayerWrapper> {
+        let mut players_around = vec![];
+        let source_id = source.entity_id();
+        let players = self.players.read().await;
+        for (player_eid, player_wrapper) in players.iter() {
+            if player_eid == source_id {
                 continue;
             }
-            if self.can_see_each_other(player_eid, eid).await {
-                players.push(
-                    self.players
-                        .read()
-                        .await
-                        .get_entity(player_eid)
-                        .unwrap()
-                        .clone(),
-                );
+            let player = player_wrapper.read().await;
+            if self.can_see_each_other(source, &*player).await {
+                players_around.push(player_wrapper.clone());
             }
         }
-        players
+        players_around
     }
     pub async fn tick(&self) {
         let entities = self.entities.read().await.clone();
@@ -117,9 +110,7 @@ impl EntityPool {
                         .insert(eid, entity.location().clone());
 
                     let on_ground = entity.on_ground();
-                    drop(entity);
-                    let players = self.get_players_around(eid).await;
-                    entity = entity_arc.read().await;
+                    let players = self.get_players_around(&*entity).await;
 
                     let new_location = entity.location();
 
@@ -266,9 +257,8 @@ impl EntityPool {
                     }
                 };
                 if let Some(packet) = packet {
-                    drop(entity);
-                    PlayerManager::broadcast_to(&packet, &self.get_players_around(eid).await).await;
-                    entity = entity_arc.read().await;
+                    PlayerManager::broadcast_to(&packet, &self.get_players_around(&*entity).await)
+                        .await;
                 }
             }
             // Sync visibility to players
@@ -460,25 +450,22 @@ impl EntityPool {
             .to_owned()
     }
 
-    pub async fn teleport_entity(&self, id: i32, location: Location) {
-        self.entities.read().await[id]
-            .write()
-            .await
-            .set_location(location.clone());
+    pub async fn teleport_entity(&self, entity: &mut BoxedEntity, location: Location) {
+        entity.set_location(location.clone());
         EntityManager::broadcast_to(
             &C56EntityTeleport {
-                entity_id: id,
-                x: location.x,
-                y: location.y,
-                z: location.z,
-                yaw: location.yaw_angle(),
-                pitch: location.pitch_angle(),
-                on_ground: self.entities.read().await[id].read().await.on_ground(),
+                entity_id: entity.entity_id(),
+                x: entity.location().x,
+                y: entity.location().y,
+                z: entity.location().z,
+                yaw: entity.location().yaw_angle(),
+                pitch: entity.location().pitch_angle(),
+                on_ground: entity.on_ground(),
             },
-            &self.get_players_around(id).await,
+            &self.get_players_around(entity).await,
         )
         .await;
-        if let Some(player) = self.entities.read().await[id].read().await.try_as_player() {
+        if let Some(player) = entity.try_as_player() {
             player
                 .client
                 .read()
@@ -496,22 +483,13 @@ impl EntityPool {
                 .unwrap();
         }
     }
-    pub async fn update_entity_metadata(&self, entity_id: i32) -> Result<()> {
-        let entity = self
-            .entities
-            .read()
-            .await
-            .get_entity(entity_id)
-            .ok_or(Error::msg("Invalid entity id"))?
-            .clone();
-        let metadata = entity.read().await.metadata();
-
+    pub async fn sync_entity_metadata(&self, entity: &BoxedEntity) -> Result<()> {
         EntityManager::broadcast_to(
             &C44EntityMetadata {
-                entity_id,
-                metadata,
+                entity_id: entity.entity_id(),
+                metadata: entity.metadata(),
             },
-            &self.get_players_around(entity_id).await,
+            &self.get_players_around(entity).await,
         )
         .await;
 

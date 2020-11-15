@@ -56,8 +56,8 @@ impl CommandExecutor for TpCommand {
         if args.len() != 3 {
             return Ok(false);
         }
-        let eid = executor.read().await.entity_id();
-        let location = executor.read().await.location().clone();
+        let mut entity = executor.write().await;
+        let location = entity.location();
         let parse_coord = |x: &str, default: f64| {
             if x == "~" {
                 return Some(default);
@@ -86,7 +86,7 @@ impl CommandExecutor for TpCommand {
 
         self.entity_pool
             .teleport_entity(
-                eid,
+                &mut *entity,
                 Location {
                     x,
                     y,

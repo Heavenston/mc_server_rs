@@ -419,7 +419,7 @@ impl Server {
 
                     // Update position
                     entity_pool
-                        .teleport_entity(player_eid, spawn_location)
+                        .teleport_entity(&mut *player.write().await, spawn_location)
                         .await;
 
                     // Send inventory
@@ -542,43 +542,34 @@ impl Server {
                     ..
                 } => {
                     if entity_id == player_eid {
-                        {
-                            let mut player = player.as_ref().unwrap().write().await;
-                            let mut player = player.as_player_mut();
-                            match action_id {
-                                0 => {
-                                    player.is_sneaking = true;
-                                }
-                                1 => {
-                                    player.is_sneaking = false;
-                                }
-                                3 => {
-                                    player.is_sprinting = true;
-                                }
-                                4 => {
-                                    player.is_sprinting = false;
-                                }
-                                _ => (),
+                        let mut player_write = player.as_ref().unwrap().write().await;
+                        let mut player = player_write.as_player_mut();
+                        match action_id {
+                            0 => {
+                                player.is_sneaking = true;
                             }
+                            1 => {
+                                player.is_sneaking = false;
+                            }
+                            3 => {
+                                player.is_sprinting = true;
+                            }
+                            4 => {
+                                player.is_sprinting = false;
+                            }
+                            _ => (),
                         }
                         entity_pool
-                            .update_entity_metadata(player_eid)
+                            .sync_entity_metadata(&*player_write)
                             .await
                             .unwrap();
                     }
                 }
                 ClientEvent::PlayerAbilities { is_flying } => {
-                    player
-                        .as_ref()
-                        .unwrap()
-                        .write()
-                        .await
-                        .as_player_mut()
-                        .is_flying = is_flying;
-                    entity_pool
-                        .update_entity_metadata(player_eid)
-                        .await
-                        .unwrap();
+                    let mut player = player.as_ref().unwrap().write().await;
+
+                    player.as_player_mut().is_flying = is_flying;
+                    entity_pool.sync_entity_metadata(&*player).await.unwrap();
                 }
                 ClientEvent::Animation { hand } => {
                     let servers = server
