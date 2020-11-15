@@ -9,6 +9,7 @@ use flate2::{
     Compression,
 };
 use std::{
+    fmt::Debug,
     io::{Cursor, Read},
     ops::Deref,
 };
@@ -156,5 +157,14 @@ impl RawPacket {
             let mut taker = stream.take(length as u64);
             Self::decode(&mut taker)
         }
+    }
+}
+
+impl Debug for RawPacket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RawPacket")
+            .field("packet_id", &self.packet_id)
+            .field("data_length", &self.data.len())
+            .finish()
     }
 }
