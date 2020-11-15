@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use log::*;
 use noise::{NoiseFn, Perlin};
 use std::{path::PathBuf, sync::Arc};
-use tokio::{io::AsyncWriteExt, task::spawn_blocking};
+use tokio::task::spawn_blocking;
 
 pub struct Generator {
     grass: bool,
@@ -88,16 +88,23 @@ impl ChunkProvider for Generator {
         let chunk_data = spawn_blocking(move || {
             let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
             if chunk_file_path.exists() {
-                let bytes = std::fs::read(&chunk_file_path).unwrap();
-                match bincode::deserialize::<ChunkData>(&bytes) {
-                    Ok(n) => Some(Box::new(n)),
-                    Err(e) => {
+                let mut i = 0;
+                loop {
+                    i += 1;
+                    let bytes = std::fs::read(&chunk_file_path).unwrap();
+                    let e = match bincode::deserialize::<ChunkData>(&bytes) {
+                        Ok(n) => break Some(Box::new(n)),
+                        Err(e) => e,
+                    };
+                    if i > 10 {
                         warn!(
                             "Could not serialize chunk {} {} (it may have been corrupted): {}",
                             x, z, e
                         );
-                        None
+                        std::fs::remove_file(&chunk_file_path).unwrap();
+                        break None;
                     }
+                    std::thread::sleep(std::time::Duration::from_millis(i));
                 }
             }
             else {
@@ -112,9 +119,14 @@ impl ChunkProvider for Generator {
         }
     }
     async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>) {
-        let chunk_file_path = self.world_folder.join(format!("{}.{}.chunk", x, z));
-        let mut chunk_file = tokio::fs::File::create(&chunk_file_path).await.unwrap();
-        let bytes = bincode::serialize(chunk_data.as_ref()).unwrap();
-        chunk_file.write_all(&bytes).await.unwrap();
+        let world_folder = self.world_folder.clone();
+        spawn_blocking(move || {
+            let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
+            let chunk_file = std::fs::File::create(chunk_file_path).unwrap();
+            bincode::serialize_into(&chunk_file, chunk_data.as_ref()).unwrap();
+            chunk_file.sync_all().unwrap();
+        })
+        .await
+        .unwrap();
     }
 }
