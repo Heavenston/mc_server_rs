@@ -1,4 +1,5 @@
 mod commands;
+mod entities;
 mod generator;
 mod server;
 

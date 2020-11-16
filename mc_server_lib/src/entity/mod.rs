@@ -1,8 +1,6 @@
-pub mod ghost;
 pub mod living_entity;
 pub mod player;
 
-use ghost::GhostEntity;
 use living_entity::LivingEntity;
 use mc_networking::{
     data_types::{MetadataValue, Slot},
@@ -88,7 +86,6 @@ impl_downcast!(sync Entity);
 pub enum BoxedEntity {
     Player(Box<Player>),
     LivingEntity(Box<LivingEntity>),
-    Ghost(Box<GhostEntity>),
     Unknown(Box<dyn Entity>),
 }
 impl BoxedEntity {
@@ -100,6 +97,32 @@ impl BoxedEntity {
         match self {
             BoxedEntity::Unknown(..) => true,
             _ => false,
+        }
+    }
+    pub fn into_known(self) -> BoxedEntity {
+        if let BoxedEntity::Unknown(entity) = self {
+            if entity.is::<Player>() {
+                BoxedEntity::Player(
+                    entity
+                        .downcast::<Player>()
+                        .map_err(|_| Error::msg(""))
+                        .unwrap(),
+                )
+            }
+            else if entity.is::<LivingEntity>() {
+                BoxedEntity::LivingEntity(
+                    entity
+                        .downcast::<LivingEntity>()
+                        .map_err(|_| Error::msg(""))
+                        .unwrap(),
+                )
+            }
+            else {
+                BoxedEntity::Unknown(entity)
+            }
+        }
+        else {
+            self
         }
     }
 
@@ -165,69 +188,28 @@ impl BoxedEntity {
         }
     }
 
-    pub fn is_ghost(&self) -> bool {
+    pub fn is<T: Entity>(&self) -> bool {
         match self {
-            BoxedEntity::Ghost(..) => true,
+            BoxedEntity::Unknown(e) => e.is::<T>(),
             _ => false,
         }
     }
-    pub fn as_ghost(&self) -> &Box<GhostEntity> {
-        match self {
-            BoxedEntity::Ghost(p) => p,
-            _ => panic!("Entity is not a ghost"),
-        }
+    pub fn as_generic<T: Entity>(&self) -> &T {
+        self.try_as().unwrap()
     }
-    pub fn as_ghost_mut(&mut self) -> &mut Box<GhostEntity> {
-        match self {
-            BoxedEntity::Ghost(p) => p,
-            _ => panic!("Entity is not a ghost"),
-        }
+    pub fn as_generic_mut<T: Entity>(&mut self) -> &mut T {
+        self.try_as_mut().unwrap()
     }
-    pub fn try_as_ghost(&self) -> Option<&Box<GhostEntity>> {
+    pub fn try_as<T: Entity>(&self) -> Option<&T> {
         match self {
-            BoxedEntity::Ghost(p) => Some(p),
+            BoxedEntity::Unknown(p) => p.downcast_ref::<T>(),
             _ => None,
         }
     }
-    pub fn try_as_ghost_mut(&mut self) -> Option<&mut Box<GhostEntity>> {
+    pub fn try_as_mut<T: Entity>(&mut self) -> Option<&mut T> {
         match self {
-            BoxedEntity::Ghost(p) => Some(p),
+            BoxedEntity::Unknown(p) => p.downcast_mut::<T>(),
             _ => None,
-        }
-    }
-
-    pub fn into_known(self) -> BoxedEntity {
-        if let BoxedEntity::Unknown(entity) = self {
-            if entity.is::<Player>() {
-                BoxedEntity::Player(
-                    entity
-                        .downcast::<Player>()
-                        .map_err(|_| Error::msg(""))
-                        .unwrap(),
-                )
-            }
-            else if entity.is::<LivingEntity>() {
-                BoxedEntity::LivingEntity(
-                    entity
-                        .downcast::<LivingEntity>()
-                        .map_err(|_| Error::msg(""))
-                        .unwrap(),
-                )
-            }
-            else if entity.is::<GhostEntity>() {
-                BoxedEntity::Ghost(
-                    entity
-                        .downcast::<GhostEntity>()
-                        .map_err(|_| Error::msg(""))
-                        .unwrap(),
-                )
-            }
-            else {
-                BoxedEntity::Unknown(entity)
-            }
-        }
-        else {
-            self
         }
     }
 
@@ -235,7 +217,6 @@ impl BoxedEntity {
         match self {
             BoxedEntity::Player(player) => player.as_ref(),
             BoxedEntity::LivingEntity(entity) => entity.as_ref(),
-            BoxedEntity::Ghost(ghost) => ghost.as_ref(),
             BoxedEntity::Unknown(entity) => entity.as_ref(),
         }
     }
@@ -243,7 +224,6 @@ impl BoxedEntity {
         match self {
             BoxedEntity::Player(player) => player.as_mut(),
             BoxedEntity::LivingEntity(entity) => entity.as_mut(),
-            BoxedEntity::Ghost(ghost) => ghost.as_mut(),
             BoxedEntity::Unknown(entity) => entity.as_mut(),
         }
     }

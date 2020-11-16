@@ -1,11 +1,11 @@
-use crate::server::ENTITY_ID_COUNTER;
+use crate::{entities::ghost::GhostEntity, server::ENTITY_ID_COUNTER};
 use mc_networking::data_types::{
     command_data::{ArgumentNode, LiteralNode, Node},
     encoder::PacketEncoder,
 };
 use mc_server_lib::{
     chat_manager::CommandExecutor,
-    entity::{ghost::GhostEntity, living_entity::LivingEntity, BoxedEntity},
+    entity::{living_entity::LivingEntity, BoxedEntity},
     entity_manager::PlayerWrapper,
     entity_pool::EntityPool,
     resource_manager::ResourceManager,
@@ -84,7 +84,7 @@ impl CommandExecutor for SummonCommand {
             }
             match &*args[0] {
                 "ghost" => {
-                    let amount = if args.len() == 2 {
+                    let amount: i32 = if args.len() == 2 {
                         let parsed = args[1].parse();
                         if let Err(..) = parsed {
                             return Ok(false);
@@ -127,7 +127,7 @@ impl CommandExecutor for SummonCommand {
                             .await
                         {
                             Some(id) => {
-                                let amount = if args.len() == 3 {
+                                let amount: i32 = if args.len() == 3 {
                                     let parsed = args[2].parse();
                                     if let Err(..) = parsed {
                                         return Ok(false);

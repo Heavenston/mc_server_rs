@@ -1,8 +1,8 @@
-use super::{BoxedEntity, Entity, EntityEquipment};
 use mc_networking::{
     data_types::{MetadataValue, Slot},
     packets::{client_bound::*, RawPacket},
 };
+use mc_server_lib::entity::{BoxedEntity, Entity, EntityEquipment};
 use mc_utils::Location;
 
 use lazy_static::lazy_static;

@@ -746,6 +746,7 @@ dependencies = [
  "downcast-rs",
  "fern",
  "hematite-nbt",
+ "lazy_static",
  "log",
  "mc_networking",
  "mc_server_lib",
