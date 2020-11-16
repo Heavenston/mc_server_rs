@@ -56,7 +56,10 @@ pub trait Entity: Send + Sync + DowncastSync {
     fn entity_id(&self) -> i32;
     fn uuid(&self) -> &Uuid;
 
-    fn tick_fn<'a>(&'a mut self) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
+    fn tick<'a>(
+        &'a mut self,
+        #[allow(unused_variables)] counter: i32,
+    ) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
         None
     }
     fn get_spawn_packet(&self) -> RawPacket;

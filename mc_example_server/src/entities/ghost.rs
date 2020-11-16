@@ -5,16 +5,11 @@ use mc_networking::{
 use mc_server_lib::entity::{BoxedEntity, Entity, EntityEquipment};
 use mc_utils::Location;
 
-use lazy_static::lazy_static;
 use std::{collections::HashMap, f32, f64, future::Future, pin::Pin, sync::Weak};
-use tokio::{sync::RwLock, time::Instant};
+use tokio::sync::RwLock;
 use uuid::Uuid;
 
-lazy_static! {
-    static ref START_INSTANT: Instant = Instant::now();
-}
-
-async fn tick<'a>(entity: &'a mut GhostEntity) {
+async fn tick<'a>(entity: &'a mut GhostEntity, counter: i32) {
     let target_player = entity.target_player.upgrade();
     if target_player.is_none() {
         // TODO: Add dead entities
@@ -27,7 +22,7 @@ async fn tick<'a>(entity: &'a mut GhostEntity) {
     let player_pos = target_player.location().clone();
     drop(target_player);
 
-    let current_sec = START_INSTANT.elapsed().as_millis() as f64 / 1000.0;
+    let current_sec = counter as f64 / 20.0;
 
     let rotation =
         (current_sec / 3.0 + entity.entity_id as f64 / 10.0).fract() * f64::consts::PI * 2.0;
@@ -91,8 +86,11 @@ impl Entity for GhostEntity {
         &self.uuid
     }
 
-    fn tick_fn<'a>(&'a mut self) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
-        Some(Box::pin(tick(self)))
+    fn tick<'a>(
+        &'a mut self,
+        counter: i32,
+    ) -> Option<Pin<Box<dyn 'a + Send + Sync + Future<Output = ()>>>> {
+        Some(Box::pin(tick(self, counter)))
     }
     fn get_spawn_packet(&self) -> RawPacket {
         C02SpawnLivingEntity {

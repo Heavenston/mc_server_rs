@@ -70,7 +70,8 @@ impl EntityPool {
         }
         players_around
     }
-    pub async fn tick(&self) {
+
+    pub async fn tick(&self, counter: i32) {
         let entities = self.entities.read().await.clone();
         let mut synced_entities_location = self.synced_entities_location.write().await;
         let players_ids = self
@@ -91,7 +92,7 @@ impl EntityPool {
             }
             // TICK THE ENTITY
             {
-                let tick_future = entity.tick_fn();
+                let tick_future = entity.tick(counter);
                 if let Some(tick_future) = tick_future {
                     tick_future.await;
                 }

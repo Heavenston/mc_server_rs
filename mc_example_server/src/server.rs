@@ -45,6 +45,7 @@ pub struct Server {
     spawn_location: RwLock<Location>,
     tps: RwLock<f64>,
     average_tick_duration: RwLock<Duration>,
+    tick_counter: AtomicI32,
     max_players: u16,
     view_distance: u16,
     brand: String,
@@ -113,6 +114,7 @@ impl Server {
             tps: RwLock::new(20.0),
             average_tick_duration: RwLock::new(Duration::from_millis(0)),
             tick_stage: AtomicI32::new(0),
+            tick_counter: AtomicI32::new(0),
         }
     }
 
@@ -805,8 +807,10 @@ impl Server {
     }
 
     pub async fn tick(&self) {
+        let tick_counter = self.tick_counter.fetch_add(1, Ordering::Relaxed);
+
         self.tick_stage.store(1, Ordering::SeqCst);
-        self.entity_pool.tick().await;
+        self.entity_pool.tick(tick_counter).await;
         self.tick_stage.store(2, Ordering::SeqCst);
         ChunkHolder::tick(Arc::clone(&self.chunk_holder)).await;
         self.tick_stage.store(3, Ordering::SeqCst);
