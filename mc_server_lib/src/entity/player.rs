@@ -7,9 +7,11 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
+#[derive(Serialize, Deserialize)]
 pub struct PlayerInventory {
     pub armor_head: Slot,
     pub armor_chest: Slot,

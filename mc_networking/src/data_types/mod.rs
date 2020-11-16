@@ -1,6 +1,7 @@
 use crate::{data_types::encoder::PacketEncoder, DecodingError, DecodingResult};
 
 use byteorder::ReadBytesExt;
+use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 use uuid::Uuid;
@@ -16,7 +17,7 @@ pub type VarInt = i32;
 pub type VarLong = i64;
 pub type Angle = u8;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Slot {
     NotPresent,
     Present {
