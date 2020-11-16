@@ -33,7 +33,7 @@ impl CommandExecutor for SummonCommand {
             children_nodes: vec![],
             redirect_node: None,
             name: "amount".to_string(),
-            parser: "brigadier:integer".to_string(),
+            parser: "brigadier:integer".into(),
             properties: {
                 let mut encoder = PacketEncoder::new();
                 encoder.write_u8(0x01);
@@ -53,7 +53,7 @@ impl CommandExecutor for SummonCommand {
                         children_nodes: vec![Arc::clone(&amount_arg)],
                         redirect_node: None,
                         name: "type".to_string(),
-                        parser: "minecraft:resource_location".to_string(),
+                        parser: "minecraft:resource_location".into(),
                         properties: vec![],
                         suggestions_type: None,
                     })],

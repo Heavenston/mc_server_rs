@@ -56,7 +56,7 @@ pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
-    use crate::data_types::{encoder::PacketEncoder, VarInt};
+    use crate::data_types::{encoder::PacketEncoder, Identifier, VarInt};
     use uuid::Uuid;
 
     /// Disconnect the player with the specified message
@@ -141,7 +141,7 @@ mod login {
     #[derive(Clone, Debug)]
     pub struct C04LoginPluginRequest {
         pub message_id: i32,
-        pub channel: String,
+        pub channel: Identifier,
         pub data: Vec<u8>,
     }
     impl ClientBoundPacket for C04LoginPluginRequest {
@@ -162,7 +162,8 @@ mod play {
     use super::ClientBoundPacket;
     use crate::{
         data_types::{
-            command_data, encoder::PacketEncoder, Angle, MetadataValue, Position, Slot, VarInt,
+            command_data, encoder::PacketEncoder, Angle, Identifier, MetadataValue, Position, Slot,
+            VarInt,
         },
         nbt_map::NBTMap,
         packets::server_bound::S1BPlayerDiggingStatus,
@@ -501,11 +502,11 @@ mod play {
     }
 
     pub struct C17PluginMessageBuilder {
-        pub channel: String,
+        pub channel: Identifier,
         pub encoder: PacketEncoder,
     }
     impl C17PluginMessageBuilder {
-        pub fn new(channel: String) -> Self {
+        pub fn new(channel: Identifier) -> Self {
             Self {
                 channel,
                 encoder: PacketEncoder::new(),
@@ -526,7 +527,7 @@ mod play {
     /// https://wiki.vg/Protocol#Unload_Chunk
     #[derive(Clone, Debug)]
     pub struct C17PluginMessage {
-        pub channel: String,
+        pub channel: Identifier,
         pub data: Vec<u8>,
     }
     impl ClientBoundPacket for C17PluginMessage {
@@ -724,8 +725,8 @@ mod play {
 
     #[derive(Clone, Debug)]
     pub struct C24JoinGameDimensionCodec {
-        pub dimensions: HashMap<String, C24JoinGameDimensionElement>,
-        pub biomes: HashMap<String, C24JoinGameBiomeElement>,
+        pub dimensions: HashMap<Identifier, C24JoinGameDimensionElement>,
+        pub biomes: HashMap<Identifier, C24JoinGameBiomeElement>,
     }
 
     #[derive(Clone, Debug, Serialize)]
@@ -739,11 +740,11 @@ mod play {
         fn encode<T: std::io::Write>(&self, buf: &mut T) -> Result<()> {
             let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
             for (name, element) in self.dimensions.iter() {
-                dimension_map.push_element(name.clone(), element.clone());
+                dimension_map.push_element(name.to_string(), element.clone());
             }
             let mut biome_map = NBTMap::new("minecraft:worldgen/biome".into());
             for (name, element) in self.biomes.iter() {
-                biome_map.push_element(name.clone(), element.clone());
+                biome_map.push_element(name.to_string(), element.clone());
             }
             let codec = C24JoinGameDimensionCodecInner {
                 dimensions: dimension_map,
@@ -763,7 +764,7 @@ mod play {
         pub is_hardcore: bool,
         pub gamemode: u8,
         pub previous_gamemode: u8,
-        pub world_names: Vec<String>,
+        pub world_names: Vec<Identifier>,
         pub dimension_codec: C24JoinGameDimensionCodec,
         pub dimension: C24JoinGameDimensionElement,
         pub world_name: String,

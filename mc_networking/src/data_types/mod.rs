@@ -8,6 +8,9 @@ use uuid::Uuid;
 pub mod bitbuffer;
 pub mod command_data;
 pub mod encoder;
+mod identifier;
+
+pub use identifier::*;
 
 pub type VarInt = i32;
 pub type VarLong = i64;
@@ -179,18 +182,18 @@ pub enum MetadataValue {
     Boolean(bool),
     Rotation(f32, f32, f32),
     Position(Position),
-    Direction(i32), // VarInt
+    Direction(VarInt),
     OptUUID(Option<Uuid>),
     OptPosition(Option<Position>),
-    OptBlockID(Option<i32>), // VarInt
+    OptBlockID(Option<VarInt>),
     NBT(nbt::Value),
     Particle(Particle),
-    OptVarInt(Option<i32>), // VarInt
+    OptVarInt(Option<VarInt>),
     Pose(Pose),
     VillagerData {
-        kind: i32,       // VarInt
-        profession: i32, // VarInt
-        level: i32,      // VarInt
+        kind: VarInt,
+        profession: VarInt,
+        level: VarInt,
     },
 }
 impl MetadataValue {

@@ -1,4 +1,4 @@
-use crate::data_types::{encoder::PacketEncoder, VarInt};
+use crate::data_types::{encoder::PacketEncoder, Identifier, VarInt};
 
 use std::sync::Arc;
 
@@ -82,7 +82,7 @@ pub struct ArgumentNode {
     pub redirect_node: Option<Arc<dyn Node>>,
     pub name: String,
     /// All parsers can be found here: https://wiki.vg/Command_Data#Parsers
-    pub parser: String,
+    pub parser: Identifier,
     /// Content depends on parser: https://wiki.vg/Command_Data#Parsers
     pub properties: Vec<u8>,
     pub suggestions_type: Option<String>,

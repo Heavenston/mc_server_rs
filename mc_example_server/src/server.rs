@@ -223,10 +223,10 @@ impl Server {
                                 is_hardcore: false,
                                 gamemode: player.gamemode,
                                 previous_gamemode: player.gamemode,
-                                world_names: vec!["heav:world".to_owned()],
+                                world_names: vec!["heav:world".into()],
                                 dimension_codec: C24JoinGameDimensionCodec {
                                     dimensions: map! {
-                                        "heav:world".to_owned() => C24JoinGameDimensionElement {
+                                        "heav:world".into() => C24JoinGameDimensionElement {
                                             natural: 1,
                                             ambient_light: 1.0,
                                             has_ceiling: 0,
@@ -244,7 +244,7 @@ impl Server {
                                         }
                                     },
                                     biomes: map! {
-                                        "minecraft:plains".to_owned() => C24JoinGameBiomeElement {
+                                        "minecraft:plains".into() => C24JoinGameBiomeElement {
                                             precipitation: "none".to_owned(),
                                             effects: C24JoinGameBiomeEffects {
                                                 sky_color: 7907327,
@@ -264,7 +264,7 @@ impl Server {
                                             downfall: 0.4,
                                             category: "none".to_owned(),
                                         },
-                                        "heav:plot".to_owned() => C24JoinGameBiomeElement {
+                                        "heav:plot".into() => C24JoinGameBiomeElement {
                                             precipitation: "none".to_owned(),
                                             effects: C24JoinGameBiomeEffects {
                                                 sky_color: 0x7BA4FF,
@@ -407,7 +407,7 @@ impl Server {
                             .await
                             .send_to_player(player_eid, &{
                                 let mut builder =
-                                    C17PluginMessageBuilder::new("minecraft:brand".to_string());
+                                    C17PluginMessageBuilder::new("minecraft:brand".into());
                                 builder.encoder.write_string(&server.brand);
                                 builder.build()
                             })

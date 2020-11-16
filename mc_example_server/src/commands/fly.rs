@@ -38,7 +38,7 @@ impl CommandExecutor for FlyCommand {
                         children_nodes: vec![],
                         redirect_node: None,
                         name: "speed".to_string(),
-                        parser: "brigadier:float".to_string(),
+                        parser: "brigadier:float".into(),
                         properties: {
                             let mut encoder = PacketEncoder::new();
                             encoder.write_u8(0x01);

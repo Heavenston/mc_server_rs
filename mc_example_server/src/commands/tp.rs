@@ -28,7 +28,7 @@ impl CommandExecutor for TpCommand {
                 children_nodes: vec![],
                 redirect_node: None,
                 name: "location".to_string(),
-                parser: "minecraft:vec3".to_string(),
+                parser: "minecraft:vec3".into(),
                 properties: vec![],
                 suggestions_type: None,
             })],
