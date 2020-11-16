@@ -21,9 +21,12 @@ use mc_utils::Location;
 use anyhow::Result;
 use log::*;
 use serde_json::json;
-use std::sync::{
-    atomic::{AtomicBool, AtomicI32, Ordering},
-    Arc,
+use std::{
+    path::PathBuf,
+    sync::{
+        atomic::{AtomicBool, AtomicI32, Ordering},
+        Arc,
+    },
 };
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
@@ -50,10 +53,13 @@ pub struct Server {
     view_distance: u16,
     brand: String,
     tick_stage: AtomicI32,
+    world_folder: PathBuf,
 }
 
 impl Server {
     pub async fn new() -> Self {
+        let world_folder = std::env::current_dir().unwrap().join("world");
+
         info!("Loading minecraft resources...");
         let resource_manager = Arc::new(ResourceManager::new());
         resource_manager.load().await.unwrap();
@@ -61,7 +67,7 @@ impl Server {
 
         let view_distance = 10u16;
         let chunk_holder = Arc::new(ChunkHolder::new(
-            Generator::new(true, resource_manager.clone()),
+            Generator::new(true, resource_manager.clone(), world_folder.join("chunks")),
             view_distance as i32,
         ));
 
@@ -115,6 +121,7 @@ impl Server {
             average_tick_duration: RwLock::new(Duration::from_millis(0)),
             tick_stage: AtomicI32::new(0),
             tick_counter: AtomicI32::new(0),
+            world_folder,
         }
     }
 
@@ -153,6 +160,8 @@ impl Server {
         let chunk_holder = Arc::clone(&server.chunk_holder);
         let chat_manager = Arc::clone(&server.chat_manager);
         let resource_manager = Arc::clone(&server.resource_manager);
+        let players_folder = server.world_folder.join("players");
+        std::fs::create_dir_all(&players_folder).unwrap();
 
         while let Some(event) = event_receiver.recv().await {
             match event {

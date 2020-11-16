@@ -15,12 +15,15 @@ pub struct Generator {
     base_height: i32,
     height_diff: i32,
     resource_manager: Arc<ResourceManager>,
-    world_folder: PathBuf,
+    chunks_folder: PathBuf,
 }
 impl Generator {
-    pub fn new(grass: bool, resource_manager: Arc<ResourceManager>) -> Self {
-        let world_folder = std::env::current_dir().unwrap().join("world");
-        std::fs::create_dir_all(&world_folder).unwrap();
+    pub fn new(
+        grass: bool,
+        resource_manager: Arc<ResourceManager>,
+        chunks_folder: PathBuf,
+    ) -> Self {
+        std::fs::create_dir_all(&chunks_folder).unwrap();
         Self {
             grass,
             noise: Perlin::new(),
@@ -28,7 +31,7 @@ impl Generator {
             base_height: 80,
             height_diff: 100,
             resource_manager,
-            world_folder,
+            chunks_folder,
         }
     }
 
@@ -84,7 +87,7 @@ impl Generator {
 #[async_trait]
 impl ChunkProvider for Generator {
     async fn load_chunk_data(&self, x: i32, z: i32) -> Option<Box<ChunkData>> {
-        let world_folder = self.world_folder.clone();
+        let world_folder = self.chunks_folder.clone();
         let chunk_data = spawn_blocking(move || {
             let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
             if chunk_file_path.exists() {
@@ -119,7 +122,7 @@ impl ChunkProvider for Generator {
         }
     }
     async fn save_chunk_data(&self, x: i32, z: i32, chunk_data: Box<ChunkData>) {
-        let world_folder = self.world_folder.clone();
+        let world_folder = self.chunks_folder.clone();
         spawn_blocking(move || {
             let chunk_file_path = world_folder.join(format!("{}.{}.chunk", x, z));
             let chunk_file = std::fs::File::create(chunk_file_path).unwrap();
