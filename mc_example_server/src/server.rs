@@ -125,10 +125,10 @@ impl Server {
             loop {
                 let (socket, ..) = listener.accept().await?;
                 let (client, event_receiver) = Client::new(socket);
-                let client = Arc::new(RwLock::new(client));
+                let client = client;
                 tokio::task::spawn({
                     let server = Arc::clone(&server);
-                    let client = Arc::clone(&client);
+                    let client = client.clone();
                     async move {
                         Server::handle_client(server, client, event_receiver)
                             .await
@@ -142,7 +142,7 @@ impl Server {
 
     async fn handle_client(
         server: Arc<Server>,
-        client: Arc<RwLock<Client>>,
+        client: Client,
         mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
         let mut player: Option<PlayerWrapper> = None;
@@ -188,7 +188,7 @@ impl Server {
                             username.clone(),
                             player_eid,
                             uuid.clone(),
-                            Arc::clone(&client),
+                            client.clone(),
                         ))));
                         player = Some(entity.into());
 
@@ -212,8 +212,6 @@ impl Server {
 
                     // Join Game
                     client
-                        .read()
-                        .await
                         .send_packet(&{
                             let player = player.read().await;
                             let player = player.as_player();
@@ -342,8 +340,6 @@ impl Server {
                             players
                         };
                         client
-                            .read()
-                            .await
                             .send_packet(&C32PlayerInfo { players })
                             .await
                             .unwrap();

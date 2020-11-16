@@ -7,11 +7,7 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
-use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 pub struct PlayerInventory {
@@ -49,7 +45,7 @@ pub struct Player {
     pub username: String,
     pub entity_id: i32,
     pub uuid: Uuid,
-    pub client: Arc<RwLock<Client>>,
+    pub client: Client,
 
     pub inventory: PlayerInventory,
     pub held_item: u8,
@@ -71,7 +67,7 @@ pub struct Player {
     pub view_position: Option<(i32, i32)>,
 }
 impl Player {
-    pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Arc<RwLock<Client>>) -> Self {
+    pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Client) -> Self {
         Self {
             username,
             entity_id,

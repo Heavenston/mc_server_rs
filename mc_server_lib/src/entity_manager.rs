@@ -29,19 +29,15 @@ impl PlayerWrapper {
             .await
             .as_player()
             .client
-            .read()
-            .await
             .send_packet(packet)
             .await?;
         Ok(())
     }
-    pub async fn send_raw_packet(&self, packet: &RawPacket) -> Result<()> {
+    pub async fn send_raw_packet(&self, packet: RawPacket) -> Result<()> {
         self.read()
             .await
             .as_player()
             .client
-            .read()
-            .await
             .send_raw_packet(packet)
             .await?;
         Ok(())
@@ -103,8 +99,6 @@ impl PlayerWrapper {
         let player = player.as_player();
         player
             .client
-            .read()
-            .await
             .send_player_abilities(
                 player.invulnerable,
                 player.is_flying,
@@ -206,15 +200,9 @@ impl PlayerManager {
             .await?;
         Ok(())
     }
-    pub async fn send_raw_to_player(&self, player_id: i32, packet: &RawPacket) -> Result<()> {
+    pub async fn send_raw_to_player(&self, player_id: i32, packet: RawPacket) -> Result<()> {
         self.get_entity(player_id)
             .ok_or(Error::msg("Invalid player id"))?
-            .read()
-            .await
-            .as_player()
-            .client
-            .read()
-            .await
             .send_raw_packet(packet)
             .await?;
         Ok(())

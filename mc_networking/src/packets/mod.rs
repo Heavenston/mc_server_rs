@@ -44,6 +44,11 @@ impl RawPacket {
         Self { packet_id, data }
     }
 
+    pub fn will_compress(&self, compression: PacketCompression) -> bool {
+        *compression > 0
+            && self.data.len() as i32 + (self.packet_id / 2i32.pow(7) + 1) >= *compression
+    }
+
     pub fn encode(&self, compression: PacketCompression) -> Box<[u8]> {
         // PacketID + Data
         let mut data_buffer = vec![];

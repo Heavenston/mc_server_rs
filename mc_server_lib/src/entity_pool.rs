@@ -280,7 +280,7 @@ impl EntityPool {
                         entity.location().h_distance2(&player_location) < view_distance2;
                     if !is_loaded && should_be_loaded {
                         player
-                            .send_raw_packet(&entity.get_spawn_packet())
+                            .send_raw_packet(entity.get_spawn_packet())
                             .await
                             .unwrap();
                         player
@@ -448,8 +448,6 @@ impl EntityPool {
         if let Some(player) = entity.try_as_player() {
             player
                 .client
-                .read()
-                .await
                 .send_packet(&C34PlayerPositionAndLook {
                     x: location.x,
                     y: location.y,

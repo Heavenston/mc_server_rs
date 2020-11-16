@@ -9,16 +9,16 @@ use client_event::*;
 
 use log::*;
 use serde_json::json;
-use std::{net::Shutdown, sync::Arc};
+use std::sync::Arc;
 use thiserror::Error;
 use tokio::{
-    io::Result as IoResult,
     net::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpStream,
     },
     prelude::io::AsyncWriteExt,
-    sync::{mpsc, oneshot, Mutex, RwLock},
+    sync::{mpsc, oneshot, RwLock},
+    task::{block_in_place, spawn},
     time::{sleep, Duration, Instant},
 };
 
@@ -34,32 +34,37 @@ pub enum ClientState {
     Disconnected,
 }
 
+type PacketSendResult = Result<(), std::io::Error>;
+
+#[derive(Clone)]
 pub struct Client {
     compression: Arc<RwLock<PacketCompression>>,
-    write: Arc<Mutex<OwnedWriteHalf>>,
     state: Arc<RwLock<ClientState>>,
     #[allow(dead_code)]
     event_sender: mpsc::Sender<ClientEvent>,
+    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
+    peer_addr: std::net::SocketAddr,
 }
-
 impl Client {
     pub fn new(socket: TcpStream) -> (Self, mpsc::Receiver<ClientEvent>) {
+        let peer_addr = socket.peer_addr().unwrap();
         let (read, write) = socket.into_split();
-        let write = Arc::new(Mutex::new(write));
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = mpsc::channel(500);
+        let (event_sender, event_receiver) = mpsc::channel(100);
+        let (packet_sender, packet_receiver) = mpsc::channel(100);
         let compression = Arc::default();
 
-        tokio::spawn({
-            let write = Arc::clone(&write);
+        spawn({
+            let packet_sender = packet_sender.clone();
             let state = Arc::clone(&state);
             let listener_sender = event_sender.clone();
             let compression = Arc::clone(&compression);
+            let peer_addr = peer_addr.clone();
             async move {
-                if let Err(e) = listen_client_packets(
+                if let Err(e) = listen_ingoing_packets(
                     compression,
                     read,
-                    Arc::clone(&write),
+                    packet_sender.clone(),
                     listener_sender.clone(),
                     Arc::clone(&state),
                 )
@@ -78,47 +83,37 @@ impl Client {
                                 listener_sender.try_send(ClientEvent::Logout).unwrap();
                             }
                             else if *state.read().await == ClientState::Play {
-                                error!(
-                                    "Unexpected error while handling {:?}, {:#?}",
-                                    write.lock().await.as_ref().peer_addr().unwrap(),
-                                    e
-                                );
+                                error!("Unexpected error while handling {:?}, {:#?}", peer_addr, e);
                             }
                         }
                         ClientListenError::EventSenderSendError(e) => {
-                            warn!(
-                                "could not send event {:?} from client {:?}",
-                                e,
-                                write.lock().await.as_ref().peer_addr().unwrap()
-                            );
+                            warn!("could not send event {:?} from client {:?}", e, peer_addr);
                             *state.write().await = ClientState::Disconnected;
-                            write
-                                .lock()
-                                .await
-                                .as_ref()
-                                .shutdown(Shutdown::Both)
-                                .unwrap();
                             // TODO: Send a disconnect packet to client
                         }
 
                         e => {
-                            error!(
-                                "Unexpected error while handling {:?}, {:#?}",
-                                write.lock().await.as_ref().peer_addr().unwrap(),
-                                e
-                            );
+                            error!("Unexpected error while handling {:?}, {:#?}", peer_addr, e);
                         }
                     }
                 };
             }
         });
 
+        spawn({
+            let state = state.clone();
+            async move {
+                listen_outgoing_packets(write, packet_receiver, state).await;
+            }
+        });
+
         (
             Client {
                 compression,
-                write,
                 state,
                 event_sender,
+                packet_sender,
+                peer_addr,
             },
             event_receiver,
         )
@@ -128,41 +123,24 @@ impl Client {
         self.state.read().await.clone()
     }
 
-    pub async fn send_raw_packet(&self, packet: &RawPacket) -> IoResult<()> {
-        match self
-            .write
-            .lock()
+    pub async fn send_raw_packet(&self, packet: RawPacket) -> PacketSendResult {
+        self.packet_sender
+            .send(OutgoingPacketEvent::Packet(packet))
             .await
-            .write_all(&packet.encode(*self.compression.read().await))
-            .await
-        {
-            Ok(..) => Ok(()),
-            Err(e) => {
-                if e.kind() == tokio::io::ErrorKind::ConnectionAborted
-                    || e.kind() == tokio::io::ErrorKind::ConnectionReset
-                {
-                    debug!("Sent a packet to a disconnected Client");
-                    if *self.state.read().await == ClientState::Play {
-                        *self.state.write().await = ClientState::Disconnected;
-                        self.event_sender.try_send(ClientEvent::Logout).unwrap();
-                    }
-                    return Ok(());
-                }
-                Err(e.into())
-            }
-        }
+            .unwrap();
+        Ok(())
     }
-    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> IoResult<()> {
+    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> PacketSendResult {
         let raw_packet = packet.to_rawpacket();
-        self.send_raw_packet(&raw_packet).await
+        self.send_raw_packet(raw_packet).await
     }
 
-    pub async fn hold_item_change(&self, slot: i8) -> IoResult<()> {
+    pub async fn hold_item_change(&self, slot: i8) -> PacketSendResult {
         self.send_packet(&C3FHoldItemChange { slot }).await?;
         Ok(())
     }
 
-    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> IoResult<()> {
+    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> PacketSendResult {
         self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
             .await?;
         Ok(())
@@ -176,7 +154,7 @@ impl Client {
         creative_mode: bool,
         flying_speed: f32,
         fov_modifier: f32,
-    ) -> IoResult<()> {
+    ) -> PacketSendResult {
         self.send_packet(&C30PlayerAbilities {
             flags: (invulnerable as u8) * 0x01
                 | (flying as u8) * 0x02
@@ -189,12 +167,12 @@ impl Client {
         Ok(())
     }
 
-    pub async fn destroy_entities(&self, entities: Vec<i32>) -> IoResult<()> {
+    pub async fn destroy_entities(&self, entities: Vec<i32>) -> PacketSendResult {
         self.send_packet(&C36DestroyEntities { entities }).await?;
         Ok(())
     }
 
-    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> IoResult<()> {
+    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> PacketSendResult {
         self.send_packet(&C3AEntityHeadLook {
             entity_id,
             head_yaw,
@@ -203,7 +181,7 @@ impl Client {
         Ok(())
     }
 
-    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> IoResult<()> {
+    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> PacketSendResult {
         self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
             .await?;
         Ok(())
@@ -211,14 +189,13 @@ impl Client {
 }
 
 struct KeepAliveData {
-    pub compression: Arc<RwLock<PacketCompression>>,
     pub has_responded: bool,
     pub last_id: i64,
     pub sent_at: Instant,
 }
 
 async fn handle_keep_alive(
-    write: Arc<Mutex<OwnedWriteHalf>>,
+    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
     state: Arc<RwLock<ClientState>>,
     data: Arc<RwLock<KeepAliveData>>,
 ) {
@@ -232,16 +209,10 @@ async fn handle_keep_alive(
             data.write().await.last_id = id;
             data.write().await.has_responded = false;
             data.write().await.sent_at = Instant::now();
-            let packet_compression = *data.read().await.compression.read().await;
-            write
-                .lock()
-                .await
-                .write_all(
-                    C1FKeepAlive { id }
-                        .to_rawpacket()
-                        .encode(packet_compression)
-                        .as_ref(),
-                )
+            packet_sender
+                .send(OutgoingPacketEvent::Packet(
+                    C1FKeepAlive { id }.to_rawpacket(),
+                ))
                 .await
                 .unwrap();
             debug!("Sent keep alive");
@@ -254,32 +225,21 @@ async fn handle_keep_alive(
             if *state.read().await == ClientState::Disconnected {
                 break;
             }
-            let packet_compression = *data.read().await.compression.read().await;
             if !data.read().await.has_responded {
                 if data.read().await.sent_at.elapsed().as_millis() >= (KEEP_ALIVE_TIMEOUT as u128) {
                     debug!("Keep alive timeout, closing");
                     // TODO: Send disconnect packet
-                    write
-                        .lock()
-                        .await
-                        .as_ref()
-                        .shutdown(Shutdown::Both)
-                        .unwrap();
                     *state.write().await = ClientState::Disconnected;
                 }
                 else {
                     debug!("Keep alive miss, sending it again");
-                    write
-                        .lock()
-                        .await
-                        .write_all(
+                    packet_sender
+                        .send(OutgoingPacketEvent::Packet(
                             C1FKeepAlive {
                                 id: data.read().await.last_id,
                             }
-                            .to_rawpacket()
-                            .encode(packet_compression)
-                            .as_ref(),
-                        )
+                            .to_rawpacket(),
+                        ))
                         .await
                         .unwrap();
                 }
@@ -300,6 +260,8 @@ enum ClientListenError {
     IoError(#[from] std::io::Error),
     #[error("could not send an event down the event sender: {0:?}")]
     EventSenderSendError(#[from] mpsc::error::TrySendError<ClientEvent>),
+    #[error("could not send packet")]
+    PacketSenderSendError(#[from] mpsc::error::SendError<OutgoingPacketEvent>),
     #[error("could not receive an event response")]
     ResponseRecvError(#[from] oneshot::error::RecvError),
     #[error(
@@ -315,15 +277,14 @@ enum ClientListenError {
 }
 type ClientListenResult<T> = Result<T, ClientListenError>;
 
-async fn listen_client_packets(
+async fn listen_ingoing_packets(
     compression: Arc<RwLock<PacketCompression>>,
     mut read: OwnedReadHalf,
-    write: Arc<Mutex<OwnedWriteHalf>>,
+    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
     event_sender: mpsc::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> ClientListenResult<()> {
     let keep_alive_data = Arc::new(RwLock::new(KeepAliveData {
-        compression: Arc::clone(&compression),
         has_responded: false,
         sent_at: Instant::now(),
         last_id: 0,
@@ -374,28 +335,25 @@ async fn listen_client_packets(
                         })?;
                         response_receiver.await.unwrap()
                     };
-                    let response = C00Response {
-                        json_response: event_response,
-                    }
-                    .to_rawpacket();
-                    write
-                        .lock()
-                        .await
-                        .write_all(response.encode(*compression.read().await).as_ref())
+                    packet_sender
+                        .send(OutgoingPacketEvent::Packet(
+                            C00Response {
+                                json_response: event_response,
+                            }
+                            .to_rawpacket(),
+                        ))
                         .await?;
                 }
                 else if raw_packet.packet_id == S01Ping::packet_id() {
                     let packet: S01Ping = S01Ping::decode(raw_packet)?;
-                    let pong = C01Pong {
-                        payload: packet.payload,
-                    }
-                    .to_rawpacket();
-                    write
-                        .lock()
-                        .await
-                        .write_all(pong.encode(*compression.read().await).as_ref())
+                    packet_sender
+                        .send(OutgoingPacketEvent::Packet(
+                            C01Pong {
+                                payload: packet.payload,
+                            }
+                            .to_rawpacket(),
+                        ))
                         .await?;
-                    read.as_ref().shutdown(Shutdown::Both)?;
                     *(state.write().await) = ClientState::Disconnected;
                     break;
                 }
@@ -413,20 +371,21 @@ async fn listen_client_packets(
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     let login_state = S00LoginStart::decode(raw_packet)?;
 
-                    let new_compression = 20;
-                    write
-                        .lock()
-                        .await
-                        .write_all(
+                    let new_compression = 50;
+                    packet_sender
+                        .send(OutgoingPacketEvent::Packet(
                             C03SetCompression {
                                 threshold: new_compression,
                             }
-                            .to_rawpacket()
-                            .encode(PacketCompression::default())
-                            .as_ref(),
-                        )
+                            .to_rawpacket(),
+                        ))
                         .await?;
                     *compression.write().await = PacketCompression::new(new_compression);
+                    packet_sender
+                        .send(OutgoingPacketEvent::SetCompression(
+                            *compression.read().await,
+                        ))
+                        .await?;
 
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
@@ -438,25 +397,22 @@ async fn listen_client_packets(
                     };
                     match event_response {
                         LoginStartResult::Accept { uuid, username } => {
-                            let login_success = C02LoginSuccess { uuid, username }.to_rawpacket();
-                            write
-                                .lock()
-                                .await
-                                .write_all(login_success.encode(*compression.read().await).as_ref())
+                            packet_sender
+                                .send(OutgoingPacketEvent::Packet(
+                                    C02LoginSuccess { uuid, username }.to_rawpacket(),
+                                ))
                                 .await?;
                             *(state.write().await) = ClientState::Play;
                         }
                         LoginStartResult::Disconnect { reason } => {
-                            let disconnect = C00LoginDisconnect {
-                                reason: json!({ "text": reason }),
-                            }
-                            .to_rawpacket();
-                            write
-                                .lock()
-                                .await
-                                .write_all(disconnect.encode(*compression.read().await).as_ref())
+                            packet_sender
+                                .send(OutgoingPacketEvent::Packet(
+                                    C00LoginDisconnect {
+                                        reason: json!({ "text": reason }),
+                                    }
+                                    .to_rawpacket(),
+                                ))
                                 .await?;
-                            read.as_ref().shutdown(Shutdown::Both)?;
                             *(state.write().await) = ClientState::Disconnected;
                             break;
                         }
@@ -464,10 +420,10 @@ async fn listen_client_packets(
                     event_sender.try_send(ClientEvent::LoggedIn)?;
                     keep_alive_task = Some(tokio::task::spawn({
                         let data = Arc::clone(&keep_alive_data);
-                        let write = Arc::clone(&write);
+                        let packet_sender = packet_sender.clone();
                         let state = Arc::clone(&state);
                         async move {
-                            handle_keep_alive(write, state, data).await;
+                            handle_keep_alive(packet_sender, state, data).await;
                         }
                     }));
                 }
@@ -609,4 +565,37 @@ async fn listen_client_packets(
         keep_alive_task.await.unwrap();
     }
     Ok(())
+}
+
+#[derive(Debug)]
+enum OutgoingPacketEvent {
+    Packet(RawPacket),
+    SetCompression(PacketCompression),
+}
+
+async fn listen_outgoing_packets(
+    mut write: OwnedWriteHalf,
+    mut packet_receiver: mpsc::Receiver<OutgoingPacketEvent>,
+    _state: Arc<RwLock<ClientState>>,
+) {
+    let mut compression = PacketCompression::default();
+    while let Some(event) = packet_receiver.recv().await {
+        match event {
+            OutgoingPacketEvent::Packet(packet) => {
+                let packet_id = packet.packet_id;
+                let bytes = if packet.will_compress(compression) {
+                    block_in_place(move || packet.encode(compression))
+                }
+                else {
+                    packet.encode(compression)
+                };
+                match write.write_all(&bytes).await {
+                    Ok(..) => (),
+                    Err(e) => warn!("Error when sending packet 0x{:02x}: '{}'", packet_id, e),
+                }
+                write.flush().await.unwrap();
+            }
+            OutgoingPacketEvent::SetCompression(nc) => compression = nc,
+        }
+    }
 }
