@@ -17,3 +17,5 @@ hematite-nbt = "0.5.0"
 bytes = "0.6"
 flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 thiserror = "1.0"
+openssl = { version = "0.10", features = ["vendored"] }
+lazy_static = "1.4.0"
