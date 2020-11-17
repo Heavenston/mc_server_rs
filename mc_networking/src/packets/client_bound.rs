@@ -94,7 +94,7 @@ mod login {
             encoder.write_string(&self.server_id);
             encoder.write_varint(self.public_key.len() as VarInt);
             encoder.write_bytes(self.public_key.as_slice());
-            encoder.write_varint(self.verify_token.len() as i32);
+            encoder.write_varint(self.verify_token.len() as VarInt);
             encoder.write_bytes(self.verify_token.as_slice());
         }
     }

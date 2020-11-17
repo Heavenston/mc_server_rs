@@ -2,12 +2,18 @@ pub mod client_event;
 
 use crate::{
     data_types::Angle,
-    packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket},
+    packets::{client_bound::*, server_bound::*, PacketCompression, PacketEncryption, RawPacket},
     DecodingError,
 };
 use client_event::*;
 
+use lazy_static::lazy_static;
 use log::*;
+use openssl::{
+    pkey,
+    rsa::{Padding, Rsa},
+    symm::Cipher,
+};
 use serde_json::json;
 use std::sync::Arc;
 use thiserror::Error;
@@ -24,6 +30,10 @@ use tokio::{
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
 const KEEP_ALIVE_INTERVAL: u64 = 15_000;
+
+lazy_static! {
+    static ref RSA_KEYPAIR: Rsa<pkey::Private> = Rsa::generate(1024).unwrap();
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ClientState {
@@ -291,6 +301,9 @@ async fn listen_ingoing_packets(
     }));
     let mut keep_alive_task = None;
 
+    let mut login_uuid = None;
+    let mut login_username = None;
+
     loop {
         if let ClientState::Disconnected = state.read().await.clone() {
             break;
@@ -371,6 +384,104 @@ async fn listen_ingoing_packets(
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     let login_state = S00LoginStart::decode(raw_packet)?;
 
+                    let event_response = {
+                        let (response_sender, response_receiver) = oneshot::channel();
+                        event_sender.try_send(ClientEvent::LoginStart {
+                            username: login_state.name.clone(),
+                            response: response_sender,
+                        })?;
+                        response_receiver.await?
+                    };
+                    match event_response {
+                        LoginStartResult::Accept {
+                            uuid,
+                            username,
+                            encrypt,
+                        } => {
+                            login_uuid = Some(uuid.clone());
+                            login_username = Some(username.clone());
+                            if encrypt {
+                                packet_sender
+                                    .send(OutgoingPacketEvent::Packet(
+                                        C01EncryptionRequest {
+                                            server_id: "".to_string(),
+                                            public_key: RSA_KEYPAIR.public_key_to_der().unwrap(),
+                                            verify_token: vec![0; 4],
+                                        }
+                                        .to_rawpacket(),
+                                    ))
+                                    .await?;
+                            }
+                            else {
+                                let new_compression = 50;
+                                packet_sender
+                                    .send(OutgoingPacketEvent::Packet(
+                                        C03SetCompression {
+                                            threshold: new_compression,
+                                        }
+                                        .to_rawpacket(),
+                                    ))
+                                    .await?;
+                                *compression.write().await =
+                                    PacketCompression::new(new_compression);
+                                packet_sender
+                                    .send(OutgoingPacketEvent::SetCompression(
+                                        *compression.read().await,
+                                    ))
+                                    .await?;
+                                packet_sender
+                                    .send(OutgoingPacketEvent::Packet(
+                                        C02LoginSuccess { uuid, username }.to_rawpacket(),
+                                    ))
+                                    .await?;
+                                *(state.write().await) = ClientState::Play;
+
+                                event_sender.try_send(ClientEvent::LoggedIn)?;
+                                keep_alive_task = Some(tokio::task::spawn({
+                                    let data = Arc::clone(&keep_alive_data);
+                                    let packet_sender = packet_sender.clone();
+                                    let state = Arc::clone(&state);
+                                    async move {
+                                        handle_keep_alive(packet_sender, state, data).await;
+                                    }
+                                }));
+                            }
+                        }
+                        LoginStartResult::Disconnect { reason } => {
+                            packet_sender
+                                .send(OutgoingPacketEvent::Packet(
+                                    C00LoginDisconnect {
+                                        reason: json!({ "text": reason }),
+                                    }
+                                    .to_rawpacket(),
+                                ))
+                                .await?;
+                            *(state.write().await) = ClientState::Disconnected;
+                            break;
+                        }
+                    };
+                }
+                else if raw_packet.packet_id == S01EncryptionResponse::packet_id() {
+                    let uuid = login_uuid.unwrap();
+                    let username = login_username.clone().unwrap();
+                    let encryption_response = S01EncryptionResponse::decode(raw_packet)?;
+
+                    let mut shared_key = [0; 128];
+                    RSA_KEYPAIR
+                        .private_decrypt(
+                            &encryption_response.shared_secret,
+                            &mut shared_key,
+                            Padding::PKCS1,
+                        )
+                        .unwrap();
+
+                    packet_sender
+                        .send(OutgoingPacketEvent::SetEncryption(Some(PacketEncryption {
+                            cipher: Cipher::aes_128_cfb8(),
+                            key: shared_key[0..16].to_vec().into_boxed_slice(),
+                        })))
+                        .await?;
+
                     let new_compression = 50;
                     packet_sender
                         .send(OutgoingPacketEvent::Packet(
@@ -387,37 +498,13 @@ async fn listen_ingoing_packets(
                         ))
                         .await?;
 
-                    let event_response = {
-                        let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender.try_send(ClientEvent::LoginStart {
-                            username: login_state.name.clone(),
-                            response: response_sender,
-                        })?;
-                        response_receiver.await?
-                    };
-                    match event_response {
-                        LoginStartResult::Accept { uuid, username } => {
-                            packet_sender
-                                .send(OutgoingPacketEvent::Packet(
-                                    C02LoginSuccess { uuid, username }.to_rawpacket(),
-                                ))
-                                .await?;
-                            *(state.write().await) = ClientState::Play;
-                        }
-                        LoginStartResult::Disconnect { reason } => {
-                            packet_sender
-                                .send(OutgoingPacketEvent::Packet(
-                                    C00LoginDisconnect {
-                                        reason: json!({ "text": reason }),
-                                    }
-                                    .to_rawpacket(),
-                                ))
-                                .await?;
-                            *(state.write().await) = ClientState::Disconnected;
-                            break;
-                        }
-                    };
-                    event_sender.try_send(ClientEvent::LoggedIn)?;
+                    packet_sender
+                        .send(OutgoingPacketEvent::Packet(
+                            C02LoginSuccess { uuid, username }.to_rawpacket(),
+                        ))
+                        .await?;
+
+                    *(state.write().await) = ClientState::Play;
                     keep_alive_task = Some(tokio::task::spawn({
                         let data = Arc::clone(&keep_alive_data);
                         let packet_sender = packet_sender.clone();
@@ -426,6 +513,8 @@ async fn listen_ingoing_packets(
                             handle_keep_alive(packet_sender, state, data).await;
                         }
                     }));
+
+                    event_sender.try_send(ClientEvent::LoggedIn)?;
                 }
             }
 
@@ -571,6 +660,7 @@ async fn listen_ingoing_packets(
 enum OutgoingPacketEvent {
     Packet(RawPacket),
     SetCompression(PacketCompression),
+    SetEncryption(Option<PacketEncryption>),
 }
 
 async fn listen_outgoing_packets(
@@ -579,15 +669,16 @@ async fn listen_outgoing_packets(
     _state: Arc<RwLock<ClientState>>,
 ) {
     let mut compression = PacketCompression::default();
+    let mut encryption = None;
     while let Some(event) = packet_receiver.recv().await {
         match event {
             OutgoingPacketEvent::Packet(packet) => {
                 let packet_id = packet.packet_id;
                 let bytes = if packet.will_compress(compression) {
-                    block_in_place(move || packet.encode(compression))
+                    block_in_place(|| packet.encode(compression, encryption.as_ref()))
                 }
                 else {
-                    packet.encode(compression)
+                    packet.encode(compression, encryption.as_ref())
                 };
                 match write.write_all(&bytes).await {
                     Ok(..) => (),
@@ -596,6 +687,7 @@ async fn listen_outgoing_packets(
                 write.flush().await.unwrap();
             }
             OutgoingPacketEvent::SetCompression(nc) => compression = nc,
+            OutgoingPacketEvent::SetEncryption(e) => encryption = e,
         }
     }
 }

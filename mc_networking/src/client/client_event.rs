@@ -8,8 +8,14 @@ use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum LoginStartResult {
-    Accept { uuid: Uuid, username: String },
-    Disconnect { reason: String },
+    Accept {
+        uuid: Uuid,
+        username: String,
+        encrypt: bool,
+    },
+    Disconnect {
+        reason: String,
+    },
 }
 
 #[derive(Debug)]

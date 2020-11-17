@@ -8,8 +8,9 @@ use flate2::{
     read::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
+use openssl::symm::{encrypt, Cipher};
 use std::{
-    fmt::Debug,
+    fmt::{self, Debug},
     io::{Cursor, Read},
     ops::Deref,
 };
@@ -35,6 +36,19 @@ impl Deref for PacketCompression {
     }
 }
 
+#[derive(Clone)]
+pub struct PacketEncryption {
+    pub key: Box<[u8]>,
+    pub cipher: Cipher,
+}
+impl Debug for PacketEncryption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PacketEncryption")
+            .field("key", &self.key)
+            .finish()
+    }
+}
+
 pub struct RawPacket {
     pub packet_id: i32,
     pub data: Box<[u8]>,
@@ -49,14 +63,18 @@ impl RawPacket {
             && self.data.len() as i32 + (self.packet_id / 2i32.pow(7) + 1) >= *compression
     }
 
-    pub fn encode(&self, compression: PacketCompression) -> Box<[u8]> {
+    pub fn encode(
+        &self,
+        compression: PacketCompression,
+        encryption: Option<&PacketEncryption>,
+    ) -> Box<[u8]> {
         // PacketID + Data
         let mut data_buffer = vec![];
         let data_buffer_length = data_buffer.len();
         data_buffer.append(&mut varint::encode(self.packet_id));
         data_buffer.extend_from_slice(self.data.as_ref());
 
-        if *compression > 0 {
+        let final_buff = if *compression > 0 {
             let (mut compressed_data_buffer, compressed) =
                 if (data_buffer_length as i32) >= *compression {
                     let mut data = vec![];
@@ -81,13 +99,20 @@ impl RawPacket {
             ));
             buffer.append(data_length);
             buffer.append(&mut compressed_data_buffer);
-            buffer.into_boxed_slice()
+            buffer
         }
         else {
             let mut buffer = vec![];
             buffer.append(&mut varint::encode(data_buffer.len() as i32));
             buffer.append(&mut data_buffer);
-            buffer.into_boxed_slice()
+            buffer
+        };
+
+        match encryption {
+            Some(c) => encrypt(c.cipher, &c.key, Some(&c.key), &final_buff)
+                .unwrap()
+                .into_boxed_slice(),
+            None => final_buff.into_boxed_slice(),
         }
     }
 
