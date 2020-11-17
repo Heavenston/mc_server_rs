@@ -12,10 +12,11 @@ use log::*;
 use openssl::{
     pkey,
     rsa::{Padding, Rsa},
-    symm::Cipher,
+    symm::{Cipher, Crypter, Mode},
 };
+use rand::RngCore;
 use serde_json::json;
-use std::sync::Arc;
+use std::{convert::TryInto, sync::Arc};
 use thiserror::Error;
 use tokio::{
     net::{
@@ -303,6 +304,11 @@ async fn listen_ingoing_packets(
 
     let mut login_uuid = None;
     let mut login_username = None;
+    let login_verify_token: [u8; 4] = {
+        let mut bytes = [0; 4];
+        rand::thread_rng().fill_bytes(&mut bytes);
+        bytes
+    };
 
     loop {
         if let ClientState::Disconnected = state.read().await.clone() {
@@ -406,7 +412,7 @@ async fn listen_ingoing_packets(
                                         C01EncryptionRequest {
                                             server_id: "".to_string(),
                                             public_key: RSA_KEYPAIR.public_key_to_der().unwrap(),
-                                            verify_token: vec![0; 4],
+                                            verify_token: login_verify_token.to_vec(),
                                         }
                                         .to_rawpacket(),
                                     ))
@@ -466,19 +472,45 @@ async fn listen_ingoing_packets(
                     let username = login_username.clone().unwrap();
                     let encryption_response = S01EncryptionResponse::decode(raw_packet)?;
 
-                    let mut shared_key = [0; 128];
-                    RSA_KEYPAIR
-                        .private_decrypt(
-                            &encryption_response.shared_secret,
-                            &mut shared_key,
-                            Padding::PKCS1,
-                        )
-                        .unwrap();
+                    let shared_key: [u8; 16] = {
+                        let mut shared_key = [0; 128];
+                        let len = RSA_KEYPAIR
+                            .private_decrypt(
+                                &encryption_response.shared_secret,
+                                &mut shared_key,
+                                Padding::PKCS1,
+                            )
+                            .unwrap();
+                        shared_key[0..len].try_into().unwrap()
+                    };
 
+                    let token: [u8; 4] = {
+                        let mut token = [0; 128];
+                        let len = RSA_KEYPAIR
+                            .private_decrypt(
+                                &encryption_response.verify_token,
+                                &mut token,
+                                Padding::PKCS1,
+                            )
+                            .unwrap();
+                        token[0..len].try_into().unwrap()
+                    };
+                    if token != login_verify_token {
+                        panic!("NOOOOOOOOOOOOOOOOOOOOOO");
+                        // TODO: Handle this case a "little" bit better
+                    }
+
+                    let cipher = Cipher::aes_128_cfb8();
                     packet_sender
                         .send(OutgoingPacketEvent::SetEncryption(Some(PacketEncryption {
-                            cipher: Cipher::aes_128_cfb8(),
-                            key: shared_key[0..16].to_vec().into_boxed_slice(),
+                            cipher,
+                            crypter: Crypter::new(
+                                cipher,
+                                Mode::Encrypt,
+                                &shared_key,
+                                Some(&shared_key),
+                            )
+                            .unwrap(),
                         })))
                         .await?;
 
@@ -675,10 +707,10 @@ async fn listen_outgoing_packets(
             OutgoingPacketEvent::Packet(packet) => {
                 let packet_id = packet.packet_id;
                 let bytes = if packet.will_compress(compression) {
-                    block_in_place(|| packet.encode(compression, encryption.as_ref()))
+                    block_in_place(|| packet.encode(compression, encryption.as_mut()))
                 }
                 else {
-                    packet.encode(compression, encryption.as_ref())
+                    packet.encode(compression, encryption.as_mut())
                 };
                 match write.write_all(&bytes).await {
                     Ok(..) => (),

@@ -19,3 +19,4 @@ flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 thiserror = "1.0"
 openssl = { version = "0.10", features = ["vendored"] }
 lazy_static = "1.4.0"
+rand = "0.7.3"

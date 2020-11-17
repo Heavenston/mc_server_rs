@@ -8,7 +8,7 @@ use flate2::{
     read::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use openssl::symm::{encrypt, Cipher};
+use openssl::symm::{encrypt, Cipher, Crypter};
 use std::{
     fmt::{self, Debug},
     io::{Cursor, Read},
@@ -36,16 +36,13 @@ impl Deref for PacketCompression {
     }
 }
 
-#[derive(Clone)]
 pub struct PacketEncryption {
-    pub key: Box<[u8]>,
     pub cipher: Cipher,
+    pub crypter: Crypter,
 }
 impl Debug for PacketEncryption {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PacketEncryption")
-            .field("key", &self.key)
-            .finish()
+        f.debug_tuple("PacketEncryption").finish()
     }
 }
 
@@ -66,7 +63,7 @@ impl RawPacket {
     pub fn encode(
         &self,
         compression: PacketCompression,
-        encryption: Option<&PacketEncryption>,
+        encryption: Option<&mut PacketEncryption>,
     ) -> Box<[u8]> {
         // PacketID + Data
         let mut data_buffer = vec![];
@@ -109,9 +106,12 @@ impl RawPacket {
         };
 
         match encryption {
-            Some(c) => encrypt(c.cipher, &c.key, Some(&c.key), &final_buff)
-                .unwrap()
-                .into_boxed_slice(),
+            Some(c) => {
+                let mut output = vec![0; final_buff.len() + c.cipher.block_size()];
+                let len = c.crypter.update(&final_buff, &mut output).unwrap();
+                output.truncate(len);
+                output.into_boxed_slice()
+            }
             None => final_buff.into_boxed_slice(),
         }
     }
