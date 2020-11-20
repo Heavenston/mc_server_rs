@@ -215,7 +215,7 @@ impl Server {
                                 uuid: uuid.clone(),
                                 username,
                                 encrypt: false,
-                                compress: false,
+                                compress: true,
                             })
                             .unwrap();
                     }

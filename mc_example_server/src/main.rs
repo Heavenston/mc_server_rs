@@ -48,7 +48,8 @@ async fn main() {
             Arg::with_name("debug")
                 .short("d")
                 .long("debug")
-                .help("Enable debug logs"),
+                .multiple(true)
+                .help("Enable debug logs, or Trace logs when present twice or more"),
         )
         .arg(
             Arg::with_name("port")
@@ -71,11 +72,10 @@ async fn main() {
         )
         .get_matches();
 
-    setup_logger(if clap_matches.is_present("debug") {
-        log::LevelFilter::Debug
-    }
-    else {
-        log::LevelFilter::Info
+    setup_logger(match clap_matches.occurrences_of("debug") {
+        0 => log::LevelFilter::Info,
+        1 => log::LevelFilter::Debug,
+        _ => log::LevelFilter::Trace,
     });
 
     info!("Loading server...");
