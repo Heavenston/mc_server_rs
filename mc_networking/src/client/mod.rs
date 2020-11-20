@@ -734,11 +734,13 @@ async fn listen_outgoing_packets(
             (OutgoingPacketEvent::Packet(packet), notify)
             | (OutgoingPacketEvent::PacketNow(packet, notify), ..) => {
                 let packet_id = packet.packet_id;
-                if packet.will_compress(compression) && encryption.is_some() {
-                    println!("Big compressed packet");
+                trace!("Sending packet {:02X}", packet_id);
+                if packet.will_compress(compression) {
+                    trace!("Packet will compress");
                     block_in_place(|| packet.encode(compression, &mut packet_buffer))
                 }
                 else {
+                    trace!("Packet won't compress");
                     packet.encode(compression, &mut packet_buffer)
                 };
                 match write.write_all(&mut packet_buffer).await {
@@ -748,6 +750,7 @@ async fn listen_outgoing_packets(
                 write.flush().await.unwrap();
                 notify.notify_one();
                 packet_buffer.clear();
+                trace!("Sent packet {:02X}", packet_id);
             }
             (OutgoingPacketEvent::SetCompression(nc), ..) => compression = nc,
             (OutgoingPacketEvent::SetEncryption(e), ..) => match e {

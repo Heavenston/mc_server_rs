@@ -71,28 +71,12 @@ impl RawPacket {
         if compression.is_enabled() {
             let uncompressed_length = packet_id_varint_length + self.data.len();
             if uncompressed_length as i32 >= *compression {
-                dst.extend_from_slice(&[0; varint::MAX_BYTE_SIZE]);
-                let mut uncompressed_length_bytes = dst.split_to(varint::MAX_BYTE_SIZE);
+                varint::encode_into(uncompressed_length as i32, dst);
 
                 let mut compressor = ZlibEncoder::new(dst.writer(), Compression::fast());
                 compressor.write_all(packet_id_varint_buffer).unwrap();
                 compressor.write_all(&self.data).unwrap();
-                drop(compressor);
-
-                // Fill uncompressed_length_bytes
-                {
-                    let mut uncompressed_length_buffer = [0u8; varint::MAX_BYTE_SIZE];
-                    let uncompressed_length_varint_len = varint::encode_into(
-                        dst.len() as i32,
-                        &mut &mut uncompressed_length_buffer[..],
-                    );
-                    uncompressed_length_bytes
-                        .advance(varint::MAX_BYTE_SIZE - uncompressed_length_varint_len);
-                    uncompressed_length_bytes.clear();
-                    uncompressed_length_bytes.extend_from_slice(&uncompressed_length_buffer[..]);
-                    std::mem::swap(dst, &mut uncompressed_length_bytes);
-                    dst.unsplit(uncompressed_length_bytes);
-                }
+                compressor.flush_finish().unwrap();
             }
             else {
                 dst.put_u8(0); // 0 VarInt, no compression
