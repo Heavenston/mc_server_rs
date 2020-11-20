@@ -1,17 +1,21 @@
 pub mod client_bound;
 pub mod server_bound;
 
-use crate::{data_types::encoder::varint, DecodingResult};
+use crate::{data_types::encoder::varint, DecodingError, DecodingResult};
 
-use byteorder::ReadBytesExt;
+use byteorder::{ReadBytesExt, WriteBytesExt};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use flate2::{
-    read::{ZlibDecoder, ZlibEncoder},
+    write::{ZlibDecoder, ZlibEncoder},
     Compression,
 };
-use openssl::symm::{encrypt, Cipher, Crypter};
+use openssl::{
+    aes::{aes_ige, AesKey},
+    symm::{Cipher, Crypter, Mode},
+};
 use std::{
     fmt::{self, Debug},
-    io::{Cursor, Read},
+    io::{Cursor, Read, Write},
     ops::Deref,
 };
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -21,6 +25,10 @@ pub struct PacketCompression(i32);
 impl PacketCompression {
     pub fn new(threshold: i32) -> Self {
         Self(threshold)
+    }
+
+    pub fn is_enabled(&self) -> bool {
+        self.0 > 0
     }
 }
 impl Default for PacketCompression {
@@ -36,22 +44,12 @@ impl Deref for PacketCompression {
     }
 }
 
-pub struct PacketEncryption {
-    pub cipher: Cipher,
-    pub crypter: Crypter,
-}
-impl Debug for PacketEncryption {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("PacketEncryption").finish()
-    }
-}
-
 pub struct RawPacket {
     pub packet_id: i32,
-    pub data: Box<[u8]>,
+    pub data: Bytes,
 }
 impl RawPacket {
-    pub fn new(packet_id: i32, data: Box<[u8]>) -> Self {
+    pub fn new(packet_id: i32, data: Bytes) -> Self {
         Self { packet_id, data }
     }
 
@@ -59,133 +57,105 @@ impl RawPacket {
         *compression > 0
             && self.data.len() as i32 + (self.packet_id / 2i32.pow(7) + 1) >= *compression
     }
+    pub fn encode(&self, compression: PacketCompression, dst: &mut BytesMut) {
+        assert!(dst.is_empty());
+        dst.reserve(varint::MAX_BYTE_SIZE * 2 + self.data.len());
+        dst.extend_from_slice(&[0; varint::MAX_BYTE_SIZE]);
+        let mut packet_length_bytes = dst.split_to(varint::MAX_BYTE_SIZE);
 
-    pub fn encode(
-        &self,
-        compression: PacketCompression,
-        encryption: Option<&mut PacketEncryption>,
-    ) -> Box<[u8]> {
-        // PacketID + Data
-        let mut data_buffer = vec![];
-        let data_buffer_length = data_buffer.len();
-        data_buffer.append(&mut varint::encode(self.packet_id));
-        data_buffer.extend_from_slice(self.data.as_ref());
+        let mut packet_id_varint_buffer = [0u8; varint::MAX_BYTE_SIZE];
+        let packet_id_varint_length =
+            varint::encode_into(self.packet_id, &mut &mut packet_id_varint_buffer[..]);
+        let packet_id_varint_buffer = &packet_id_varint_buffer[0..packet_id_varint_length];
 
-        let final_buff = if *compression > 0 {
-            let (mut compressed_data_buffer, compressed) =
-                if (data_buffer_length as i32) >= *compression {
-                    let mut data = vec![];
-                    ZlibEncoder::new(Cursor::new(data_buffer), Compression::new(9))
-                        .read_to_end(&mut data)
-                        .unwrap();
-                    (data, true)
+        if compression.is_enabled() {
+            let uncompressed_length = packet_id_varint_length + self.data.len();
+            if uncompressed_length as i32 >= *compression {
+                dst.extend_from_slice(&[0; varint::MAX_BYTE_SIZE]);
+                let mut uncompressed_length_bytes = dst.split_to(varint::MAX_BYTE_SIZE);
+
+                let mut compressor = ZlibEncoder::new(dst.writer(), Compression::fast());
+                compressor.write_all(packet_id_varint_buffer).unwrap();
+                compressor.write_all(&self.data).unwrap();
+                drop(compressor);
+
+                // Fill uncompressed_length_bytes
+                {
+                    let mut uncompressed_length_buffer = [0u8; varint::MAX_BYTE_SIZE];
+                    let uncompressed_length_varint_len = varint::encode_into(
+                        dst.len() as i32,
+                        &mut &mut uncompressed_length_buffer[..],
+                    );
+                    uncompressed_length_bytes
+                        .advance(varint::MAX_BYTE_SIZE - uncompressed_length_varint_len);
+                    uncompressed_length_bytes.clear();
+                    uncompressed_length_bytes.extend_from_slice(&uncompressed_length_buffer[..]);
+                    std::mem::swap(dst, &mut uncompressed_length_bytes);
+                    dst.unsplit(uncompressed_length_bytes);
                 }
-                else {
-                    (data_buffer, false)
-                };
-            let data_length = &mut varint::encode(if compressed {
-                data_buffer_length as i32
             }
             else {
-                0
-            });
-
-            let mut buffer = vec![];
-            buffer.append(&mut varint::encode(
-                (data_length.len() + compressed_data_buffer.len()) as i32,
-            ));
-            buffer.append(data_length);
-            buffer.append(&mut compressed_data_buffer);
-            buffer
+                dst.put_u8(0); // 0 VarInt, no compression
+                dst.extend_from_slice(packet_id_varint_buffer);
+                dst.extend_from_slice(&self.data);
+            }
         }
         else {
-            let mut buffer = vec![];
-            buffer.append(&mut varint::encode(data_buffer.len() as i32));
-            buffer.append(&mut data_buffer);
-            buffer
-        };
-
-        match encryption {
-            Some(c) => {
-                let mut output = vec![0; final_buff.len() + c.cipher.block_size()];
-                let len = c.crypter.update(&final_buff, &mut output).unwrap();
-                output.truncate(len);
-                output.into_boxed_slice()
-            }
-            None => final_buff.into_boxed_slice(),
+            dst.extend_from_slice(packet_id_varint_buffer);
+            dst.extend_from_slice(&self.data);
         }
+
+        let mut packet_length_buffer = [0u8; varint::MAX_BYTE_SIZE];
+        let packet_length_varint_len =
+            varint::encode_into(dst.len() as i32, &mut &mut packet_length_buffer[..]);
+        packet_length_bytes.advance(varint::MAX_BYTE_SIZE - packet_length_varint_len);
+        packet_length_bytes.clear();
+        packet_length_bytes.extend_from_slice(&packet_length_buffer[0..packet_length_varint_len]);
+        std::mem::swap(dst, &mut packet_length_bytes);
+        dst.unsplit(packet_length_bytes);
     }
 
-    /// Decodes the data part of a Packet (packet_id + data)
-    fn decode<T: Read + Unpin>(stream: &mut T) -> DecodingResult<Self> {
-        let packet_id = varint::decode_sync(stream)?;
-        let mut data = vec![];
-        while let Ok(b) = stream.read_u8() {
-            data.push(b);
-        }
+    /// Decodes the content part of a Packet (packet_id + data)
+    fn decode_content(stream: &mut BytesMut, size: usize) -> DecodingResult<Self> {
+        let packet_id = varint::decode_buf(stream)?;
         Ok(Self {
             packet_id,
-            data: data.into_boxed_slice(),
+            data: stream.split_to(size - 1).freeze(),
         })
     }
-    pub async fn decode_async<T: AsyncRead + Unpin>(
-        stream: &mut T,
-        compression: PacketCompression,
-    ) -> DecodingResult<Self> {
+
+    pub fn decode(bytes: &mut BytesMut, compression: PacketCompression) -> DecodingResult<Self> {
+        let mut taker = bytes.take(varint::MAX_BYTE_SIZE);
+        let packet_length = varint::decode_buf(&mut taker)?;
+        taker.get_mut().reserve(packet_length as usize);
+        taker.set_limit(packet_length as usize);
+        if taker.remaining() < packet_length as usize {
+            return Err(DecodingError::NotEnoughBytes);
+        }
         if *compression > 0 {
-            let packet_length = varint::decode_async(stream).await?;
-            let mut taker = stream.take(packet_length as u64);
-            let is_compressed = varint::decode_async(&mut taker).await? != 0;
-
-            let mut data = {
-                let mut data = vec![];
-                while let Ok(b) = taker.read_u8().await {
-                    data.push(b);
-                }
-                Cursor::new(data)
-            };
-
-            if is_compressed {
-                let mut data_decoder = ZlibDecoder::new(data);
-                Self::decode(&mut data_decoder)
+            let content_length = varint::decode_buf(&mut taker)?;
+            // No compression
+            if content_length == 0 {
+                let content_length = taker.remaining();
+                Self::decode_content(taker.into_inner(), content_length)
             }
             else {
-                Self::decode(&mut data)
-            }
-        }
-        else {
-            let length = varint::decode_async(stream).await?;
-            let mut taker = stream.take(length as u64);
-            let mut data = vec![];
-            while let Ok(b) = taker.read_u8().await {
-                data.push(b);
-            }
-            Self::decode(&mut Cursor::new(data))
-        }
-    }
-    pub fn decode_sync<T: Read + Unpin>(
-        stream: &mut T,
-        compression: PacketCompression,
-    ) -> DecodingResult<Self> {
-        if *compression > 0 {
-            let packet_length = varint::decode_sync(stream)?;
-            let mut taker = stream.take(packet_length as u64);
-            let _data_length = varint::decode_sync(&mut taker)?;
-
-            let mut data_decoder = ZlibDecoder::new({
-                let mut data = vec![];
-                while let Ok(b) = taker.read_u8() {
-                    data.push(b);
+                let mut uncompressed = BytesMut::with_capacity(content_length as usize);
+                let mut decoder = flate2::write::ZlibDecoder::new((&mut uncompressed).writer());
+                std::io::copy(&mut (&mut taker).reader(), &mut decoder)?;
+                decoder.finish()?;
+                if uncompressed.len() != content_length as usize {
+                    return Err(DecodingError::ParseError {
+                        data_type: "raw packet".to_string(),
+                        message: "content length does not match".to_string(),
+                    });
                 }
-                Cursor::new(data)
-            });
-
-            Self::decode(&mut data_decoder)
+                Self::decode_content(&mut uncompressed, taker.remaining())
+            }
         }
         else {
-            let length = varint::decode_sync(stream)?;
-            let mut taker = stream.take(length as u64);
-            Self::decode(&mut taker)
+            let content_length = taker.remaining();
+            Self::decode_content(taker.into_inner(), content_length)
         }
     }
 }

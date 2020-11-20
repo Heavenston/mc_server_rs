@@ -1,6 +1,7 @@
 use crate::{data_types::encoder::PacketEncoder, DecodingError, DecodingResult};
 
 use byteorder::ReadBytesExt;
+use bytes::{Bytes, BytesMut};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};
@@ -57,7 +58,7 @@ impl Slot {
         Self::decode_sync(&mut Cursor::new(buffer.as_ref()))
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Bytes {
         let mut encoder = PacketEncoder::new();
         match self {
             Slot::NotPresent => encoder.write_bool(false),
@@ -121,11 +122,11 @@ pub struct Particle {
     pub data: i32,
 }
 impl Particle {
-    pub fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
-        data.append(&mut encoder::varint::encode(self.id));
-        data.append(&mut encoder::varint::encode(self.data));
-        data
+    pub fn encode(&self) -> Bytes {
+        let mut data = PacketEncoder::new();
+        data.write_varint(self.id);
+        data.write_varint(self.data);
+        data.consume()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
@@ -198,135 +199,135 @@ pub enum MetadataValue {
     },
 }
 impl MetadataValue {
-    pub fn encode(&self) -> Vec<u8> {
-        let mut data = vec![];
+    pub fn encode(&self) -> Bytes {
+        let mut data = PacketEncoder::new();
         match self {
             MetadataValue::Byte(b) => {
-                data.push(0);
-                data.push(*b);
+                data.write_u8(0);
+                data.write_u8(*b);
             }
             MetadataValue::VarInt(v) => {
-                data.push(1);
-                data.append(&mut encoder::varint::encode(*v));
+                data.write_u8(1);
+                data.write_varint(*v);
             }
             MetadataValue::Float(v) => {
-                data.push(2);
-                data.extend_from_slice(&v.to_be_bytes());
+                data.write_u8(2);
+                data.write_f32(*v);
             }
             MetadataValue::String(v) => {
-                data.push(3);
-                data.append(&mut encoder::string::encode(v));
+                data.write_u8(3);
+                data.write_string(v);
             }
             MetadataValue::Chat(v) => {
-                data.push(4);
-                data.append(&mut encoder::string::encode(&v.to_string()));
+                data.write_u8(4);
+                data.write_string(&v.to_string());
             }
             MetadataValue::OptChat(v) => {
-                data.push(5);
+                data.write_u8(5);
                 match v {
                     Some(v) => {
-                        data.push(1); // true
-                        data.append(&mut encoder::string::encode(&v.to_string()));
+                        data.write_bool(true);
+                        data.write_string(&v.to_string());
                     }
                     None => {
-                        data.push(0); // false
+                        data.write_bool(false);
                     }
                 }
             }
             MetadataValue::Slot(s) => {
-                data.push(6);
-                data.append(&mut s.encode());
+                data.write_u8(6);
+                data.write_bytes(&s.encode());
             }
             MetadataValue::Boolean(b) => {
-                data.push(7);
-                data.push(*b as u8);
+                data.write_u8(7);
+                data.write_u8(*b as u8);
             }
             MetadataValue::Rotation(x, y, z) => {
-                data.push(8);
-                data.extend_from_slice(&x.to_be_bytes());
-                data.extend_from_slice(&y.to_be_bytes());
-                data.extend_from_slice(&z.to_be_bytes());
+                data.write_u8(8);
+                data.write_f32(*x);
+                data.write_f32(*y);
+                data.write_f32(*z);
             }
             MetadataValue::Position(pos) => {
-                data.push(9);
-                data.extend_from_slice(&pos.encode().to_be_bytes());
+                data.write_u8(9);
+                data.write_u64(pos.encode());
             }
             MetadataValue::OptPosition(p_pos) => {
-                data.push(10);
+                data.write_u8(10);
                 match p_pos {
                     Some(pos) => {
-                        data.push(1); // true
-                        data.extend_from_slice(&pos.encode().to_be_bytes());
+                        data.write_bool(true);
+                        data.write_u64(pos.encode());
                     }
                     None => {
-                        data.push(0); // false
+                        data.write_bool(false);
                     }
                 }
             }
             MetadataValue::Direction(dir) => {
-                data.push(11);
-                data.extend_from_slice(&dir.to_be_bytes());
+                data.write_u8(11);
+                data.write_i32(*dir);
             }
             MetadataValue::OptUUID(p_uuid) => {
-                data.push(12);
+                data.write_u8(12);
                 match p_uuid {
                     Some(uuid) => {
-                        data.push(1); // true
-                        data.extend_from_slice(uuid.as_bytes());
+                        data.write_u8(1);
+                        data.write_uuid(uuid);
                     }
                     None => {
-                        data.push(0); // false
+                        data.write_u8(0);
                     }
                 }
             }
             MetadataValue::OptBlockID(p_id) => {
-                data.push(13);
+                data.write_u8(13);
                 match p_id {
                     Some(id) => {
-                        data.push(1); // true
-                        data.append(&mut encoder::varint::encode(*id));
+                        data.write_u8(1);
+                        data.write_varint(*id);
                     }
                     None => {
-                        data.push(0); // false
+                        data.write_u8(0);
                     }
                 }
             }
             MetadataValue::NBT(nbt) => {
-                data.push(14);
+                data.write_u8(14);
                 nbt.to_writer(&mut data).unwrap();
             }
             MetadataValue::Particle(particle) => {
-                data.push(15);
-                data.append(&mut particle.encode());
+                data.write_u8(15);
+                data.write_bytes(&particle.encode());
             }
             MetadataValue::VillagerData {
                 kind,
                 level,
                 profession,
             } => {
-                data.push(16);
-                data.append(&mut encoder::varint::encode(*kind));
-                data.append(&mut encoder::varint::encode(*profession));
-                data.append(&mut encoder::varint::encode(*level));
+                data.write_u8(16);
+                data.write_varint(*kind);
+                data.write_varint(*level);
+                data.write_varint(*profession);
             }
             MetadataValue::OptVarInt(p_varint) => {
-                data.push(17);
+                data.write_u8(17);
                 match p_varint {
                     Some(varint) => {
-                        data.push(1); // true
-                        data.append(&mut encoder::varint::encode(*varint));
+                        data.write_bool(true);
+                        data.write_varint(*varint);
                     }
                     None => {
-                        data.push(0); // false
+                        data.write_bool(false);
                     }
                 }
             }
             MetadataValue::Pose(pos) => {
-                data.push(18);
-                data.append(&mut encoder::varint::encode(pos.encode() as i32));
+                data.write_u8(18);
+                data.write_varint(pos.encode() as i32);
             }
         };
-        data
+        data.consume()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {

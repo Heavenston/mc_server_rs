@@ -2,14 +2,16 @@ pub mod client_event;
 
 use crate::{
     data_types::Angle,
-    packets::{client_bound::*, server_bound::*, PacketCompression, PacketEncryption, RawPacket},
+    packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket},
     DecodingError,
 };
 use client_event::*;
 
+use bytes::BytesMut;
 use lazy_static::lazy_static;
 use log::*;
 use openssl::{
+    aes::AesKey,
     pkey,
     rsa::{Padding, Rsa},
     symm::{Cipher, Crypter, Mode},
@@ -19,12 +21,13 @@ use serde_json::json;
 use std::{convert::TryInto, sync::Arc};
 use thiserror::Error;
 use tokio::{
+    io::Sink,
     net::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpStream,
     },
-    prelude::io::AsyncWriteExt,
-    sync::{mpsc, oneshot, RwLock},
+    prelude::io::{AsyncReadExt, AsyncWriteExt},
+    sync::{mpsc, oneshot, Notify, RwLock},
     task::{block_in_place, spawn},
     time::{sleep, Duration, Instant},
 };
@@ -83,10 +86,7 @@ impl Client {
                 {
                     match e {
                         ClientListenError::IoError(e)
-                        | ClientListenError::DecodingError(DecodingError::IoError {
-                            source: e,
-                            ..
-                        }) => {
+                        | ClientListenError::DecodingError(DecodingError::IoError(e)) => {
                             if e.kind() == std::io::ErrorKind::UnexpectedEof
                                 && *state.read().await == ClientState::Play
                             {
@@ -304,31 +304,60 @@ async fn listen_ingoing_packets(
 
     let mut login_uuid = None;
     let mut login_username = None;
+    let mut login_compress = false;
     let login_verify_token: [u8; 4] = {
         let mut bytes = [0; 4];
         rand::thread_rng().fill_bytes(&mut bytes);
         bytes
     };
 
+    let mut read_bytes = BytesMut::with_capacity(10);
+    let mut encryption: Option<Crypter> = None;
+
     loop {
         if let ClientState::Disconnected = state.read().await.clone() {
             break;
         }
 
-        //debug!("Reading packet, State({:?})", state.read().await.clone());
+        trace!("Reading packet, State({:?})", state.read().await.clone());
         let packet_compression = *compression.read().await;
-        let raw_packet = RawPacket::decode_async(&mut read, packet_compression).await?;
-        /*debug!(
+        let raw_packet = {
+            let mut new_bytes = [0; 1024];
+            let mut decrypted_new_bytes = [0; 1024];
+            loop {
+                match RawPacket::decode(&mut read_bytes, packet_compression) {
+                    Ok(raw_packet) => break raw_packet,
+                    Err(DecodingError::NotEnoughBytes) => (),
+                    Err(e) => return Err(e.into()),
+                }
+                let received = read.read(&mut new_bytes).await?;
+                let decrypted_output = if let Some(encryption) = &mut encryption {
+                    encryption
+                        .update(
+                            &new_bytes[0..received],
+                            &mut decrypted_new_bytes[0..received],
+                        )
+                        .unwrap();
+
+                    &decrypted_new_bytes[0..received]
+                }
+                else {
+                    &new_bytes[0..received]
+                };
+                read_bytes.extend_from_slice(&decrypted_output[0..received]);
+            }
+        };
+        trace!(
             "Received packet 0x{:x} with data of length {}",
             raw_packet.packet_id,
             raw_packet.data.len()
-        );*/
+        );
 
         let current_state = state.read().await.clone();
         match current_state {
             ClientState::Handshaking => {
                 let handshake = S00Handshake::decode(raw_packet)?;
-                debug!("Received Handshake: {:?}", handshake);
+                trace!("Received Handshake: {:?}", handshake);
                 *(state.write().await) = match handshake.next_state {
                     1 => ClientState::Status,
                     2 => ClientState::Login,
@@ -341,7 +370,7 @@ async fn listen_ingoing_packets(
                         })
                     }
                 };
-                debug!("New state: {:?}", state.read().await.clone());
+                trace!("New state: {:?}", state.read().await.clone());
             }
 
             ClientState::Status => {
@@ -387,7 +416,33 @@ async fn listen_ingoing_packets(
             }
 
             ClientState::Login => {
+                macro_rules! enable_compression {
+                    () => {
+                        if login_compress {
+                            let new_compression = 50;
+                            let compression_notify = Arc::new(Notify::new());
+                            packet_sender
+                                .send(OutgoingPacketEvent::PacketNow(
+                                    C03SetCompression {
+                                        threshold: new_compression,
+                                    }
+                                    .to_rawpacket(),
+                                    compression_notify.clone(),
+                                ))
+                                .await?;
+                            compression_notify.notified().await;
+                            *compression.write().await = PacketCompression::new(new_compression);
+                            packet_sender
+                                .send(OutgoingPacketEvent::SetCompression(
+                                    *compression.read().await,
+                                ))
+                                .await?;
+                        }
+                    };
+                };
+
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
+                    debug!("login start");
                     let login_state = S00LoginStart::decode(raw_packet)?;
 
                     let event_response = {
@@ -403,7 +458,9 @@ async fn listen_ingoing_packets(
                             uuid,
                             username,
                             encrypt,
+                            compress,
                         } => {
+                            login_compress = compress;
                             login_uuid = Some(uuid.clone());
                             login_username = Some(username.clone());
                             if encrypt {
@@ -419,22 +476,8 @@ async fn listen_ingoing_packets(
                                     .await?;
                             }
                             else {
-                                let new_compression = 50;
-                                packet_sender
-                                    .send(OutgoingPacketEvent::Packet(
-                                        C03SetCompression {
-                                            threshold: new_compression,
-                                        }
-                                        .to_rawpacket(),
-                                    ))
-                                    .await?;
-                                *compression.write().await =
-                                    PacketCompression::new(new_compression);
-                                packet_sender
-                                    .send(OutgoingPacketEvent::SetCompression(
-                                        *compression.read().await,
-                                    ))
-                                    .await?;
+                                enable_compression!();
+
                                 packet_sender
                                     .send(OutgoingPacketEvent::Packet(
                                         C02LoginSuccess { uuid, username }.to_rawpacket(),
@@ -468,10 +511,10 @@ async fn listen_ingoing_packets(
                     };
                 }
                 else if raw_packet.packet_id == S01EncryptionResponse::packet_id() {
+                    debug!("encryption response");
                     let uuid = login_uuid.unwrap();
                     let username = login_username.clone().unwrap();
                     let encryption_response = S01EncryptionResponse::decode(raw_packet)?;
-
                     let shared_key: [u8; 16] = {
                         let mut shared_key = [0; 128];
                         let len = RSA_KEYPAIR
@@ -500,34 +543,10 @@ async fn listen_ingoing_packets(
                         // TODO: Handle this case a "little" bit better
                     }
 
-                    let cipher = Cipher::aes_128_cfb8();
-                    packet_sender
-                        .send(OutgoingPacketEvent::SetEncryption(Some(PacketEncryption {
-                            cipher,
-                            crypter: Crypter::new(
-                                cipher,
-                                Mode::Encrypt,
-                                &shared_key,
-                                Some(&shared_key),
-                            )
-                            .unwrap(),
-                        })))
-                        .await?;
+                    enable_compression!();
 
-                    let new_compression = 50;
                     packet_sender
-                        .send(OutgoingPacketEvent::Packet(
-                            C03SetCompression {
-                                threshold: new_compression,
-                            }
-                            .to_rawpacket(),
-                        ))
-                        .await?;
-                    *compression.write().await = PacketCompression::new(new_compression);
-                    packet_sender
-                        .send(OutgoingPacketEvent::SetCompression(
-                            *compression.read().await,
-                        ))
+                        .send(OutgoingPacketEvent::SetEncryption(Some(shared_key)))
                         .await?;
 
                     packet_sender
@@ -690,9 +709,13 @@ async fn listen_ingoing_packets(
 
 #[derive(Debug)]
 enum OutgoingPacketEvent {
+    /// Send a packet
     Packet(RawPacket),
+    /// Sends a packet and notify whe it had been sent
+    PacketNow(RawPacket, Arc<Notify>),
     SetCompression(PacketCompression),
-    SetEncryption(Option<PacketEncryption>),
+    /// Sets the shared_key to enable encryption
+    SetEncryption(Option<[u8; 16]>),
 }
 
 async fn listen_outgoing_packets(
@@ -700,26 +723,44 @@ async fn listen_outgoing_packets(
     mut packet_receiver: mpsc::Receiver<OutgoingPacketEvent>,
     _state: Arc<RwLock<ClientState>>,
 ) {
+    let mut packet_buffer = BytesMut::with_capacity(10);
     let mut compression = PacketCompression::default();
     let mut encryption = None;
+
+    let dummy_notify = Arc::new(Notify::new());
+
     while let Some(event) = packet_receiver.recv().await {
-        match event {
-            OutgoingPacketEvent::Packet(packet) => {
+        match (event, dummy_notify.clone()) {
+            (OutgoingPacketEvent::Packet(packet), notify)
+            | (OutgoingPacketEvent::PacketNow(packet, notify), ..) => {
                 let packet_id = packet.packet_id;
-                let bytes = if packet.will_compress(compression) {
-                    block_in_place(|| packet.encode(compression, encryption.as_mut()))
+                if packet.will_compress(compression) && encryption.is_some() {
+                    println!("Big compressed packet");
+                    block_in_place(|| packet.encode(compression, &mut packet_buffer))
                 }
                 else {
-                    packet.encode(compression, encryption.as_mut())
+                    packet.encode(compression, &mut packet_buffer)
                 };
-                match write.write_all(&bytes).await {
+                match write.write_all(&mut packet_buffer).await {
                     Ok(..) => (),
                     Err(e) => warn!("Error when sending packet 0x{:02x}: '{}'", packet_id, e),
                 }
                 write.flush().await.unwrap();
+                notify.notify_one();
+                packet_buffer.clear();
             }
-            OutgoingPacketEvent::SetCompression(nc) => compression = nc,
-            OutgoingPacketEvent::SetEncryption(e) => encryption = e,
+            (OutgoingPacketEvent::SetCompression(nc), ..) => compression = nc,
+            (OutgoingPacketEvent::SetEncryption(e), ..) => match e {
+                Some(shared_key) => {
+                    encryption = Some(Crypter::new(
+                        Cipher::aes_128_cfb8(),
+                        Mode::Encrypt,
+                        &shared_key,
+                        Some(&shared_key),
+                    ));
+                }
+                None => encryption = None,
+            },
         }
     }
 }

@@ -7,10 +7,7 @@ pub trait ClientBoundPacket {
     fn to_rawpacket(&self) -> RawPacket {
         let mut packet_encoder = PacketEncoder::new();
         self.encode(&mut packet_encoder);
-        RawPacket::new(
-            Self::packet_id(),
-            packet_encoder.consume().into_boxed_slice(),
-        )
+        RawPacket::new(Self::packet_id(), packet_encoder.consume())
     }
 }
 
@@ -170,6 +167,7 @@ mod play {
         DecodingResult as Result,
     };
 
+    use bytes::{Bytes, BytesMut};
     use serde::Serialize;
     use std::{collections::HashMap, sync::Arc};
     use uuid::Uuid;
@@ -470,7 +468,7 @@ mod play {
             encoder.write_u8(self.window_id);
             encoder.write_i16(self.slots.len() as i16);
             for slot in self.slots.iter() {
-                encoder.write_bytes(slot.encode().as_slice());
+                encoder.write_bytes(&slot.encode());
             }
         }
     }
@@ -528,7 +526,7 @@ mod play {
     #[derive(Clone, Debug)]
     pub struct C17PluginMessage {
         pub channel: Identifier,
-        pub data: Vec<u8>,
+        pub data: Bytes,
     }
     impl ClientBoundPacket for C17PluginMessage {
         fn packet_id() -> i32 {
@@ -537,7 +535,7 @@ mod play {
 
         fn encode(&self, encoder: &mut PacketEncoder) {
             encoder.write_string(&self.channel);
-            encoder.write_bytes(self.data.as_slice());
+            encoder.write_bytes(&self.data);
         }
     }
 
@@ -669,7 +667,7 @@ mod play {
             }
             let data = data_encoder.consume();
             encoder.write_varint(data.len() as i32);
-            encoder.write_bytes(data.as_slice());
+            encoder.write_bytes(&data);
             encoder.write_varint(self.block_entities.len() as i32);
             for block_entity in self.block_entities.iter() {
                 block_entity.to_writer(encoder).unwrap();
@@ -1241,7 +1239,7 @@ mod play {
             encoder.write_varint(self.entity_id);
             for (key, value) in self.metadata.iter() {
                 encoder.write_u8(*key);
-                encoder.write_bytes(value.encode().as_slice());
+                encoder.write_bytes(&value.encode());
             }
             encoder.write_u8(0xFF);
         }

@@ -5,20 +5,22 @@ use crate::{
 };
 
 use byteorder::{ReadBytesExt, BE};
-use bytes::Buf;
+use bytes::{Buf, Bytes, BytesMut};
 use std::io::{Cursor, Read, Result as IoResult, Write};
 use uuid::Uuid;
 
 pub struct PacketEncoder {
-    data: Vec<u8>,
+    data: BytesMut,
 }
 impl PacketEncoder {
     pub fn new() -> Self {
-        Self { data: Vec::new() }
+        Self {
+            data: BytesMut::new(),
+        }
     }
 
-    pub fn consume(self) -> Vec<u8> {
-        self.data
+    pub fn consume(self) -> Bytes {
+        self.data.freeze()
     }
 
     pub fn write_u8(&mut self, v: u8) {
@@ -70,10 +72,10 @@ impl PacketEncoder {
     }
 
     pub fn write_varint(&mut self, v: VarInt) {
-        self.data.append(&mut varint::encode(v));
+        varint::encode_into(v, &mut self.data);
     }
     pub fn write_varlong(&mut self, v: VarLong) {
-        self.data.append(&mut varlong::encode(v));
+        varlong::encode_into(v, &mut self.data);
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) {
@@ -81,7 +83,7 @@ impl PacketEncoder {
     }
 
     pub fn write_string(&mut self, text: &str) {
-        self.write_bytes(string::encode(text).as_slice());
+        string::encode_into(text, &mut self.data);
     }
 
     pub fn write_uuid(&mut self, uuid: &Uuid) {
@@ -100,7 +102,7 @@ impl Write for PacketEncoder {
 }
 
 pub struct PacketDecoder {
-    data: Cursor<Box<[u8]>>,
+    data: Cursor<Bytes>,
 }
 impl PacketDecoder {
     pub fn new(raw_packet: RawPacket) -> Self {
@@ -195,23 +197,34 @@ pub mod varint {
     use crate::{data_types::VarInt, DecodingError, DecodingResult};
 
     use byteorder::ReadBytesExt;
+    use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::{Cursor, Read};
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
-    pub fn encode(int: VarInt) -> Vec<u8> {
+    pub const MAX_BYTE_SIZE: usize = 5;
+
+    /// Encodes a VarInt into the prided buffer
+    /// return the amount of bytes written
+    pub fn encode_into(int: VarInt, bytes: &mut impl BufMut) -> usize {
         let mut val: u32 = int as u32;
-        let mut buf = Vec::new();
+        let mut written = 0;
         loop {
             let mut temp = (val & 0b0111_1111) as u8;
             val >>= 7;
             if val != 0 {
                 temp |= 0b1000_0000;
             }
-            buf.push(temp);
+            bytes.put_u8(temp);
+            written += 1;
             if val == 0 {
-                return buf;
+                break written;
             }
         }
+    }
+    pub fn encode(int: VarInt) -> Bytes {
+        let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
+        encode_into(int, &mut bytes);
+        bytes.freeze()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarInt> {
@@ -243,27 +256,49 @@ pub mod varint {
             result |= value << (7 * num_read);
 
             num_read += 1;
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varint", "too many bytes"));
-            }
             if read & 0b1000_0000 == 0 {
                 break;
+            }
+            if num_read > 5 {
+                return Err(DecodingError::parse_error("varint", "too many bytes"));
             }
         }
         Ok(result)
     }
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<VarInt> {
-        decode_sync(&mut Cursor::new(buffer.as_ref()))
+    pub fn decode_buf(buffer: &mut impl Buf) -> DecodingResult<VarInt> {
+        let mut num_read = 0;
+        let mut result = 0i32;
+        let mut read;
+        loop {
+            if !buffer.has_remaining() {
+                return Err(DecodingError::NotEnoughBytes);
+            }
+            read = buffer.get_u8();
+            let value = (read & 0b0111_1111) as i32;
+            result |= value << (7 * num_read);
+
+            num_read += 1;
+            if read & 0b1000_0000 == 0 {
+                break;
+            }
+            if num_read > 5 {
+                return Err(DecodingError::parse_error("varint", "too many bytes"));
+            }
+        }
+        Ok(result)
     }
 }
 pub mod varlong {
     use crate::{data_types::VarLong, DecodingError, DecodingResult};
 
     use byteorder::ReadBytesExt;
+    use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::{Cursor, Read};
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
-    pub fn encode(int: VarLong) -> Vec<u8> {
+    pub const MAX_BYTE_SIZE: usize = 10;
+
+    pub fn encode_into(int: VarLong, bytes: impl BufMut) -> Vec<u8> {
         let mut val: u64 = int as u64;
         let mut buf = Vec::new();
         loop {
@@ -277,6 +312,11 @@ pub mod varlong {
                 return buf;
             }
         }
+    }
+    pub fn encode(int: VarLong) -> Bytes {
+        let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
+        encode_into(int, &mut bytes);
+        bytes.freeze()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarLong> {
@@ -298,7 +338,7 @@ pub mod varlong {
         }
         Ok(result)
     }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<VarLong> {
+    pub fn decode_sync<T: Read>(stream: &mut T) -> DecodingResult<VarLong> {
         let mut num_read = 0;
         let mut result = 0i64;
         let mut read;
@@ -317,44 +357,39 @@ pub mod varlong {
         }
         Ok(result)
     }
-    pub fn decode<T: AsRef<[u8]>>(buffer: &T) -> DecodingResult<VarLong> {
-        decode_sync(&mut Cursor::new(buffer.as_ref()))
-    }
 }
 pub mod string {
     use super::varint;
     use crate::DecodingResult;
 
     use byteorder::ReadBytesExt;
+    use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
-    pub fn encode(string: &str) -> Vec<u8> {
-        let mut data = vec![];
-        let text = string.as_bytes();
-        data.append(&mut varint::encode(text.len() as i32));
-        data.extend_from_slice(text);
-        data
+    pub fn encode_into(string: &str, bytes: &mut impl BufMut) {
+        let mut text = string.as_bytes();
+        varint::encode_into(text.len() as i32, bytes);
+        bytes.put(text);
+    }
+    pub fn encode(string: &str) -> Bytes {
+        let mut bytes = BytesMut::new();
+        encode_into(string, &mut bytes);
+        bytes.freeze()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<String> {
         let size = varint::decode_async(stream).await?;
-        let mut data: Vec<u8> = Vec::with_capacity(size as usize);
-
+        let mut data = BytesMut::with_capacity(size as usize);
         for _ in 0..size {
-            data.push(stream.read_u8().await?);
+            data.put_u8(stream.read_u8().await?);
         }
-
         return Ok(String::from_utf8_lossy(&data).into());
     }
     pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<String> {
         let size = varint::decode_sync(stream)?;
-        let mut data: Vec<u8> = Vec::with_capacity(size as usize);
-
-        for _ in 0..size {
-            data.push(stream.read_u8()?);
-        }
-
-        return Ok(String::from_utf8_lossy(&data).into());
+        let mut data = BytesMut::with_capacity(size as usize).writer();
+        std::io::copy(&mut stream.take(size as u64), &mut data)?;
+        return Ok(String::from_utf8_lossy(&data.into_inner()).into());
     }
 }

@@ -18,7 +18,10 @@ pub trait ServerBoundPacket: Sized {
         if packet_decoder.remaining() > 0 {
             return Err(DecodingError::parse_error(
                 &format!("packet 0x{:x}", Self::packet_id()),
-                "not all bytes have been read after decoding",
+                &format!(
+                    "not all bytes have been read after decoding ({} remaining)",
+                    packet_decoder.remaining()
+                ),
             ));
         }
         result

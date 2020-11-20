@@ -3,6 +3,7 @@ use mc_server_lib::chat_manager::CommandExecutor;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use mc_server_lib::{entity::BoxedEntity, entity_pool::EntityPool};
 use mc_utils::Location;
 use std::sync::Arc;
@@ -29,7 +30,7 @@ impl CommandExecutor for TpCommand {
                 redirect_node: None,
                 name: "location".to_string(),
                 parser: "minecraft:vec3".into(),
-                properties: vec![],
+                properties: Bytes::new(),
                 suggestions_type: None,
             })],
             redirect_node: None,

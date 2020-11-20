@@ -12,6 +12,7 @@ pub enum LoginStartResult {
         uuid: Uuid,
         username: String,
         encrypt: bool,
+        compress: bool,
     },
     Disconnect {
         reason: String,

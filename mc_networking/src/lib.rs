@@ -11,12 +11,10 @@ use tokio::io;
 
 #[derive(Error, Debug)]
 pub enum DecodingError {
-    #[error("{source}")]
-    IoError {
-        #[from]
-        source: io::Error,
-        backtrace: Backtrace,
-    },
+    #[error("io error {0}")]
+    IoError(io::Error),
+    #[error("not enough bytes")]
+    NotEnoughBytes,
     #[error("could not parse {data_type}: {message}")]
     ParseError { data_type: String, message: String },
 }
@@ -36,9 +34,20 @@ impl From<uuid::Error> for DecodingError {
         }
     }
 }
+impl From<io::Error> for DecodingError {
+    fn from(error: io::Error) -> Self {
+        match error.kind() {
+            io::ErrorKind::UnexpectedEof => Self::NotEnoughBytes,
+            e => Self::IoError(error),
+        }
+    }
+}
 impl From<nbt::Error> for DecodingError {
     fn from(error: nbt::Error) -> Self {
-        Self::from(std::io::Error::from(error))
+        Self::ParseError {
+            data_type: "uuid".to_string(),
+            message: format!("{}", error),
+        }
     }
 }
 

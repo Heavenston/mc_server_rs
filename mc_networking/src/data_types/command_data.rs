@@ -1,10 +1,11 @@
 use crate::data_types::{encoder::PacketEncoder, Identifier, VarInt};
 
+use bytes::Bytes;
 use std::sync::Arc;
 
 pub trait Node: Send + Sync {
     fn name(&self) -> String;
-    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8>;
+    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes;
 }
 
 #[derive(Clone)]
@@ -18,7 +19,7 @@ impl Node for RootNode {
         "root".to_string()
     }
 
-    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
+    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
         let mut encoder = PacketEncoder::new();
 
         encoder.write_u8(
@@ -52,7 +53,7 @@ impl Node for LiteralNode {
         self.name.clone()
     }
 
-    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
+    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
         let mut encoder = PacketEncoder::new();
 
         encoder.write_u8(
@@ -84,7 +85,7 @@ pub struct ArgumentNode {
     /// All parsers can be found here: https://wiki.vg/Command_Data#Parsers
     pub parser: Identifier,
     /// Content depends on parser: https://wiki.vg/Command_Data#Parsers
-    pub properties: Vec<u8>,
+    pub properties: Bytes,
     pub suggestions_type: Option<String>,
 }
 impl Node for ArgumentNode {
@@ -92,7 +93,7 @@ impl Node for ArgumentNode {
         self.name.clone()
     }
 
-    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Vec<u8> {
+    fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
         let mut encoder = PacketEncoder::new();
 
         encoder.write_u8(
@@ -125,7 +126,7 @@ impl Node for ArgumentNode {
 #[derive(Clone)]
 pub struct GraphEncoder {
     nodes: Vec<Arc<dyn Node>>,
-    encoded: Vec<Vec<u8>>,
+    encoded: Vec<Bytes>,
 }
 impl GraphEncoder {
     pub fn new() -> Self {
@@ -150,7 +151,7 @@ impl GraphEncoder {
             -1 => {
                 let index = self.nodes.len();
                 self.nodes.push(node.clone());
-                self.encoded.push(vec![]);
+                self.encoded.push(Bytes::new());
                 let encoded = node.encode(self);
                 self.encoded[index] = encoded;
                 index as i32
@@ -159,7 +160,7 @@ impl GraphEncoder {
         }
     }
 
-    pub fn encode(self) -> Vec<Vec<u8>> {
+    pub fn encode(self) -> Vec<Bytes> {
         self.encoded
     }
 }

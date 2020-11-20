@@ -13,6 +13,7 @@ use mc_server_lib::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use bytes::Bytes;
 use serde_json::json;
 use std::sync::{atomic::Ordering, Arc};
 use tokio::sync::RwLock;
@@ -54,7 +55,7 @@ impl CommandExecutor for SummonCommand {
                         redirect_node: None,
                         name: "type".to_string(),
                         parser: "minecraft:resource_location".into(),
-                        properties: vec![],
+                        properties: Bytes::new(),
                         suggestions_type: None,
                     })],
                     redirect_node: None,
