@@ -193,6 +193,82 @@ impl Read for PacketDecoder {
     }
 }
 
+macro_rules! create_varint_decoder {
+    ($(async $(@$async:tt)?)? fn $func_name: ident ($stream: ident: $stream_type: ty), $read_expr: expr, output_type: $output_type: ty, max_byte_size: $bytes_limit: expr) => {
+        pub $(async $($async)?)? fn $func_name($stream: $stream_type) -> DecodingResult<$output_type> {
+            let mut num_read = 0;
+            let mut result: $output_type = 0;
+            let mut read;
+            loop {
+                read = $read_expr;
+                let value = (read & 0b0111_1111) as $output_type;
+                result |= value << (7 * num_read);
+
+                num_read += 1;
+                if read & 0b1000_0000 == 0 {
+                    break;
+                }
+                if num_read > $bytes_limit {
+                    return Err(DecodingError::parse_error("varint or varlong", "too many bytes"));
+                }
+            }
+            Ok(result)
+        }
+    };
+}
+macro_rules! create_varint_decoders {
+    (output_type: $output_type: ty, max_byte_size: $bytes_limit: expr) => {
+        create_varint_decoder!(
+            async fn decode_async(stream: &mut (impl AsyncRead + Unpin)),
+            stream.read_u8().await?,
+            output_type: $output_type,
+            max_byte_size: $bytes_limit
+        );
+        create_varint_decoder!(
+            fn decode_sync(stream: &mut (impl Read + Unpin)),
+            stream.read_u8()?,
+            output_type: $output_type,
+            max_byte_size: $bytes_limit
+        );
+        create_varint_decoder!(
+            fn decode_buf(buffer: &mut impl Buf),
+            {
+                if !buffer.has_remaining() {
+                    return Err(DecodingError::NotEnoughBytes);
+                }
+                buffer.get_u8()
+            },
+            output_type: $output_type,
+            max_byte_size: $bytes_limit
+        );
+    };
+}
+
+macro_rules! create_varint_encoders {
+    (input_type: $input_type: ty) => {
+        pub fn encode_into(mut val: $input_type, bytes: &mut impl BufMut) -> usize {
+            let mut written = 0;
+            loop {
+                let mut temp = (val & 0b0111_1111) as u8;
+                val >>= 7;
+                if val != 0 {
+                    temp |= 0b1000_0000;
+                }
+                bytes.put_u8(temp);
+                written += 1;
+                if val == 0 {
+                    break written;
+                }
+            }
+        }
+        pub fn encode(int: $input_type) -> Bytes {
+            let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
+            encode_into(int, &mut bytes);
+            bytes.freeze()
+        }
+    };
+}
+
 pub mod varint {
     use crate::{data_types::VarInt, DecodingError, DecodingResult};
 
@@ -203,159 +279,21 @@ pub mod varint {
 
     pub const MAX_BYTE_SIZE: usize = 5;
 
-    /// Encodes a VarInt into the prided buffer
-    /// return the amount of bytes written
-    pub fn encode_into(int: VarInt, bytes: &mut impl BufMut) -> usize {
-        let mut val: u32 = int as u32;
-        let mut written = 0;
-        loop {
-            let mut temp = (val & 0b0111_1111) as u8;
-            val >>= 7;
-            if val != 0 {
-                temp |= 0b1000_0000;
-            }
-            bytes.put_u8(temp);
-            written += 1;
-            if val == 0 {
-                break written;
-            }
-        }
-    }
-    pub fn encode(int: VarInt) -> Bytes {
-        let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
-        encode_into(int, &mut bytes);
-        bytes.freeze()
-    }
-
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarInt> {
-        let mut num_read: i32 = 0;
-        let mut result = 0i32;
-        let mut read;
-        loop {
-            read = stream.read_u8().await?;
-            let value = (read & 0b0111_1111) as i32;
-            result |= value << (7 * num_read);
-
-            num_read += 1;
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varint", "too many bytes"));
-            }
-            if read & 0b1000_0000 == 0 {
-                break;
-            }
-        }
-        Ok(result)
-    }
-    pub fn decode_sync<T: Read + Unpin>(stream: &mut T) -> DecodingResult<VarInt> {
-        let mut num_read = 0;
-        let mut result = 0i32;
-        let mut read;
-        loop {
-            read = stream.read_u8()?;
-            let value = (read & 0b0111_1111) as i32;
-            result |= value << (7 * num_read);
-
-            num_read += 1;
-            if read & 0b1000_0000 == 0 {
-                break;
-            }
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varint", "too many bytes"));
-            }
-        }
-        Ok(result)
-    }
-    pub fn decode_buf(buffer: &mut impl Buf) -> DecodingResult<VarInt> {
-        let mut num_read = 0;
-        let mut result = 0i32;
-        let mut read;
-        loop {
-            if !buffer.has_remaining() {
-                return Err(DecodingError::NotEnoughBytes);
-            }
-            read = buffer.get_u8();
-            let value = (read & 0b0111_1111) as i32;
-            result |= value << (7 * num_read);
-
-            num_read += 1;
-            if read & 0b1000_0000 == 0 {
-                break;
-            }
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varint", "too many bytes"));
-            }
-        }
-        Ok(result)
-    }
+    create_varint_encoders!(input_type: VarInt);
+    create_varint_decoders!(output_type: VarInt, max_byte_size: MAX_BYTE_SIZE);
 }
 pub mod varlong {
     use crate::{data_types::VarLong, DecodingError, DecodingResult};
 
     use byteorder::ReadBytesExt;
-    use bytes::{BufMut, Bytes, BytesMut};
+    use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub const MAX_BYTE_SIZE: usize = 10;
 
-    pub fn encode_into(int: VarLong, buf: &mut impl BufMut) {
-        let mut val: u64 = int as u64;
-        loop {
-            let mut temp = (val & 0b0111_1111) as u8;
-            val >>= 7;
-            if val != 0 {
-                temp |= 0b1000_0000;
-            }
-            buf.put_u8(temp);
-            if val == 0 {
-                break;
-            }
-        }
-    }
-    pub fn encode(int: VarLong) -> Bytes {
-        let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
-        encode_into(int, &mut bytes);
-        bytes.freeze()
-    }
-
-    pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<VarLong> {
-        let mut num_read: i64 = 0;
-        let mut result = 0i64;
-        let mut read;
-        loop {
-            read = stream.read_u8().await?;
-            let value = (read & 0b0111_1111) as i64;
-            result |= value << (7 * num_read);
-
-            num_read += 1;
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varlong", "too many bytes"));
-            }
-            if read & 0b1000_0000 == 0 {
-                break;
-            }
-        }
-        Ok(result)
-    }
-    pub fn decode_sync<T: Read>(stream: &mut T) -> DecodingResult<VarLong> {
-        let mut num_read = 0;
-        let mut result = 0i64;
-        let mut read;
-        loop {
-            read = stream.read_u8()?;
-            let value = (read & 0b0111_1111) as i64;
-            result |= value << (7 * num_read);
-
-            num_read += 1;
-            if num_read > 5 {
-                return Err(DecodingError::parse_error("varlong", "too many bytes"));
-            }
-            if read & 0b1000_0000 == 0 {
-                break;
-            }
-        }
-        Ok(result)
-    }
+    create_varint_encoders!(input_type: VarLong);
+    create_varint_decoders!(output_type: VarLong, max_byte_size: MAX_BYTE_SIZE);
 }
 pub mod string {
     use super::varint;
