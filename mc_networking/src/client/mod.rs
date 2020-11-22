@@ -11,7 +11,6 @@ use bytes::BytesMut;
 use lazy_static::lazy_static;
 use log::*;
 use openssl::{
-    aes::AesKey,
     pkey,
     rsa::{Padding, Rsa},
     symm::{Cipher, Crypter, Mode},
@@ -21,7 +20,6 @@ use serde_json::json;
 use std::{convert::TryInto, sync::Arc};
 use thiserror::Error;
 use tokio::{
-    io::Sink,
     net::{
         tcp::{OwnedReadHalf, OwnedWriteHalf},
         TcpStream,

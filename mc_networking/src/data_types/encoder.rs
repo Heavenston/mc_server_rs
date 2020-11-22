@@ -198,7 +198,7 @@ pub mod varint {
 
     use byteorder::ReadBytesExt;
     use bytes::{Buf, BufMut, Bytes, BytesMut};
-    use std::io::{Cursor, Read};
+    use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub const MAX_BYTE_SIZE: usize = 5;
@@ -292,24 +292,23 @@ pub mod varlong {
     use crate::{data_types::VarLong, DecodingError, DecodingResult};
 
     use byteorder::ReadBytesExt;
-    use bytes::{Buf, BufMut, Bytes, BytesMut};
-    use std::io::{Cursor, Read};
+    use bytes::{BufMut, Bytes, BytesMut};
+    use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub const MAX_BYTE_SIZE: usize = 10;
 
-    pub fn encode_into(int: VarLong, bytes: impl BufMut) -> Vec<u8> {
+    pub fn encode_into(int: VarLong, buf: &mut impl BufMut) {
         let mut val: u64 = int as u64;
-        let mut buf = Vec::new();
         loop {
             let mut temp = (val & 0b0111_1111) as u8;
             val >>= 7;
             if val != 0 {
                 temp |= 0b1000_0000;
             }
-            buf.push(temp);
+            buf.put_u8(temp);
             if val == 0 {
-                return buf;
+                break;
             }
         }
     }
@@ -362,13 +361,12 @@ pub mod string {
     use super::varint;
     use crate::DecodingResult;
 
-    use byteorder::ReadBytesExt;
-    use bytes::{Buf, BufMut, Bytes, BytesMut};
+    use bytes::{BufMut, Bytes, BytesMut};
     use std::io::Read;
     use tokio::prelude::{io::AsyncReadExt, AsyncRead};
 
     pub fn encode_into(string: &str, bytes: &mut impl BufMut) {
-        let mut text = string.as_bytes();
+        let text = string.as_bytes();
         varint::encode_into(text.len() as i32, bytes);
         bytes.put(text);
     }

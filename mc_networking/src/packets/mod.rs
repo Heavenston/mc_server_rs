@@ -3,22 +3,10 @@ pub mod server_bound;
 
 use crate::{data_types::encoder::varint, DecodingError, DecodingResult};
 
-use byteorder::{ReadBytesExt, WriteBytesExt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use flate2::{
-    write::{ZlibDecoder, ZlibEncoder},
-    Compression,
-};
-use openssl::{
-    aes::{aes_ige, AesKey},
-    symm::{Cipher, Crypter, Mode},
-};
-use std::{
-    fmt::{self, Debug},
-    io::{Cursor, Read, Write},
-    ops::Deref,
-};
-use tokio::prelude::{io::AsyncReadExt, AsyncRead};
+use flate2::{write::ZlibEncoder, Compression};
+
+use std::{fmt::Debug, io::Write, ops::Deref};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PacketCompression(i32);

@@ -5,7 +5,6 @@ pub mod data_types;
 pub mod nbt_map;
 pub mod packets;
 
-use std::backtrace::Backtrace;
 use thiserror::Error;
 use tokio::io;
 
@@ -38,7 +37,7 @@ impl From<io::Error> for DecodingError {
     fn from(error: io::Error) -> Self {
         match error.kind() {
             io::ErrorKind::UnexpectedEof => Self::NotEnoughBytes,
-            e => Self::IoError(error),
+            _ => Self::IoError(error),
         }
     }
 }
