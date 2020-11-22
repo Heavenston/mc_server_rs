@@ -134,7 +134,8 @@ impl RawPacket {
                         message: "content length does not match".to_string(),
                     });
                 }
-                Self::decode_content(&mut uncompressed, taker.remaining())
+                let content_length = uncompressed.len();
+                Self::decode_content(&mut uncompressed, content_length)
             }
         }
         else {
