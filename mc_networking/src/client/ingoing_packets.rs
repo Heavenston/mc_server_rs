@@ -1,4 +1,4 @@
-use super::*;
+use super::{keep_alive::*, *};
 use crate::{
     packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket},
     DecodingError,
