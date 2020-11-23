@@ -59,14 +59,8 @@ async fn main() {
                 .default_value("25565")
                 .validator(|p| match p.parse::<i64>() {
                     Err(..) => Err("Must be a valid number".to_string()),
-                    Ok(v) => {
-                        if v > 65353 {
-                            Err("Cannot be higher than 65353".to_string())
-                        }
-                        else {
-                            Ok(())
-                        }
-                    }
+                    Ok(0..=65353) => Ok(()),
+                    Ok(..) => Err("Cannot be higher than 65353".to_string()),
                 })
                 .takes_value(true),
         )
