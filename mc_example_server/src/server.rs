@@ -214,7 +214,7 @@ impl Server {
                             .send(LoginStartResult::Accept {
                                 uuid: uuid.clone(),
                                 username,
-                                encrypt: true,
+                                encrypt: false,
                                 compress: true,
                             })
                             .unwrap();
