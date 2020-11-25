@@ -7,7 +7,10 @@ use crate::{
 use bytes::BytesMut;
 
 use log::*;
-use openssl::{rsa::Padding, symm::Crypter};
+use openssl::{
+    rsa::Padding,
+    symm::{Cipher, Crypter, Mode},
+};
 use rand::RngCore;
 use serde_json::json;
 use std::{convert::TryInto, sync::Arc};
@@ -88,14 +91,11 @@ pub(super) async fn listen_ingoing_packets(
                 }
                 let received = read.read(&mut new_bytes).await?;
                 let decrypted_output = if let Some(encryption) = &mut encryption {
-                    encryption
-                        .update(
-                            &new_bytes[0..received],
-                            &mut decrypted_new_bytes[0..received],
-                        )
+                    let encrypted = encryption
+                        .update(&new_bytes[0..received], &mut decrypted_new_bytes)
                         .unwrap();
 
-                    &decrypted_new_bytes[0..received]
+                    &decrypted_new_bytes[0..encrypted]
                 }
                 else {
                     &new_bytes[0..received]
@@ -299,6 +299,15 @@ pub(super) async fn listen_ingoing_packets(
                         // TODO: Handle this case a "little" bit better
                     }
 
+                    encryption = Some(
+                        Crypter::new(
+                            Cipher::aes_128_cfb8(),
+                            Mode::Decrypt,
+                            &shared_key,
+                            Some(&shared_key),
+                        )
+                        .unwrap(),
+                    );
                     packet_sender
                         .send(OutgoingPacketEvent::SetEncryption(Some(shared_key)))
                         .await?;
