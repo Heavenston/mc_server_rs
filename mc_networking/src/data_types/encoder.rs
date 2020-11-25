@@ -196,20 +196,19 @@ impl Read for PacketDecoder {
 macro_rules! create_varint_decoder {
     ($(async $(@$async:tt)?)? fn $func_name: ident ($stream: ident: $stream_type: ty), $read_expr: expr, output_type: $output_type: ty, max_byte_size: $bytes_limit: expr) => {
         pub $(async $($async)?)? fn $func_name($stream: $stream_type) -> DecodingResult<$output_type> {
-            let mut num_read = 0;
-            let mut result: $output_type = 0;
-            let mut read;
+            let mut num_read: usize = 0;
+            let mut result = 0;
             loop {
-                read = $read_expr;
-                let value = (read & 0b0111_1111) as $output_type;
-                result |= value << (7 * num_read);
+                let read = $read_expr;
+                let value = <$output_type>::from(read & 0b0111_1111);
+                result |= value.overflowing_shl(7 * num_read as u32).0;
 
                 num_read += 1;
-                if read & 0b1000_0000 == 0 {
-                    break;
-                }
                 if num_read > $bytes_limit {
                     return Err(DecodingError::parse_error("varint or varlong", "too many bytes"));
+                }
+                if read & 0b1000_0000 == 0 {
+                    break;
                 }
             }
             Ok(result)
