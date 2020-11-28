@@ -99,20 +99,20 @@ impl EntityPool {
             }
             // Sync entity position to players
             {
-                let has_location_changed = synced_entities_location
-                    .get(&eid)
-                    .map(|l| l != entity.location())
-                    .unwrap_or(true);
+                let previous_location = match synced_entities_location.get_mut(&eid) {
+                    Some(l) => l,
+                    None => {
+                        synced_entities_location.insert(eid, entity.location().clone());
+                        synced_entities_location.get_mut(&eid).unwrap()
+                    }
+                };
+                let has_location_changed = previous_location != entity.location();
                 if has_location_changed {
-                    let previous_location = synced_entities_location
-                        .get(&eid)
-                        .unwrap_or(entity.location())
-                        .clone();
                     let new_location = entity.location();
 
                     let has_rotation_changed = !previous_location.rotation_eq(&new_location);
                     let has_position_changed = !previous_location.position_eq(&new_location);
-                    synced_entities_location.insert(eid, new_location.clone());
+                    *previous_location = new_location.clone();
 
                     let on_ground = entity.on_ground();
                     let players = self.get_players_around(&*entity).await;
