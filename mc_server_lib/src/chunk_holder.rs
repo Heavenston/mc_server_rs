@@ -90,11 +90,10 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         Some(chunk)
     }
     async fn save_chunk(&self, x: i32, z: i32) {
-        let chunk = self.chunks.write().await.remove(&(x, z));
-        if chunk.is_none() {
-            return;
-        }
-        let mut chunk = chunk.unwrap();
+        let mut chunk = match self.chunks.write().await.remove(&(x, z)) {
+            Some(chunk) => chunk,
+            None => return,
+        };
         let mut i = 0;
         let chunk = loop {
             assert!(i < 100, "Could not unwrap chunk");
@@ -107,8 +106,8 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                     debug!("CHUNK UNWRAP MISS {}/100", i);
                 }
             }
-        };
-        let chunk = chunk.into_inner();
+        }
+        .into_inner();
         self.chunk_provider.save_chunk_data(x, z, chunk.data).await;
     }
 
