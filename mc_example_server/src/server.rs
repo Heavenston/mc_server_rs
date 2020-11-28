@@ -33,7 +33,7 @@ use std::{
 };
 use tokio::{
     net::{TcpListener, ToSocketAddrs},
-    sync::{mpsc, RwLock},
+    sync::RwLock,
     task::JoinHandle,
     time::{sleep, sleep_until, Duration, Instant},
 };
@@ -155,7 +155,7 @@ impl Server {
     async fn handle_client(
         server: Arc<Server>,
         client: Client,
-        mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
+        event_receiver: flume::Receiver<ClientEvent>,
     ) -> Result<()> {
         let mut player_ref: Option<PlayerRef> = None;
         let mut player_eid = -1i32;
@@ -166,7 +166,7 @@ impl Server {
         let players_folder = server.world_folder.join("players");
         std::fs::create_dir_all(&players_folder).unwrap();
 
-        while let Some(event) = event_receiver.recv().await {
+        while let Ok(event) = event_receiver.recv_async().await {
             match event {
                 ClientEvent::ServerListPing { response } => {
                     response
@@ -778,13 +778,13 @@ impl Server {
                 }
             });
 
-            let (ticks_send, mut ticks_receive) = mpsc::channel(10);
+            let (ticks_send, ticks_receive) = flume::bounded(10);
             // Infinite tick check
             tokio::task::spawn({
                 let server = Arc::clone(&server);
                 async move {
                     loop {
-                        let finished: Arc<AtomicBool> = ticks_receive.recv().await.unwrap();
+                        let finished: Arc<AtomicBool> = ticks_receive.recv_async().await.unwrap();
                         let start = Instant::now();
                         let server = Arc::clone(&server);
                         tokio::task::spawn(async move {

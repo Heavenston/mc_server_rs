@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tokio::{
     net::tcp::OwnedWriteHalf,
     prelude::io::AsyncWriteExt,
-    sync::{mpsc, Notify, RwLock},
+    sync::{Notify, RwLock},
     task::block_in_place,
 };
 
@@ -28,7 +28,7 @@ pub(super) enum OutgoingPacketEvent {
 
 pub(super) async fn listen_outgoing_packets(
     mut write: OwnedWriteHalf,
-    mut packet_receiver: mpsc::Receiver<OutgoingPacketEvent>,
+    packet_receiver: flume::Receiver<OutgoingPacketEvent>,
     _state: Arc<RwLock<ClientState>>,
 ) {
     let mut packet_buffer = BytesMut::with_capacity(200);
@@ -37,7 +37,7 @@ pub(super) async fn listen_outgoing_packets(
 
     let dummy_notify = Arc::new(Notify::new());
 
-    while let Some(event) = packet_receiver.recv().await {
+    while let Ok(event) = packet_receiver.recv_async().await {
         match (event, dummy_notify.clone()) {
             (OutgoingPacketEvent::Packet(packet), notify)
             | (OutgoingPacketEvent::PacketNow(packet, notify), ..) => {

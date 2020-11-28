@@ -16,12 +16,7 @@ use lazy_static::lazy_static;
 use log::*;
 use openssl::{self, pkey, rsa::Rsa};
 use std::sync::Arc;
-use tokio::{
-    self,
-    net::TcpStream,
-    sync::{mpsc, RwLock},
-    task::spawn,
-};
+use tokio::{self, net::TcpStream, sync::RwLock, task::spawn};
 
 const KEEP_ALIVE_TIMEOUT: u64 = 30_000;
 const KEEP_ALIVE_INTERVAL: u64 = 15_000;
@@ -46,17 +41,17 @@ pub struct Client {
     compression: Arc<RwLock<PacketCompression>>,
     state: Arc<RwLock<ClientState>>,
     #[allow(dead_code)]
-    event_sender: mpsc::Sender<ClientEvent>,
-    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
+    event_sender: flume::Sender<ClientEvent>,
+    packet_sender: flume::Sender<OutgoingPacketEvent>,
     peer_addr: std::net::SocketAddr,
 }
 impl Client {
-    pub fn new(socket: TcpStream) -> (Self, mpsc::Receiver<ClientEvent>) {
+    pub fn new(socket: TcpStream) -> (Self, flume::Receiver<ClientEvent>) {
         let peer_addr = socket.peer_addr().unwrap();
         let (read, write) = socket.into_split();
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = mpsc::channel(100);
-        let (packet_sender, packet_receiver) = mpsc::channel(100);
+        let (event_sender, event_receiver) = flume::bounded(100);
+        let (packet_sender, packet_receiver) = flume::bounded(100);
         let compression = Arc::default();
 
         spawn({
@@ -127,7 +122,7 @@ impl Client {
 
     pub async fn send_raw_packet(&self, packet: RawPacket) -> PacketSendResult {
         self.packet_sender
-            .send(OutgoingPacketEvent::Packet(packet))
+            .send_async(OutgoingPacketEvent::Packet(packet))
             .await
             .unwrap();
         Ok(())

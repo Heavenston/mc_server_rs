@@ -18,7 +18,7 @@ use thiserror::Error;
 use tokio::{
     net::tcp::OwnedReadHalf,
     prelude::io::AsyncReadExt,
-    sync::{mpsc, oneshot, Notify, RwLock},
+    sync::{oneshot, Notify, RwLock},
     time::Instant,
 };
 
@@ -29,9 +29,9 @@ pub(super) enum ClientListenError {
     #[error("io error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("could not send an event down the event sender: {0:?}")]
-    EventSenderSendError(#[from] mpsc::error::TrySendError<ClientEvent>),
+    EventSenderSendError(#[from] flume::TrySendError<ClientEvent>),
     #[error("could not send packet")]
-    PacketSenderSendError(#[from] mpsc::error::SendError<OutgoingPacketEvent>),
+    PacketSenderSendError(#[from] flume::SendError<OutgoingPacketEvent>),
     #[error("could not receive an event response")]
     ResponseRecvError(#[from] oneshot::error::RecvError),
     #[error(
@@ -50,8 +50,8 @@ pub(super) type ClientListenResult<T> = Result<T, ClientListenError>;
 pub(super) async fn listen_ingoing_packets(
     compression: Arc<RwLock<PacketCompression>>,
     mut read: OwnedReadHalf,
-    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
-    event_sender: mpsc::Sender<ClientEvent>,
+    packet_sender: flume::Sender<OutgoingPacketEvent>,
+    event_sender: flume::Sender<ClientEvent>,
     state: Arc<RwLock<ClientState>>,
 ) -> ClientListenResult<()> {
     let keep_alive_data = Arc::new(RwLock::new(KeepAliveData {
@@ -140,7 +140,7 @@ pub(super) async fn listen_ingoing_packets(
                         response_receiver.await.unwrap()
                     };
                     packet_sender
-                        .send(OutgoingPacketEvent::Packet(
+                        .send_async(OutgoingPacketEvent::Packet(
                             C00Response {
                                 json_response: event_response,
                             }
@@ -151,7 +151,7 @@ pub(super) async fn listen_ingoing_packets(
                 else if raw_packet.packet_id == S01Ping::packet_id() {
                     let packet: S01Ping = S01Ping::decode(raw_packet)?;
                     packet_sender
-                        .send(OutgoingPacketEvent::Packet(
+                        .send_async(OutgoingPacketEvent::Packet(
                             C01Pong {
                                 payload: packet.payload,
                             }
@@ -178,7 +178,7 @@ pub(super) async fn listen_ingoing_packets(
                             let new_compression = 50;
                             let compression_notify = Arc::new(Notify::new());
                             packet_sender
-                                .send(OutgoingPacketEvent::PacketNow(
+                                .send_async(OutgoingPacketEvent::PacketNow(
                                     C03SetCompression {
                                         threshold: new_compression,
                                     }
@@ -189,7 +189,7 @@ pub(super) async fn listen_ingoing_packets(
                             compression_notify.notified().await;
                             *compression.write().await = PacketCompression::new(new_compression);
                             packet_sender
-                                .send(OutgoingPacketEvent::SetCompression(
+                                .send_async(OutgoingPacketEvent::SetCompression(
                                     *compression.read().await,
                                 ))
                                 .await?;
@@ -221,7 +221,7 @@ pub(super) async fn listen_ingoing_packets(
                             login_username = Some(username.clone());
                             if encrypt {
                                 packet_sender
-                                    .send(OutgoingPacketEvent::Packet(
+                                    .send_async(OutgoingPacketEvent::Packet(
                                         C01EncryptionRequest {
                                             server_id: "".to_string(),
                                             public_key: RSA_KEYPAIR.public_key_to_der().unwrap(),
@@ -235,7 +235,7 @@ pub(super) async fn listen_ingoing_packets(
                                 enable_compression!();
 
                                 packet_sender
-                                    .send(OutgoingPacketEvent::Packet(
+                                    .send_async(OutgoingPacketEvent::Packet(
                                         C02LoginSuccess { uuid, username }.to_rawpacket(),
                                     ))
                                     .await?;
@@ -254,7 +254,7 @@ pub(super) async fn listen_ingoing_packets(
                         }
                         LoginStartResult::Disconnect { reason } => {
                             packet_sender
-                                .send(OutgoingPacketEvent::Packet(
+                                .send_async(OutgoingPacketEvent::Packet(
                                     C00LoginDisconnect {
                                         reason: json!({ "text": reason }),
                                     }
@@ -309,13 +309,13 @@ pub(super) async fn listen_ingoing_packets(
                         .unwrap(),
                     );
                     packet_sender
-                        .send(OutgoingPacketEvent::SetEncryption(Some(shared_key)))
+                        .send_async(OutgoingPacketEvent::SetEncryption(Some(shared_key)))
                         .await?;
 
                     enable_compression!();
 
                     packet_sender
-                        .send(OutgoingPacketEvent::Packet(
+                        .send_async(OutgoingPacketEvent::Packet(
                             C02LoginSuccess { uuid, username }.to_rawpacket(),
                         ))
                         .await?;

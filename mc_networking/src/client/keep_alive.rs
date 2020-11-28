@@ -5,7 +5,7 @@ use log::*;
 use std::sync::Arc;
 use tokio::{
     self,
-    sync::{mpsc, RwLock},
+    sync::RwLock,
     time::{sleep, Duration, Instant},
 };
 
@@ -16,7 +16,7 @@ pub(super) struct KeepAliveData {
 }
 
 pub(super) async fn handle_keep_alive(
-    packet_sender: mpsc::Sender<OutgoingPacketEvent>,
+    packet_sender: flume::Sender<OutgoingPacketEvent>,
     state: Arc<RwLock<ClientState>>,
     data: Arc<RwLock<KeepAliveData>>,
 ) {
@@ -31,7 +31,7 @@ pub(super) async fn handle_keep_alive(
             data.write().await.has_responded = false;
             data.write().await.sent_at = Instant::now();
             packet_sender
-                .send(OutgoingPacketEvent::Packet(
+                .send_async(OutgoingPacketEvent::Packet(
                     C1FKeepAlive { id }.to_rawpacket(),
                 ))
                 .await
@@ -55,7 +55,7 @@ pub(super) async fn handle_keep_alive(
                 else {
                     debug!("Keep alive miss, sending it again");
                     packet_sender
-                        .send(OutgoingPacketEvent::Packet(
+                        .send_async(OutgoingPacketEvent::Packet(
                             C1FKeepAlive {
                                 id: data.read().await.last_id,
                             }
