@@ -244,21 +244,23 @@ macro_rules! create_varint_decoders {
 }
 
 macro_rules! create_varint_encoders {
-    (input_type: $input_type: ty) => {
-        pub fn encode_into(mut val: $input_type, bytes: &mut impl BufMut) -> usize {
+    (input_type: $input_type: ty, unsigned_type: $unsigned_type: ty) => {
+        pub fn encode_into(val: $input_type, bytes: &mut impl BufMut) -> usize {
+            let mut val = val as $unsigned_type;
             let mut written = 0;
             loop {
                 let mut temp = (val & 0b0111_1111) as u8;
                 val >>= 7;
                 if val != 0 {
-                    temp |= 0b1000_0000;
+                    temp |= 0b10000000;
                 }
                 bytes.put_u8(temp);
                 written += 1;
                 if val == 0 {
-                    break written;
+                    break;
                 }
             }
+            written
         }
         pub fn encode(int: $input_type) -> Bytes {
             let mut bytes = BytesMut::with_capacity(MAX_BYTE_SIZE);
@@ -278,7 +280,7 @@ pub mod varint {
 
     pub const MAX_BYTE_SIZE: usize = 5;
 
-    create_varint_encoders!(input_type: VarInt);
+    create_varint_encoders!(input_type: VarInt, unsigned_type: u32);
     create_varint_decoders!(output_type: VarInt, max_byte_size: MAX_BYTE_SIZE);
 }
 pub mod varlong {
@@ -291,7 +293,7 @@ pub mod varlong {
 
     pub const MAX_BYTE_SIZE: usize = 10;
 
-    create_varint_encoders!(input_type: VarLong);
+    create_varint_encoders!(input_type: VarLong, unsigned_type: u64);
     create_varint_decoders!(output_type: VarLong, max_byte_size: MAX_BYTE_SIZE);
 }
 pub mod string {
