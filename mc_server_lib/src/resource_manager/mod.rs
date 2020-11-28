@@ -23,6 +23,7 @@ use tokio::{
 const VERSION_MANIFEST_URL: &'static str =
     "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 const MINECRAFT_VERSION: &'static str = "1.16.4";
+const ENABLE_CACHE_COMPRESSION: bool = false;
 
 std::thread_local! {
     static BLOCK_STATES_CACHE: RefCell<FxHashMap<String, i32>> = RefCell::new(FxHashMap::default());
@@ -32,15 +33,28 @@ std::thread_local! {
 
 async fn read_compressed_bincode_file<T: DeserializeOwned>(path: &PathBuf) -> Result<T> {
     let data = fs::read(path).await?;
-    let decompress_stream = flate2::read::ZlibDecoder::new(&data[..]);
-    Ok(bincode::deserialize_from(decompress_stream)?)
+    if ENABLE_CACHE_COMPRESSION {
+        let decompress_stream = flate2::read::ZlibDecoder::new(&data[..]);
+        Ok(bincode::deserialize_from(decompress_stream)?)
+    }
+    else {
+        Ok(bincode::deserialize(&data[..])?)
+    }
 }
 async fn write_compressed_bincode_file(path: &PathBuf, data: &impl Serialize) -> Result<()> {
     let uncompressed_bincode = bincode::serialize(data)?;
-    let mut compressed = vec![];
-    flate2::read::ZlibEncoder::new(&uncompressed_bincode[..], flate2::Compression::fast())
-        .read_to_end(&mut compressed)?;
-    File::create(path).await?.write_all(&compressed).await?;
+    if ENABLE_CACHE_COMPRESSION {
+        let mut compressed = vec![];
+        flate2::read::ZlibEncoder::new(&uncompressed_bincode[..], flate2::Compression::fast())
+            .read_to_end(&mut compressed)?;
+        File::create(path).await?.write_all(&compressed).await?;
+    }
+    else {
+        File::create(path)
+            .await?
+            .write_all(&uncompressed_bincode)
+            .await?;
+    }
     Ok(())
 }
 
