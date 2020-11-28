@@ -74,6 +74,7 @@ impl EntityPool {
     pub async fn tick(&self, counter: i32) {
         let entities = self.entities.read().await.clone();
         let mut synced_entities_location = self.synced_entities_location.write().await;
+        let mut synced_entities_equipments = self.synced_entities_equipments.write().await;
         let players_ids = self
             .players
             .read()
@@ -204,52 +205,55 @@ impl EntityPool {
             // Sync equipment to players
             {
                 let packet = {
-                    drop(entity);
-                    let synced_equipment = self.get_synced_entity_equipment(eid).await;
-                    let synced_equipment = synced_equipment.to_ref();
-                    entity = entity_arc.write().await;
+                    let synced_equipment = match synced_entities_equipments.get_mut(&eid) {
+                        Some(e) => e,
+                        None => {
+                            let (index, ..) = synced_entities_equipments
+                                .insert_full(eid, entity.get_equipment().to_owned());
+                            synced_entities_equipments.get_index_mut(index).unwrap().1
+                        }
+                    };
+                    let synced_equipment_ref = synced_equipment.to_ref();
+
                     let equipment = entity.get_equipment();
-                    if synced_equipment != equipment {
+                    if synced_equipment_ref != equipment {
                         let mut packet = C47EntityEquipment {
                             entity_id: eid,
                             equipment: vec![],
                         };
-                        if synced_equipment.main_hand != equipment.main_hand {
+                        if synced_equipment_ref.main_hand != equipment.main_hand {
                             packet.equipment.push((
                                 C47EntityEquipmentSlot::MainHand,
                                 equipment.main_hand.clone(),
                             ));
                         }
-                        if synced_equipment.off_hand != equipment.off_hand {
+                        if synced_equipment_ref.off_hand != equipment.off_hand {
                             packet.equipment.push((
                                 C47EntityEquipmentSlot::OffHand,
                                 equipment.off_hand.clone(),
                             ));
                         }
-                        if synced_equipment.head != equipment.head {
+                        if synced_equipment_ref.head != equipment.head {
                             packet
                                 .equipment
                                 .push((C47EntityEquipmentSlot::Head, equipment.head.clone()));
                         }
-                        if synced_equipment.chest != equipment.chest {
+                        if synced_equipment_ref.chest != equipment.chest {
                             packet
                                 .equipment
                                 .push((C47EntityEquipmentSlot::Chest, equipment.chest.clone()));
                         }
-                        if synced_equipment.legs != equipment.legs {
+                        if synced_equipment_ref.legs != equipment.legs {
                             packet
                                 .equipment
                                 .push((C47EntityEquipmentSlot::Legs, equipment.legs.clone()));
                         }
-                        if synced_equipment.feet != equipment.feet {
+                        if synced_equipment_ref.feet != equipment.feet {
                             packet
                                 .equipment
                                 .push((C47EntityEquipmentSlot::Feet, equipment.feet.clone()));
                         }
-                        self.synced_entities_equipments
-                            .write()
-                            .await
-                            .insert(eid, equipment.to_owned());
+                        *synced_equipment = equipment.to_owned();
                         Some(packet)
                     }
                     else {
@@ -405,34 +409,6 @@ impl EntityPool {
                     .unwrap();
             }
         }
-    }
-
-    async fn get_synced_entity_equipment(&self, eid: i32) -> EntityEquipment<Slot> {
-        if !self
-            .synced_entities_equipments
-            .read()
-            .await
-            .contains_key(&eid)
-        {
-            let entity_equipment = self
-                .entities
-                .read()
-                .await
-                .get_entity(eid)
-                .unwrap()
-                .read()
-                .await
-                .get_equipment()
-                .to_owned();
-            self.synced_entities_equipments
-                .write()
-                .await
-                .insert(eid, entity_equipment);
-        }
-
-        self.synced_entities_equipments.read().await[&eid]
-            .to_ref()
-            .to_owned()
     }
 
     pub async fn teleport_entity(&self, entity: &mut BoxedEntity, location: Location) {
