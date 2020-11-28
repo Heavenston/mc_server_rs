@@ -114,7 +114,6 @@ impl EntityPool {
 
                     let has_rotation_changed = !previous_location.rotation_eq(&new_location);
                     let has_position_changed = !previous_location.position_eq(&new_location);
-                    *previous_location = new_location.clone();
 
                     let on_ground = entity.on_ground();
                     let players = self.get_players_around(&*entity).await;
@@ -201,6 +200,7 @@ impl EntityPool {
                         )
                         .await;
                     }
+                    *previous_location = new_location.clone();
                 }
             }
             // Sync equipment to players
