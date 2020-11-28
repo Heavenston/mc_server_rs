@@ -20,7 +20,7 @@ use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct PlayerRef {
-    pub client: Client,
+    pub client: Arc<Client>,
     pub entity: Arc<RwLock<BoxedEntity>>,
 }
 impl PlayerRef {
@@ -28,7 +28,7 @@ impl PlayerRef {
         if !entity.read().await.is_player() {
             return None;
         }
-        let client = entity.read().await.as_player().client.clone();
+        let client = Arc::clone(&entity.read().await.as_player().client);
         Some(Self { client, entity })
     }
 
@@ -114,7 +114,7 @@ pub struct PlayerEntity {
     pub username: String,
     pub entity_id: i32,
     pub uuid: Uuid,
-    pub client: Client,
+    pub client: Arc<Client>,
 
     pub inventory: PlayerInventory,
     pub held_item: u8,
@@ -141,7 +141,7 @@ impl PlayerEntity {
             username,
             entity_id,
             uuid,
-            client,
+            client: Arc::new(client),
 
             inventory: PlayerInventory::default(),
             held_item: 0,
