@@ -4,7 +4,7 @@ use mc_server_lib::chat_manager::CommandExecutor;
 use anyhow::Result;
 use async_trait::async_trait;
 use mc_networking::data_types::encoder::PacketEncoder;
-use mc_server_lib::{entity::BoxedEntity, entity_manager::PlayerWrapper};
+use mc_server_lib::entity::{player::PlayerRef, BoxedEntity};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -62,7 +62,7 @@ impl CommandExecutor for FlyCommand {
         _command: String,
         args: Vec<String>,
     ) -> Result<bool> {
-        if let Some(player) = PlayerWrapper::new(executor).await {
+        if let Some(player_ref) = PlayerRef::new(executor).await {
             if args.len() < 1 {
                 return Ok(false);
             }
@@ -72,9 +72,9 @@ impl CommandExecutor for FlyCommand {
                         Ok(false)
                     }
                     else {
-                        if player.read().await.as_player().can_fly {
-                            player
-                                .send_message(json!({
+                        if player_ref.entity.read().await.as_player().can_fly {
+                            player_ref
+                                .send_chat_message(json!({
                                     "text": "Fly is already enabled",
                                     "color": "red",
                                     "bold": "true"
@@ -83,10 +83,10 @@ impl CommandExecutor for FlyCommand {
                                 .unwrap();
                         }
                         else {
-                            player.write().await.as_player_mut().can_fly = true;
-                            player.update_abilities().await.unwrap();
-                            player
-                                .send_message(json!({
+                            player_ref.entity.write().await.as_player_mut().can_fly = true;
+                            player_ref.update_abilities().await.unwrap();
+                            player_ref
+                                .send_chat_message(json!({
                                     "text": "Fly is now enabled",
                                     "color": "green",
                                     "bold": "true"
@@ -102,9 +102,9 @@ impl CommandExecutor for FlyCommand {
                         Ok(false)
                     }
                     else {
-                        if !player.read().await.as_player().can_fly {
-                            player
-                                .send_message(json!({
+                        if !player_ref.entity.read().await.as_player().can_fly {
+                            player_ref
+                                .send_chat_message(json!({
                                     "text": "Fly is already disabled",
                                     "color": "red",
                                     "bold": "true"
@@ -113,11 +113,11 @@ impl CommandExecutor for FlyCommand {
                                 .unwrap();
                         }
                         else {
-                            player.write().await.as_player_mut().can_fly = false;
-                            player.write().await.as_player_mut().is_flying = false;
-                            player.update_abilities().await.unwrap();
-                            player
-                                .send_message(json!({
+                            player_ref.entity.write().await.as_player_mut().can_fly = false;
+                            player_ref.entity.write().await.as_player_mut().is_flying = false;
+                            player_ref.update_abilities().await.unwrap();
+                            player_ref
+                                .send_chat_message(json!({
                                     "text": "Fly is now disabled",
                                     "color": "green",
                                     "bold": "true"
@@ -138,10 +138,10 @@ impl CommandExecutor for FlyCommand {
                             return Ok(false);
                         }
                         let speed = speed.unwrap();
-                        player.write().await.as_player_mut().flying_speed = 0.05 * speed;
-                        player.update_abilities().await.unwrap();
-                        player
-                            .send_message(json!({
+                        player_ref.entity.write().await.as_player_mut().flying_speed = 0.05 * speed;
+                        player_ref.update_abilities().await.unwrap();
+                        player_ref
+                            .send_chat_message(json!({
                                 "text": format!("Flight speed set to x{}", speed),
                                 "color": "green",
                                 "bold": "true"

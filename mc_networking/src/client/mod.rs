@@ -188,4 +188,14 @@ impl Client {
             .await?;
         Ok(())
     }
+
+    pub async fn send_chat_message(&self, message: serde_json::Value) -> PacketSendResult {
+        self.send_packet(&C0EChatMessage {
+            json_data: message,
+            position: 2,
+            sender: None,
+        })
+        .await?;
+        Ok(())
+    }
 }

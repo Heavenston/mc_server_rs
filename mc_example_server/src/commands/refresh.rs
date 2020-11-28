@@ -1,7 +1,7 @@
 use crate::generator::Generator;
 use mc_networking::data_types::command_data::{LiteralNode, Node};
 use mc_server_lib::{
-    chat_manager::CommandExecutor, chunk_holder::ChunkHolder, entity_manager::PlayerWrapper,
+    chat_manager::CommandExecutor, chunk_holder::ChunkHolder, entity::player::PlayerRef,
     resource_manager::ResourceManager,
 };
 
@@ -35,8 +35,8 @@ impl CommandExecutor for RefreshCommand {
         _command: String,
         _args: Vec<String>,
     ) -> Result<bool> {
-        if let Some(player) = PlayerWrapper::new(executor).await {
-            let id = player.read().await.entity_id();
+        if let Some(player_ref) = PlayerRef::new(executor).await {
+            let id = player_ref.entity.read().await.entity_id();
             task::spawn({
                 let chunk_holder = Arc::clone(&self.chunk_holder);
                 async move {

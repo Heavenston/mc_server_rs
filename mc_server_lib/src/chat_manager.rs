@@ -1,6 +1,6 @@
 use crate::{
-    entity::BoxedEntity,
-    entity_manager::{PlayerManager, PlayerWrapper},
+    entity::{player::PlayerRef, BoxedEntity},
+    entity_manager::PlayerManager,
 };
 use mc_networking::{
     data_types::command_data::{Node, RootNode},
@@ -84,8 +84,8 @@ impl ChatManager {
     }
 
     /// Should be called when an entity sends a message
-    /// It will interpret commands and call the command_executor
-    pub async fn player_message(&self, sender: PlayerWrapper, message: String) {
+    /// It will parse commands and call the command_executor
+    pub async fn player_message(&self, sender: PlayerRef, message: String) {
         if message.starts_with("/") {
             let mut args = message.trim_start_matches("/").split(" ");
             let command_name = args.next().unwrap_or("").to_lowercase();
@@ -102,7 +102,7 @@ impl ChatManager {
                             exist = is_valid;
                         }
                         Err(error) => {
-                            self.send_message(sender.entity_id().await, json!({
+                            self.send_message(sender.entity.read().await.entity_id(), json!({
                             "text": format!("An unexpected error occurred while executing command"),
                             "color": "red"
                         })).await;
@@ -117,7 +117,7 @@ impl ChatManager {
 
             if !exist {
                 self.send_message(
-                    sender.entity_id().await,
+                    sender.entity.read().await.entity_id(),
                     json!({
                         "text": format!("Unknown command name '{}'", command_name),
                         "color": "red"
@@ -127,14 +127,14 @@ impl ChatManager {
             }
         }
         else {
-            let username = sender.read().await.as_player().username.clone();
+            let username = sender.entity.read().await.as_player().username.clone();
             self.players
                 .read()
                 .await
                 .broadcast(&C0EChatMessage {
                     json_data: json!({ "text": format!("<{}> {}", username, message) }),
                     position: 0, // Chat box
-                    sender: Some(sender.read().await.uuid().clone()),
+                    sender: Some(sender.entity.read().await.uuid().clone()),
                 })
                 .await
                 .unwrap();

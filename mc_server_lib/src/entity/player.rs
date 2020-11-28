@@ -1,4 +1,4 @@
-use super::{Entity, EntityEquipment};
+use super::{BoxedEntity, Entity, EntityEquipment};
 use mc_networking::{
     client::Client,
     data_types::{MetadataValue, Pose, Slot},
@@ -7,9 +7,76 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::{
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    sync::Arc,
+};
+use tokio::sync::RwLock;
 use uuid::Uuid;
+
+#[derive(Clone)]
+pub struct PlayerRef {
+    pub client: Client,
+    pub entity: Arc<RwLock<BoxedEntity>>,
+}
+impl PlayerRef {
+    pub async fn new(entity: Arc<RwLock<BoxedEntity>>) -> Option<Self> {
+        if !entity.read().await.is_player() {
+            return None;
+        }
+        let client = entity.read().await.as_player().client.clone();
+        Some(Self { client, entity })
+    }
+
+    /// Sends the C1DChangeGameState packet
+    /// Note that the abilities should be send
+    pub async fn update_gamemode(&self) {
+        self.send_packet(&C1DChangeGameState {
+            reason: 3, // Change Gamemode
+            value: self.entity.read().await.as_player().gamemode as f32,
+        })
+        .await
+        .unwrap();
+    }
+
+    /// Sends the C30PlayerAbilities packet
+    pub async fn update_abilities(&self) -> Result<()> {
+        let player = self.entity.read().await;
+        let player = player.as_player();
+        player
+            .client
+            .send_player_abilities(
+                player.invulnerable,
+                player.is_flying,
+                player.can_fly,
+                player.gamemode == 1,
+                player.flying_speed,
+                player.fov_modifier,
+            )
+            .await?;
+        Ok(())
+    }
+}
+impl Into<Arc<RwLock<BoxedEntity>>> for PlayerRef {
+    fn into(self) -> Arc<RwLock<BoxedEntity>> {
+        self.entity
+    }
+}
+impl Borrow<Arc<RwLock<BoxedEntity>>> for PlayerRef {
+    fn borrow(&self) -> &Arc<RwLock<BoxedEntity>> {
+        &self.entity
+    }
+}
+impl Deref for PlayerRef {
+    type Target = Client;
+    fn deref(&self) -> &Self::Target {
+        &self.client
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct PlayerInventory {
@@ -43,7 +110,7 @@ impl Default for PlayerInventory {
     }
 }
 
-pub struct Player {
+pub struct PlayerEntity {
     pub username: String,
     pub entity_id: i32,
     pub uuid: Uuid,
@@ -68,7 +135,7 @@ pub struct Player {
     pub loaded_chunks: HashSet<(i32, i32)>,
     pub view_position: Option<(i32, i32)>,
 }
-impl Player {
+impl PlayerEntity {
     pub fn new(username: String, entity_id: i32, uuid: Uuid, client: Client) -> Self {
         Self {
             username,
@@ -97,7 +164,7 @@ impl Player {
         }
     }
 }
-impl Entity for Player {
+impl Entity for PlayerEntity {
     fn entity_id(&self) -> i32 {
         self.entity_id
     }

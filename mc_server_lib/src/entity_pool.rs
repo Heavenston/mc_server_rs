@@ -1,6 +1,6 @@
 use crate::{
-    entity::{BoxedEntity, EntityEquipment},
-    entity_manager::{BoxedEntityManager, EntityManager, PlayerManager, PlayerWrapper},
+    entity::{player::PlayerRef, BoxedEntity, EntityEquipment},
+    entity_manager::{BoxedEntityManager, EntityManager, PlayerManager},
 };
 use mc_networking::{data_types::Slot, packets::client_bound::*};
 use mc_utils::Location;
@@ -55,17 +55,17 @@ impl EntityPool {
         (self.entity_visibility_function)(self, &*first, &*second)
     }
     /// Get all players in view distance of an entity
-    pub async fn get_players_around(&self, source: &BoxedEntity) -> Vec<PlayerWrapper> {
+    pub async fn get_players_around(&self, source: &BoxedEntity) -> Vec<PlayerRef> {
         let mut players_around = vec![];
         let source_id = source.entity_id();
         let players = self.players.read().await;
-        for (player_eid, player_wrapper) in players.iter() {
+        for (player_eid, player_ref) in players.iter() {
             if player_eid == source_id {
                 continue;
             }
-            let player = player_wrapper.read().await;
-            if self.can_see_each_other(source, &*player).await {
-                players_around.push(player_wrapper.clone());
+            let player_entity = player_ref.entity.read().await;
+            if self.can_see_each_other(source, &*player_entity).await {
+                players_around.push(player_ref.clone());
             }
         }
         players_around
@@ -263,14 +263,15 @@ impl EntityPool {
             }
             // Sync visibility to players
             {
-                for (player_eid, player) in players_ids.iter().cloned() {
+                for (player_eid, player_ref) in players_ids.iter().cloned() {
                     // Avoid sending player entity to itself
                     if player_eid == eid {
                         continue;
                     }
                     let view_distance2 = self.view_distance.pow(2) as f64;
-                    let player_location = player.read().await.location().clone();
-                    let is_loaded = player
+                    let player_location = player_ref.entity.read().await.location().clone();
+                    let is_loaded = player_ref
+                        .entity
                         .read()
                         .await
                         .as_player()
@@ -280,18 +281,19 @@ impl EntityPool {
                     let should_be_loaded =
                         entity.location().h_distance2(&player_location) < view_distance2;
                     if !is_loaded && should_be_loaded {
-                        player
+                        player_ref
                             .send_raw_packet(entity.get_spawn_packet())
                             .await
                             .unwrap();
-                        player
+                        player_ref
+                            .entity
                             .write()
                             .await
                             .as_player_mut()
                             .loaded_entities
                             .insert(eid);
                         // Send head look
-                        player
+                        player_ref
                             .send_packet(&C3AEntityHeadLook {
                                 entity_id: eid,
                                 head_yaw: entity.location().yaw_angle(),
@@ -347,13 +349,14 @@ impl EntityPool {
                     }
                     if is_loaded && !should_be_loaded {
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
-                        player
+                        player_ref
                             .send_packet(&C36DestroyEntities {
                                 entities: vec![eid],
                             })
                             .await
                             .unwrap();
-                        player
+                        player_ref
+                            .entity
                             .write()
                             .await
                             .as_player_mut()
@@ -365,10 +368,11 @@ impl EntityPool {
         }
 
         // Remove nonexisting entities that are still loaded
-        for player in self.players.read().await.entities() {
-            let player_eid = player.read().await.entity_id();
+        for player_ref in self.players.read().await.entities() {
+            let player_eid = player_ref.entity.read().await.entity_id();
             let mut to_destroy = vec![];
-            for eid in player
+            for eid in player_ref
+                .entity
                 .read()
                 .await
                 .as_player()
@@ -381,7 +385,7 @@ impl EntityPool {
                 }
             }
             {
-                let mut players_mut = player.write().await;
+                let mut players_mut = player_ref.entity.write().await;
                 let players_mut = players_mut.as_player_mut();
                 for i in to_destroy.iter() {
                     players_mut.loaded_entities.remove(i);

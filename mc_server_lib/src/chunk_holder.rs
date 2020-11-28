@@ -1,7 +1,4 @@
-use crate::{
-    chunk::Chunk,
-    entity_manager::{PlayerManager, PlayerWrapper},
-};
+use crate::{chunk::Chunk, entity::player::PlayerRef, entity_manager::PlayerManager};
 use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
@@ -64,17 +61,17 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         }
     }
 
-    pub async fn add_player(&self, player: PlayerWrapper) {
+    pub async fn add_player(&self, player: PlayerRef) {
         self.players.write().await.add_entity(player).await;
     }
     pub async fn remove_player(&self, id: i32) {
         if let Some(interrupt) = self.update_view_position_interrupts.read().await.get(&id) {
             interrupt.store(true, Ordering::Relaxed);
         }
-        let player = self.players.write().await.remove_entity(id).unwrap();
-        let player = player.read().await;
-        let player = player.as_player();
-        for (x, z) in player.loaded_chunks.clone() {
+        let player_ref = self.players.write().await.remove_entity(id).unwrap();
+        let player_entity = player_ref.entity.read().await;
+        let player_entity = player_entity.as_player();
+        for (x, z) in player_entity.loaded_chunks.clone() {
             self.reduce_chunk_load_count(x, z).await;
         }
     }
@@ -221,22 +218,28 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
 
         let view_distance = self.view_distance;
 
-        let player = self
+        let player_ref = self
             .players
             .read()
             .await
             .get_entity(player_id)
             .unwrap()
             .clone();
-        player
+        player_ref
             .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
             .await
             .unwrap();
-        let loaded_chunks = player.read().await.as_player().loaded_chunks.clone();
+        let loaded_chunks = player_ref
+            .entity
+            .read()
+            .await
+            .as_player()
+            .loaded_chunks
+            .clone();
 
         tokio::join!(
             {
-                let player = player.clone();
+                let player_ref = player_ref.clone();
                 async move {
                     // Unload already loaded chunks that are now too far
                     for chunk in loaded_chunks {
@@ -244,14 +247,15 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                         if dx.abs() > view_distance || dz.abs() > view_distance {
                             let start = Instant::now();
                             self.reduce_chunk_load_count(chunk.0, chunk.1).await;
-                            player
+                            player_ref
                                 .send_packet(&C1CUnloadChunk {
                                     chunk_x: chunk.0,
                                     chunk_z: chunk.1,
                                 })
                                 .await
                                 .unwrap();
-                            player
+                            player_ref
+                                .entity
                                 .write()
                                 .await
                                 .as_player_mut()
@@ -263,7 +267,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                 }
             },
             {
-                let player = player.clone();
+                let player_ref = player_ref.clone();
                 async move {
                     // Load new chunks in squares bigger around the player
                     'chunk_loading: for square_i in 0..view_distance {
@@ -276,7 +280,8 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                     if interrupt.load(Ordering::Relaxed) {
                                         break 'chunk_loading;
                                     }
-                                    if player
+                                    if player_ref
+                                        .entity
                                         .read()
                                         .await
                                         .as_player()
@@ -296,11 +301,13 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                         }
                                         self.increase_chunk_load_count(chunk_x + dx, chunk_z + dz)
                                             .await;
-                                        let mut player_write = player.write().await;
-                                        let player_write = player_write.as_player_mut();
                                         let chunk = chunk.read().await.encode();
-                                        player_write.client.send_packet(&chunk).await.unwrap();
-                                        player_write
+                                        player_ref.send_packet(&chunk).await.unwrap();
+                                        player_ref
+                                            .entity
+                                            .write()
+                                            .await
+                                            .as_player_mut()
                                             .loaded_chunks
                                             .insert((chunk_x + dx, chunk_z + dz));
                                     }
@@ -312,7 +319,12 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             }
         );
 
-        player.write().await.as_player_mut().view_position = Some((chunk_x, chunk_z));
+        player_ref
+            .entity
+            .write()
+            .await
+            .as_player_mut()
+            .view_position = Some((chunk_x, chunk_z));
     }
 
     async fn get_synced_player_chunk(&self, player: i32) -> (i32, i32) {
@@ -326,23 +338,35 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn refresh_player_chunks(&self, player_id: i32) {
-        let entity = self
+        let entity_ref = self
             .players
             .read()
             .await
             .get_entity(player_id)
             .unwrap()
             .clone();
-        let loaded_chunks = entity.write().await.as_player_mut().loaded_chunks.clone();
+        let loaded_chunks = entity_ref
+            .entity
+            .read()
+            .await
+            .as_player()
+            .loaded_chunks
+            .clone();
         for (chunk_x, chunk_z) in loaded_chunks {
-            entity
+            entity_ref
                 .send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
                 .await
                 .unwrap();
         }
-        entity.write().await.as_player_mut().loaded_chunks.clear();
+        entity_ref
+            .entity
+            .write()
+            .await
+            .as_player_mut()
+            .loaded_chunks
+            .clear();
         self.synced_player_chunks.write().await.remove(&player_id);
-        let location = entity.read().await.location().clone();
+        let location = entity_ref.entity.read().await.location().clone();
         self.update_player_view_position(player_id, location.chunk_x(), location.chunk_z(), true)
             .await;
     }
@@ -397,9 +421,9 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .entities()
             .cloned()
             .collect::<Vec<_>>();
-        for player in players {
-            let id = player.entity_id().await;
-            let location = player.read().await.location().clone();
+        for player_ref in players {
+            let id = player_ref.entity.read().await.entity_id();
+            let location = player_ref.entity.read().await.location().clone();
             let synced_chunk = this.get_synced_player_chunk(id).await;
             let current_chunk = (location.chunk_x(), location.chunk_z());
             if current_chunk != synced_chunk {
@@ -415,10 +439,10 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             }
 
             for block_change in block_changes.iter() {
-                player.send_packet(block_change).await.unwrap();
+                player_ref.send_packet(block_change).await.unwrap();
             }
             for multi_block_change in multi_block_changes.iter() {
-                player.send_packet(multi_block_change).await.unwrap();
+                player_ref.send_packet(multi_block_change).await.unwrap();
             }
         }
     }

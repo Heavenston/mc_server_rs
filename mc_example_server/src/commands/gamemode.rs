@@ -1,9 +1,9 @@
 use mc_networking::data_types::command_data::{LiteralNode, Node};
-use mc_server_lib::chat_manager::CommandExecutor;
+use mc_server_lib::{chat_manager::CommandExecutor, entity::player::PlayerRef};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use mc_server_lib::{entity::BoxedEntity, entity_manager::PlayerWrapper};
+use mc_server_lib::entity::BoxedEntity;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -73,26 +73,43 @@ impl CommandExecutor for GamemodeCommand {
         let target_gamemode = args[0].as_str();
         let is_player = executor.read().await.is_player();
         if is_player {
-            let player = PlayerWrapper::from(executor);
+            let player_ref = PlayerRef::new(executor).await.unwrap();
             match target_gamemode {
                 "survival" => {
-                    player.set_gamemode(0).await;
-                    Ok(true)
+                    let mut player_entity = player_ref.entity.write().await;
+                    let player_entity = player_entity.as_player_mut();
+                    player_entity.can_fly = false;
+                    player_entity.is_flying = false;
+                    player_entity.invulnerable = false;
+                    player_entity.gamemode = 0;
                 }
                 "creative" => {
-                    player.set_gamemode(1).await;
-                    Ok(true)
+                    let mut player_entity = player_ref.entity.write().await;
+                    let player_entity = player_entity.as_player_mut();
+                    player_entity.can_fly = true;
+                    player_entity.invulnerable = true;
+                    player_entity.gamemode = 1;
                 }
                 "adventure" => {
-                    player.set_gamemode(2).await;
-                    Ok(true)
+                    let mut player_entity = player_ref.entity.write().await;
+                    let player_entity = player_entity.as_player_mut();
+                    player_entity.can_fly = false;
+                    player_entity.is_flying = false;
+                    player_entity.invulnerable = false;
+                    player_entity.gamemode = 2;
                 }
                 "spectator" => {
-                    player.set_gamemode(3).await;
-                    Ok(true)
+                    let mut player_entity = player_ref.entity.write().await;
+                    let player_entity = player_entity.as_player_mut();
+                    player_entity.can_fly = true;
+                    player_entity.invulnerable = true;
+                    player_entity.gamemode = 3;
                 }
-                _ => Ok(false),
+                _ => return Ok(false),
             }
+            player_ref.update_gamemode().await;
+            player_ref.update_abilities().await.unwrap();
+            Ok(true)
         }
         else {
             Ok(false)

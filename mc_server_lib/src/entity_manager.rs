@@ -1,140 +1,23 @@
-use crate::entity::{player::Player, BoxedEntity};
-use mc_networking::packets::{client_bound::*, RawPacket};
+use crate::entity::{
+    player::{PlayerEntity, PlayerRef},
+    BoxedEntity,
+};
+use mc_networking::packets::{client_bound::ClientBoundPacket, RawPacket};
 
 use anyhow::{Error, Result};
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
-use std::{
-    ops::{Deref, Index},
-    sync::Arc,
-};
+use std::{ops::Index, sync::Arc};
 use tokio::sync::RwLock;
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
-
-#[derive(Clone)]
-pub struct PlayerWrapper {
-    pub entity: Arc<RwLock<BoxedEntity>>,
-}
-impl PlayerWrapper {
-    pub async fn new(entity: Arc<RwLock<BoxedEntity>>) -> Option<Self> {
-        if !entity.read().await.is_player() {
-            return None;
-        }
-        Some(Self { entity })
-    }
-
-    pub async fn send_packet(&self, packet: &impl ClientBoundPacket) -> Result<()> {
-        self.read()
-            .await
-            .as_player()
-            .client
-            .send_packet(packet)
-            .await?;
-        Ok(())
-    }
-    pub async fn send_raw_packet(&self, packet: RawPacket) -> Result<()> {
-        self.read()
-            .await
-            .as_player()
-            .client
-            .send_raw_packet(packet)
-            .await?;
-        Ok(())
-    }
-
-    pub async fn send_message(&self, message: serde_json::Value) -> Result<()> {
-        self.send_packet(&C0EChatMessage {
-            json_data: message,
-            position: 0,
-            sender: None,
-        })
-        .await
-    }
-    pub async fn entity_id(&self) -> i32 {
-        self.entity.read().await.entity_id()
-    }
-    pub async fn set_gamemode(&self, gm: u8) {
-        {
-            let mut player = self.entity.write().await;
-            let player = player.as_player_mut();
-            player.gamemode = gm;
-            match gm {
-                0 => {
-                    // Survival
-                    player.can_fly = false;
-                    player.is_flying = false;
-                    player.invulnerable = false;
-                }
-                1 => {
-                    // Creative
-                    player.can_fly = true;
-                    player.invulnerable = true;
-                }
-                2 => {
-                    // Adventure
-                    player.can_fly = false;
-                    player.is_flying = false;
-                    player.invulnerable = false;
-                }
-                3 => {
-                    // Spectator
-                    player.can_fly = true;
-                    player.invulnerable = true;
-                }
-                _ => unimplemented!(),
-            }
-        }
-        self.send_packet(&C1DChangeGameState {
-            reason: 3, // Change Gamemode
-            value: gm as f32,
-        })
-        .await
-        .unwrap();
-        self.update_abilities().await.unwrap();
-    }
-
-    pub async fn update_abilities(&self) -> Result<()> {
-        let player = self.entity.read().await;
-        let player = player.as_player();
-        player
-            .client
-            .send_player_abilities(
-                player.invulnerable,
-                player.is_flying,
-                player.can_fly,
-                player.gamemode == 1,
-                player.flying_speed,
-                player.fov_modifier,
-            )
-            .await?;
-        Ok(())
-    }
-}
-impl Deref for PlayerWrapper {
-    type Target = Arc<RwLock<BoxedEntity>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.entity
-    }
-}
-impl Into<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
-    fn into(self) -> Arc<RwLock<BoxedEntity>> {
-        self.entity
-    }
-}
-impl From<Arc<RwLock<BoxedEntity>>> for PlayerWrapper {
-    fn from(entity: Arc<RwLock<BoxedEntity>>) -> Self {
-        Self { entity }
-    }
-}
 
 #[derive(Clone)]
 pub struct EntityManager<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> {
     entities: FxIndexMap<i32, T>,
 }
 
-pub type PlayerManager = EntityManager<PlayerWrapper>;
+pub type PlayerManager = EntityManager<PlayerRef>;
 pub type BoxedEntityManager = EntityManager<Arc<RwLock<BoxedEntity>>>;
 
 impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
@@ -184,7 +67,7 @@ impl PlayerManager {
         }
         Ok(())
     }
-    pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: &Vec<PlayerWrapper>) {
+    pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: &Vec<PlayerRef>) {
         for player in players {
             player.send_packet(packet).await.unwrap();
         }
@@ -209,22 +92,22 @@ impl PlayerManager {
     }
     pub async fn get_filtered_players(
         &self,
-        filter: impl Fn(&Player) -> bool,
-    ) -> Vec<PlayerWrapper> {
+        filter: impl Fn(&PlayerEntity) -> bool,
+    ) -> Vec<PlayerRef> {
         let mut players = Vec::new();
-        for player in self.entities() {
+        for player_ref in self.entities() {
             let result = {
-                let player = player.read().await;
+                let player = player_ref.entity.read().await;
                 let player = player.as_player().as_ref();
                 filter(player)
             };
             if result {
-                players.push(player.clone());
+                players.push(player_ref.clone());
             }
         }
         players
     }
-    pub async fn get_players_except(&self, except_id: i32) -> Vec<PlayerWrapper> {
+    pub async fn get_players_except(&self, except_id: i32) -> Vec<PlayerRef> {
         self.iter()
             .filter(|(id, ..)| id != &except_id)
             .map(|(.., v)| v.clone())

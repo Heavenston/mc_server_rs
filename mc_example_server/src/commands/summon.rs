@@ -5,8 +5,7 @@ use mc_networking::data_types::{
 };
 use mc_server_lib::{
     chat_manager::CommandExecutor,
-    entity::{living_entity::LivingEntity, BoxedEntity},
-    entity_manager::PlayerWrapper,
+    entity::{living_entity::LivingEntity, player::PlayerRef, BoxedEntity},
     entity_pool::EntityPool,
     resource_manager::ResourceManager,
 };
@@ -79,7 +78,7 @@ impl CommandExecutor for SummonCommand {
         _command: String,
         args: Vec<String>,
     ) -> Result<bool> {
-        if let Some(player) = PlayerWrapper::new(executor).await {
+        if let Some(player_ref) = PlayerRef::new(executor).await {
             if args.len() < 1 {
                 return Ok(false);
             }
@@ -95,12 +94,15 @@ impl CommandExecutor for SummonCommand {
                     else {
                         1
                     };
-                    let player_location = player.read().await.location().clone();
+                    let player_location = player_ref.entity.read().await.location().clone();
                     let mut entities = self.entity_pool.entities.write().await;
                     for _ in 0..amount {
                         let eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-                        let mut entity =
-                            GhostEntity::new(eid, Uuid::new_v4(), Arc::downgrade(&player.entity));
+                        let mut entity = GhostEntity::new(
+                            eid,
+                            Uuid::new_v4(),
+                            Arc::downgrade(&player_ref.entity),
+                        );
                         entity.location = player_location.clone();
                         entity.location.y += 1.5;
                         entity.on_ground = false;
@@ -138,8 +140,9 @@ impl CommandExecutor for SummonCommand {
                                 else {
                                     1
                                 };
-                                let player_location = player.read().await.location().clone();
-                                let on_ground = player.read().await.on_ground();
+                                let player_location =
+                                    player_ref.entity.read().await.location().clone();
+                                let on_ground = player_ref.entity.read().await.on_ground();
                                 let mut entities = self.entity_pool.entities.write().await;
                                 for _ in 0..amount {
                                     let mut entity = LivingEntity::new(
@@ -154,8 +157,8 @@ impl CommandExecutor for SummonCommand {
                                     entities.add_entity(entity).await;
                                 }
                             }
-                            None => player
-                                .send_message(json!({
+                            None => player_ref
+                                .send_chat_message(json!({
                                     "text": "Invalid entity type",
                                     "color": "red",
                                     "bold": "true"

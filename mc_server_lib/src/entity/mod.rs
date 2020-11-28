@@ -7,7 +7,7 @@ use mc_networking::{
     packets::RawPacket,
 };
 use mc_utils::Location;
-use player::Player;
+use player::PlayerEntity;
 
 use anyhow::Error;
 use downcast_rs::{impl_downcast, DowncastSync};
@@ -87,7 +87,7 @@ pub trait Entity: Send + Sync + DowncastSync {
 impl_downcast!(sync Entity);
 
 pub enum BoxedEntity {
-    Player(Box<Player>),
+    Player(Box<PlayerEntity>),
     LivingEntity(Box<LivingEntity>),
     Unknown(Box<dyn Entity>),
 }
@@ -104,10 +104,10 @@ impl BoxedEntity {
     }
     pub fn into_known(self) -> BoxedEntity {
         if let BoxedEntity::Unknown(entity) = self {
-            if entity.is::<Player>() {
+            if entity.is::<PlayerEntity>() {
                 BoxedEntity::Player(
                     entity
-                        .downcast::<Player>()
+                        .downcast::<PlayerEntity>()
                         .map_err(|_| Error::msg(""))
                         .unwrap(),
                 )
@@ -135,25 +135,25 @@ impl BoxedEntity {
             _ => false,
         }
     }
-    pub fn as_player(&self) -> &Box<Player> {
+    pub fn as_player(&self) -> &Box<PlayerEntity> {
         match self {
             BoxedEntity::Player(p) => p,
             _ => panic!("Entity is not a player"),
         }
     }
-    pub fn as_player_mut(&mut self) -> &mut Box<Player> {
+    pub fn as_player_mut(&mut self) -> &mut Box<PlayerEntity> {
         match self {
             BoxedEntity::Player(p) => p,
             _ => panic!("Entity is not a player"),
         }
     }
-    pub fn try_as_player(&self) -> Option<&Box<Player>> {
+    pub fn try_as_player(&self) -> Option<&Box<PlayerEntity>> {
         match self {
             BoxedEntity::Player(p) => Some(p),
             _ => None,
         }
     }
-    pub fn try_as_player_mut(&mut self) -> Option<&mut Box<Player>> {
+    pub fn try_as_player_mut(&mut self) -> Option<&mut Box<PlayerEntity>> {
         match self {
             BoxedEntity::Player(p) => Some(p),
             _ => None,

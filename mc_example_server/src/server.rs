@@ -11,8 +11,11 @@ use mc_networking::{
 use mc_server_lib::{
     chat_manager::ChatManager,
     chunk_holder::ChunkHolder,
-    entity::{player::Player, BoxedEntity},
-    entity_manager::{EntityManager, PlayerManager, PlayerWrapper},
+    entity::{
+        player::{PlayerEntity, PlayerRef},
+        BoxedEntity,
+    },
+    entity_manager::{EntityManager, PlayerManager},
     entity_pool::EntityPool,
     resource_manager::ResourceManager,
 };
@@ -154,7 +157,7 @@ impl Server {
         client: Client,
         mut event_receiver: tokio::sync::mpsc::Receiver<ClientEvent>,
     ) -> Result<()> {
-        let mut player: Option<PlayerWrapper> = None;
+        let mut player_ref: Option<PlayerRef> = None;
         let mut player_eid = -1i32;
         let entity_pool = Arc::clone(&server.entity_pool);
         let chunk_holder = Arc::clone(&server.chunk_holder);
@@ -195,13 +198,13 @@ impl Server {
                             &Uuid::new_v4(),
                             format!("OfflinePlayer:{}", username).as_bytes(),
                         );
-                        let entity = Arc::new(RwLock::new(BoxedEntity::new(Player::new(
+                        let entity = Arc::new(RwLock::new(BoxedEntity::new(PlayerEntity::new(
                             username.clone(),
                             player_eid,
                             uuid.clone(),
                             client.clone(),
                         ))));
-                        player = Some(entity.into());
+                        player_ref = Some(PlayerRef::new(entity).await.unwrap());
 
                         info!(
                             "{} joined the game, EID: {}, UUID: {}",
@@ -221,19 +224,19 @@ impl Server {
                     }
                 }
                 ClientEvent::LoggedIn => {
-                    let player = player.as_ref().unwrap();
+                    let player_ref = player_ref.as_ref().unwrap();
 
                     // Join Game
                     client
                         .send_packet(&{
-                            let player = player.read().await;
-                            let player = player.as_player();
+                            let player_entity = player_ref.entity.read().await;
+                            let player_entity = player_entity.as_player();
 
                             C24JoinGame {
-                                entity_id: player.entity_id,
+                                entity_id: player_entity.entity_id,
                                 is_hardcore: false,
-                                gamemode: player.gamemode,
-                                previous_gamemode: player.gamemode,
+                                gamemode: player_entity.gamemode,
+                                previous_gamemode: player_entity.gamemode,
                                 world_names: vec!["heav:world".into()],
                                 dimension_codec: C24JoinGameDimensionCodec {
                                     dimensions: map! {
@@ -327,26 +330,26 @@ impl Server {
                         .unwrap();
 
                     let my_player_info = C32PlayerInfoPlayerUpdate::AddPlayer {
-                        uuid: player.read().await.uuid().clone(),
-                        name: player.read().await.as_player().username.clone(),
+                        uuid: player_ref.entity.read().await.uuid().clone(),
+                        name: player_ref.entity.read().await.as_player().username.clone(),
                         properties: vec![],
-                        gamemode: player.read().await.as_player().gamemode as i32,
-                        ping: player.read().await.as_player().ping,
+                        gamemode: player_ref.entity.read().await.as_player().gamemode as i32,
+                        ping: player_ref.entity.read().await.as_player().ping,
                         display_name: None,
                     };
                     // Send to him all players (and himself)
                     {
                         let players = {
                             let mut players = vec![my_player_info.clone()];
-                            for player in server.players.read().await.entities() {
-                                let player = player.read().await;
-                                let player = player.as_player();
+                            for other_player_ref in server.players.read().await.entities() {
+                                let other_player_entity = other_player_ref.entity.read().await;
+                                let other_player_entity = other_player_entity.as_player();
                                 players.push(C32PlayerInfoPlayerUpdate::AddPlayer {
-                                    uuid: player.uuid.clone(),
-                                    name: player.username.clone(),
+                                    uuid: other_player_entity.uuid.clone(),
+                                    name: other_player_entity.username.clone(),
                                     properties: vec![],
                                     gamemode: 1,
-                                    ping: player.ping,
+                                    ping: other_player_entity.ping,
                                     display_name: None,
                                 });
                             }
@@ -368,34 +371,34 @@ impl Server {
                         .await
                         .unwrap();
 
-                    player.update_abilities().await.unwrap();
+                    player_ref.update_abilities().await.unwrap();
                     server
                         .players
                         .write()
                         .await
-                        .add_entity(Arc::clone(&player))
+                        .add_entity(player_ref.clone())
                         .await;
 
                     entity_pool
                         .entities
                         .write()
                         .await
-                        .add_entity(Arc::clone(player))
+                        .add_entity(player_ref.clone())
                         .await;
                     entity_pool
                         .players
                         .write()
                         .await
-                        .add_entity(Arc::clone(player))
+                        .add_entity(player_ref.clone())
                         .await;
 
-                    chunk_holder.add_player(player.clone()).await;
+                    chunk_holder.add_player(player_ref.clone()).await;
 
                     chat_manager
                         .players
                         .write()
                         .await
-                        .add_entity(Arc::clone(player))
+                        .add_entity(player_ref.clone())
                         .await;
                     chat_manager.declare_commands_to_player(player_eid).await;
 
@@ -428,13 +431,13 @@ impl Server {
 
                     // Update position
                     entity_pool
-                        .teleport_entity(&mut *player.write().await, spawn_location)
+                        .teleport_entity(&mut *player_ref.entity.write().await, spawn_location)
                         .await;
 
                     // Send inventory
                     let player_inventory_slots = {
                         let mut slots = vec![];
-                        let player = player.read().await;
+                        let player = player_ref.entity.read().await;
                         let player_inventory = &player.as_player().inventory;
                         slots.push(player_inventory.crafting_output.clone());
                         slots.append(&mut player_inventory.crafting_input.clone());
@@ -446,7 +449,7 @@ impl Server {
                         slots.append(&mut player_inventory.hotbar.clone());
                         slots
                     };
-                    player
+                    player_ref
                         .send_packet(&C13WindowItems {
                             window_id: 0,
                             slots: player_inventory_slots,
@@ -460,7 +463,7 @@ impl Server {
                     entity_pool.players.write().await.remove_entity(player_eid);
                     chunk_holder.remove_player(player_eid).await;
                     chat_manager.players.write().await.remove_entity(player_eid);
-                    let uuid = player.unwrap().read().await.uuid().clone();
+                    let uuid = player_ref.unwrap().entity.read().await.uuid().clone();
                     server
                         .players
                         .read()
@@ -474,9 +477,9 @@ impl Server {
                 }
 
                 ClientEvent::Ping { delay } => {
-                    let player = player.as_ref().unwrap();
-                    player.write().await.as_player_mut().ping = delay as i32;
-                    let uuid = player.read().await.as_player().uuid.clone();
+                    let player_ref = player_ref.as_ref().unwrap();
+                    player_ref.entity.write().await.as_player_mut().ping = delay as i32;
+                    let uuid = player_ref.entity.read().await.as_player().uuid.clone();
                     server
                         .players
                         .read()
@@ -492,17 +495,17 @@ impl Server {
                 }
 
                 ClientEvent::ChatMessage { message } => {
-                    let player = player.as_ref().unwrap();
+                    let player_ref = player_ref.as_ref().unwrap();
                     server
                         .chat_manager
-                        .player_message(player.clone().into(), message)
+                        .player_message(player_ref.clone(), message)
                         .await;
                 }
                 ClientEvent::PlayerPosition { x, y, z, on_ground } => {
-                    let player = player.as_ref().unwrap();
-                    let last_location = player.read().await.location().clone();
-                    player.write().await.set_on_ground(on_ground);
-                    player.write().await.set_location(Location {
+                    let player_ref = player_ref.as_ref().unwrap();
+                    let last_location = player_ref.entity.read().await.location().clone();
+                    player_ref.entity.write().await.set_on_ground(on_ground);
+                    player_ref.entity.write().await.set_location(Location {
                         x,
                         y,
                         z,
@@ -518,9 +521,9 @@ impl Server {
                     pitch,
                     on_ground,
                 } => {
-                    let player = player.as_ref().unwrap();
-                    player.write().await.set_on_ground(on_ground);
-                    player.write().await.set_location(Location {
+                    let player_ref = player_ref.as_ref().unwrap();
+                    player_ref.entity.write().await.set_on_ground(on_ground);
+                    player_ref.entity.write().await.set_location(Location {
                         x,
                         y,
                         z,
@@ -533,10 +536,10 @@ impl Server {
                     pitch,
                     on_ground,
                 } => {
-                    let mut player = player.as_ref().unwrap().write().await;
-                    player.set_on_ground(on_ground);
-                    let location = player.location().clone();
-                    player.set_location(Location {
+                    let mut player_entity = player_ref.as_ref().unwrap().entity.write().await;
+                    player_entity.set_on_ground(on_ground);
+                    let location = player_entity.location().clone();
+                    player_entity.set_location(Location {
                         x: location.x,
                         y: location.y,
                         z: location.z,
@@ -551,7 +554,7 @@ impl Server {
                     ..
                 } => {
                     if entity_id == player_eid {
-                        let mut player_write = player.as_ref().unwrap().write().await;
+                        let mut player_write = player_ref.as_ref().unwrap().entity.write().await;
                         let mut player = player_write.as_player_mut();
                         match action_id {
                             0 => {
@@ -575,10 +578,13 @@ impl Server {
                     }
                 }
                 ClientEvent::PlayerAbilities { is_flying } => {
-                    let mut player = player.as_ref().unwrap().write().await;
+                    let mut player_ref = player_ref.as_ref().unwrap().entity.write().await;
 
-                    player.as_player_mut().is_flying = is_flying;
-                    entity_pool.sync_entity_metadata(&*player).await.unwrap();
+                    player_ref.as_player_mut().is_flying = is_flying;
+                    entity_pool
+                        .sync_entity_metadata(&*player_ref)
+                        .await
+                        .unwrap();
                 }
                 ClientEvent::Animation { hand } => {
                     let servers = server
@@ -607,9 +613,9 @@ impl Server {
                     {
                         let mut successful = true;
 
-                        let player = player.as_ref().unwrap();
+                        let player_ref = player_ref.as_ref().unwrap();
                         if status == S1BPlayerDiggingStatus::StartedDigging {
-                            if player.read().await.as_player().gamemode == 1 {
+                            if player_ref.entity.read().await.as_player().gamemode == 1 {
                                 chunk_holder
                                     .set_block(position.x, position.y as u8, position.z, 0)
                                     .await;
@@ -625,7 +631,7 @@ impl Server {
                         let block = chunk_holder
                             .get_block(position.x, position.y as u8, position.z)
                             .await;
-                        player
+                        player_ref
                             .send_packet(&C07AcknowledgePlayerDigging {
                                 position: position.clone(),
                                 block: block as i32,
@@ -645,9 +651,9 @@ impl Server {
                     cursor_position_z: _,
                     inside_block: _,
                 } => {
-                    let player = player.as_ref().unwrap();
-                    let mut player = player.write().await;
-                    let equipment = player.get_equipment_mut();
+                    let player_ref = player_ref.as_ref().unwrap();
+                    let mut player_entity = player_ref.entity.write().await;
+                    let equipment = player_entity.get_equipment_mut();
                     let slot = match hand {
                         0 => equipment.main_hand, // Main hand
                         _ => equipment.off_hand,  // Off hand (2)
@@ -697,11 +703,11 @@ impl Server {
                     }
                 }
                 ClientEvent::CreativeInventoryAction { slot_id, slot } => {
-                    let player = player.as_ref().unwrap();
-                    if player.read().await.as_player().gamemode != 1 {
+                    let player_ref = player_ref.as_ref().unwrap();
+                    if player_ref.entity.read().await.as_player().gamemode != 1 {
                         continue;
                     }
-                    let mut player = player.write().await;
+                    let mut player = player_ref.entity.write().await;
                     let inventory = &mut player.as_player_mut().inventory;
                     match slot_id {
                         0 => inventory.crafting_output = slot,
@@ -718,8 +724,8 @@ impl Server {
                     }
                 }
                 ClientEvent::HeldItemChange { slot } => {
-                    let player = player.as_ref().unwrap();
-                    player.write().await.as_player_mut().held_item = slot as u8;
+                    let player_ref = player_ref.as_ref().unwrap();
+                    player_ref.entity.write().await.as_player_mut().held_item = slot as u8;
                 }
                 ClientEvent::ClickWindow {
                     window_id: _,
