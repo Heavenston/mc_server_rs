@@ -103,8 +103,9 @@ impl EntityPool {
                 let previous_location = match synced_entities_location.get_mut(&eid) {
                     Some(l) => l,
                     None => {
-                        synced_entities_location.insert(eid, entity.location().clone());
-                        synced_entities_location.get_mut(&eid).unwrap()
+                        let (index, ..) =
+                            synced_entities_location.insert_full(eid, entity.location().clone());
+                        synced_entities_location.get_index_mut(index).unwrap().1
                     }
                 };
                 let has_location_changed = previous_location != entity.location();
