@@ -204,7 +204,7 @@ impl EntityPool {
                 }
             }
             // Sync equipment to players
-            {
+            if counter % 2 == 0 {
                 let packet = {
                     let synced_equipment = match synced_entities_equipments.get_mut(&eid) {
                         Some(e) => e,
