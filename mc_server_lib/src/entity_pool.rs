@@ -8,7 +8,7 @@ use mc_utils::Location;
 use anyhow::Result;
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
@@ -268,35 +268,33 @@ impl EntityPool {
             }
             // Sync visibility to players
             {
-                for (player_eid, player_ref) in players_ids.iter().cloned() {
+                for (player_eid, player_ref) in players_ids.iter() {
+                    let player_eid = *player_eid;
                     // Avoid sending player entity to itself
                     if player_eid == eid {
                         continue;
                     }
-                    let view_distance2 = self.view_distance.pow(2) as f64;
-                    let player_location = player_ref.entity.read().await.location().clone();
-                    let is_loaded = player_ref
-                        .entity
-                        .read()
-                        .await
-                        .as_player()
-                        .loaded_entities
-                        .contains(&eid);
+
+                    let player_entity =
+                        RwLockReadGuard::map(player_ref.entity.read().await, |p| p.as_player());
+
+                    let view_distance2 = (self.view_distance * self.view_distance) as f64;
+                    let is_loaded = player_entity.loaded_entities.contains(&eid);
                     // TODO: Remove limit
                     let should_be_loaded =
-                        entity.location().h_distance2(&player_location) < view_distance2;
+                        entity.location().h_distance2(&player_entity.location) < view_distance2;
                     if !is_loaded && should_be_loaded {
+                        drop(player_entity);
+                        let mut player_entity =
+                            RwLockWriteGuard::map(player_ref.entity.write().await, |p| {
+                                p.as_player_mut()
+                            });
+
                         player_ref
                             .send_raw_packet(entity.get_spawn_packet())
                             .await
                             .unwrap();
-                        player_ref
-                            .entity
-                            .write()
-                            .await
-                            .as_player_mut()
-                            .loaded_entities
-                            .insert(eid);
+                        player_entity.loaded_entities.insert(eid);
                         // Send head look
                         player_ref
                             .send_packet(&C3AEntityHeadLook {
@@ -343,16 +341,16 @@ impl EntityPool {
                                     .push((C47EntityEquipmentSlot::Feet, equipment.feet));
                             }
                             if !packet.equipment.is_empty() {
-                                self.players
-                                    .read()
-                                    .await
-                                    .send_to_player(player_eid, &packet)
-                                    .await
-                                    .unwrap();
+                                player_ref.send_packet(&packet).await.unwrap();
                             }
                         }
                     }
-                    if is_loaded && !should_be_loaded {
+                    else if is_loaded && !should_be_loaded {
+                        drop(player_entity);
+                        let mut player_entity =
+                            RwLockWriteGuard::map(player_ref.entity.write().await, |p| {
+                                p.as_player_mut()
+                            });
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
                         player_ref
                             .send_packet(&C36DestroyEntities {
@@ -360,13 +358,7 @@ impl EntityPool {
                             })
                             .await
                             .unwrap();
-                        player_ref
-                            .entity
-                            .write()
-                            .await
-                            .as_player_mut()
-                            .loaded_entities
-                            .remove(&eid);
+                        player_entity.loaded_entities.remove(&eid);
                     }
                 }
             }
