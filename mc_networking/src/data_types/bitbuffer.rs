@@ -4,7 +4,7 @@ pub struct BitBuffer {
     entries_per_long: u64,
     size: usize,
     mask: u64,
-    longs: Vec<u64>,
+    longs: Vec<i64>,
 }
 
 impl BitBuffer {
@@ -22,7 +22,7 @@ impl BitBuffer {
         }
     }
 
-    pub fn load(entries: usize, bits_per_entry: u8, longs: Vec<u64>) -> BitBuffer {
+    pub fn load(entries: usize, bits_per_entry: u8, longs: Vec<i64>) -> BitBuffer {
         let entries_per_long = 64 / bits_per_entry as u64;
         BitBuffer {
             entry_bit_size: bits_per_entry as u64,
@@ -39,7 +39,7 @@ impl BitBuffer {
         let sub_idx =
             (word_idx as u64 - arr_idx as u64 * self.entries_per_long) * self.entry_bit_size;
         // Find the word.
-        let word = (self.longs[arr_idx] >> sub_idx) & self.mask;
+        let word = ((self.longs[arr_idx] as u64) >> sub_idx) & self.mask;
         word as u32
     }
 
@@ -50,10 +50,11 @@ impl BitBuffer {
             (word_idx as u64 - arr_idx as u64 * self.entries_per_long) * self.entry_bit_size;
         // Set the word.
         let mask = !(self.mask << sub_idx);
-        self.longs[arr_idx] = (self.longs[arr_idx] & mask) | ((word as u64) << sub_idx);
+        self.longs[arr_idx] =
+            (((self.longs[arr_idx] as u64) & mask) | ((word as u64) << sub_idx)) as i64;
     }
 
     pub fn into_buffer(self) -> Vec<i64> {
-        unsafe { std::mem::transmute(self.longs) }
+        self.longs
     }
 }
