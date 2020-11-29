@@ -46,12 +46,16 @@ pub struct Client {
     peer_addr: std::net::SocketAddr,
 }
 impl Client {
-    pub fn new(socket: TcpStream) -> (Self, flume::Receiver<ClientEvent>) {
+    pub fn new(
+        socket: TcpStream,
+        event_buffer: usize,
+        packet_buffer: usize,
+    ) -> (Self, flume::Receiver<ClientEvent>) {
         let peer_addr = socket.peer_addr().unwrap();
         let (read, write) = socket.into_split();
         let state = Arc::new(RwLock::new(ClientState::Handshaking));
-        let (event_sender, event_receiver) = flume::bounded(100);
-        let (packet_sender, packet_receiver) = flume::bounded(100);
+        let (event_sender, event_receiver) = flume::bounded(event_buffer);
+        let (packet_sender, packet_receiver) = flume::bounded(packet_buffer);
         let compression = Arc::default();
 
         spawn({

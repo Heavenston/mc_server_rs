@@ -136,7 +136,7 @@ impl Server {
         let join_handle = tokio::task::spawn(async move {
             loop {
                 let (socket, ..) = listener.accept().await?;
-                let (client, event_receiver) = Client::new(socket);
+                let (client, event_receiver) = Client::new(socket, 100, 500);
                 let client = client;
                 tokio::task::spawn({
                     let server = Arc::clone(&server);
