@@ -267,7 +267,7 @@ impl EntityPool {
                 }
             }
             // Sync visibility to players
-            {
+            if counter % 5 == 0 {
                 for (player_eid, player_ref) in players_ids.iter() {
                     let player_eid = *player_eid;
                     // Avoid sending player entity to itself
