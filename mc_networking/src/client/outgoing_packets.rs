@@ -55,7 +55,7 @@ pub(super) async fn listen_outgoing_packets(
                         crypter.update(&unencrypted, &mut packet_buffer).unwrap();
                     packet_buffer.truncate(encrypted_length);
                 }
-                match write.write_all(&mut packet_buffer).await {
+                match write.write_all(&packet_buffer).await {
                     Ok(..) => (),
                     Err(e) => warn!("Error when sending packet 0x{:02x}: '{}'", packet_id, e),
                 }
