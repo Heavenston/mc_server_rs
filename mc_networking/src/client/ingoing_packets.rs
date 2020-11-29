@@ -217,7 +217,7 @@ pub(super) async fn listen_ingoing_packets(
                             compress,
                         } => {
                             login_compress = compress;
-                            login_uuid = Some(uuid.clone());
+                            login_uuid = Some(uuid);
                             login_username = Some(username.clone());
                             if encrypt {
                                 packet_sender

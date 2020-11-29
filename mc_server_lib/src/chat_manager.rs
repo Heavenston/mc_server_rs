@@ -86,8 +86,8 @@ impl ChatManager {
     /// Should be called when an entity sends a message
     /// It will parse commands and call the command_executor
     pub async fn player_message(&self, sender: PlayerRef, message: String) {
-        if message.starts_with("/") {
-            let mut args = message.trim_start_matches("/").split(" ");
+        if message.starts_with('/') {
+            let mut args = message.trim_start_matches('/').split(' ');
             let command_name = args.next().unwrap_or("").to_lowercase();
             let args: Vec<_> = args.map(|s| s.to_string()).collect();
 
@@ -103,7 +103,7 @@ impl ChatManager {
                         }
                         Err(error) => {
                             self.send_message(sender.entity.read().await.entity_id(), json!({
-                            "text": format!("An unexpected error occurred while executing command"),
+                            "text": "An unexpected error occurred while executing command".to_string(),
                             "color": "red"
                         })).await;
                             error!("Error while executing command {}: {}", command_name, error);
@@ -134,7 +134,7 @@ impl ChatManager {
                 .broadcast(&C0EChatMessage {
                     json_data: json!({ "text": format!("<{}> {}", username, message) }),
                     position: 0, // Chat box
-                    sender: Some(sender.entity.read().await.uuid().clone()),
+                    sender: Some(*sender.entity.read().await.uuid()),
                 })
                 .await
                 .unwrap();

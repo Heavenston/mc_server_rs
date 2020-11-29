@@ -63,7 +63,7 @@ impl CommandExecutor for FlyCommand {
         args: Vec<String>,
     ) -> Result<bool> {
         if let Some(player_ref) = PlayerRef::new(executor).await {
-            if args.len() < 1 {
+            if args.is_empty() {
                 return Ok(false);
             }
             match &*args[0] {

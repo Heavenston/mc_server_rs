@@ -342,7 +342,7 @@ impl EntityPool {
                                     .equipment
                                     .push((C47EntityEquipmentSlot::Feet, equipment.feet));
                             }
-                            if packet.equipment.len() > 0 {
+                            if !packet.equipment.is_empty() {
                                 self.players
                                     .read()
                                     .await

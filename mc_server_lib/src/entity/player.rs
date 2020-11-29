@@ -175,7 +175,7 @@ impl Entity for PlayerEntity {
     fn get_spawn_packet(&self) -> RawPacket {
         C04SpawnPlayer {
             entity_id: self.entity_id(),
-            uuid: self.uuid.clone(),
+            uuid: self.uuid,
             x: self.location.x,
             y: self.location.y,
             z: self.location.z,
@@ -222,14 +222,14 @@ impl Entity for PlayerEntity {
 
     fn metadata(&self) -> HashMap<u8, MetadataValue> {
         map! {
-            0 => self.metadata_value(0).unwrap().clone(),
-            6 => self.metadata_value(6).unwrap().clone()
+            0 => self.metadata_value(0).unwrap(),
+            6 => self.metadata_value(6).unwrap()
         }
     }
     fn metadata_value(&self, id: u8) -> Option<MetadataValue> {
         Some(match id {
             0 => MetadataValue::Byte(
-                (self.is_sneaking as u8) * 0x02 | (self.is_sprinting as u8) * 0x08,
+                ((self.is_sneaking as u8) * 0x02) | ((self.is_sprinting as u8) * 0x08),
             ),
             6 => MetadataValue::Pose(if self.is_sneaking && !self.is_flying {
                 Pose::Sneaking

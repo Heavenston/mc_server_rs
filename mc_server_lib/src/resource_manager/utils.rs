@@ -18,7 +18,7 @@ pub async fn download_file_to_writer(
     };
     while let Some(chunk) = server_jar_response.chunk().await? {
         let remaining = server_jar_response.content_length().unwrap_or(0);
-        if (last_remaining as i64 - remaining as i64).abs() > 3000000 as i64 {
+        if (last_remaining as i64 - remaining as i64).abs() > 3000000_i64 {
             if !quiet {
                 debug!("{}MB/{}MB", (size - remaining) / 1000000, size / 1000000)
             };

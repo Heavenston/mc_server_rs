@@ -201,7 +201,7 @@ impl Server {
                         let entity = Arc::new(RwLock::new(BoxedEntity::new(PlayerEntity::new(
                             username.clone(),
                             player_eid,
-                            uuid.clone(),
+                            uuid,
                             client.clone(),
                         ))));
                         player_ref = Some(PlayerRef::new(entity).await.unwrap());
@@ -215,7 +215,7 @@ impl Server {
 
                         response
                             .send(LoginStartResult::Accept {
-                                uuid: uuid.clone(),
+                                uuid,
                                 username,
                                 encrypt: true,
                                 compress: true,
@@ -330,7 +330,7 @@ impl Server {
                         .unwrap();
 
                     let my_player_info = C32PlayerInfoPlayerUpdate::AddPlayer {
-                        uuid: player_ref.entity.read().await.uuid().clone(),
+                        uuid: *player_ref.entity.read().await.uuid(),
                         name: player_ref.entity.read().await.as_player().username.clone(),
                         properties: vec![],
                         gamemode: player_ref.entity.read().await.as_player().gamemode as i32,
@@ -345,7 +345,7 @@ impl Server {
                                 let other_player_entity = other_player_ref.entity.read().await;
                                 let other_player_entity = other_player_entity.as_player();
                                 players.push(C32PlayerInfoPlayerUpdate::AddPlayer {
-                                    uuid: other_player_entity.uuid.clone(),
+                                    uuid: other_player_entity.uuid,
                                     name: other_player_entity.username.clone(),
                                     properties: vec![],
                                     gamemode: 1,
@@ -463,7 +463,7 @@ impl Server {
                     entity_pool.players.write().await.remove_entity(player_eid);
                     chunk_holder.remove_player(player_eid).await;
                     chat_manager.players.write().await.remove_entity(player_eid);
-                    let uuid = player_ref.unwrap().entity.read().await.uuid().clone();
+                    let uuid = *player_ref.unwrap().entity.read().await.uuid();
                     server
                         .players
                         .read()
@@ -479,14 +479,14 @@ impl Server {
                 ClientEvent::Ping { delay } => {
                     let player_ref = player_ref.as_ref().unwrap();
                     player_ref.entity.write().await.as_player_mut().ping = delay as i32;
-                    let uuid = player_ref.entity.read().await.as_player().uuid.clone();
+                    let uuid = player_ref.entity.read().await.as_player().uuid;
                     server
                         .players
                         .read()
                         .await
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
-                                uuid: uuid.clone(),
+                                uuid,
                                 ping: delay as i32,
                             }],
                         })
@@ -772,7 +772,7 @@ impl Server {
                             .div_f64((*ticks.read().await as f64).max(1.0));
                         *ticks.write().await = 0;
                         debug!("{} TPS (~{}ms)", n, average_time.as_millis());
-                        *server.average_tick_duration.write().await = average_time.clone();
+                        *server.average_tick_duration.write().await = average_time;
                         *times.write().await = Duration::from_secs(0);
                     }
                 }

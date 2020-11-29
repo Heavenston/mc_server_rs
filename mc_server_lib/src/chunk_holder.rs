@@ -78,9 +78,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
 
     async fn load_chunk(&self, x: i32, z: i32) -> Option<Arc<RwLock<Chunk>>> {
         let chunk_data = self.chunk_provider.load_chunk_data(x, z).await;
-        if chunk_data.is_none() {
-            return None;
-        }
+        chunk_data.as_ref()?;
         let chunk_data = chunk_data.unwrap();
 
         let chunk = Chunk::new(x, z, chunk_data);

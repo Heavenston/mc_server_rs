@@ -327,6 +327,6 @@ pub mod string {
         let size = varint::decode_sync(stream)?;
         let mut data = BytesMut::with_capacity(size as usize).writer();
         std::io::copy(&mut stream.take(size as u64), &mut data)?;
-        return Ok(String::from_utf8_lossy(&data.into_inner()).into());
+        Ok(String::from_utf8_lossy(&data.into_inner()).into())
     }
 }

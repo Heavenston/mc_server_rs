@@ -79,7 +79,7 @@ impl CommandExecutor for SummonCommand {
         args: Vec<String>,
     ) -> Result<bool> {
         if let Some(player_ref) = PlayerRef::new(executor).await {
-            if args.len() < 1 {
+            if args.is_empty() {
                 return Ok(false);
             }
             match &*args[0] {
@@ -118,7 +118,7 @@ impl CommandExecutor for SummonCommand {
                     }
                     else {
                         let entity_type_name = &args[1];
-                        let entity_type_name = if entity_type_name.contains(":") {
+                        let entity_type_name = if entity_type_name.contains(':') {
                             entity_type_name.clone()
                         }
                         else {

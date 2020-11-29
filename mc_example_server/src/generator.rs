@@ -38,12 +38,12 @@ impl Generator {
     async fn generate_chunk_data(&self, chunk_x: i32, chunk_z: i32) -> Box<ChunkData> {
         let stone = self
             .resource_manager
-            .get_block_state_id("minecraft:stone".into(), None)
+            .get_block_state_id("minecraft:stone", None)
             .await
             .unwrap() as u16;
         let snow_block = self
             .resource_manager
-            .get_block_state_id("minecraft:snow_block".into(), None)
+            .get_block_state_id("minecraft:snow_block", None)
             .await
             .unwrap() as u16;
 
@@ -68,7 +68,7 @@ impl Generator {
                     data.set_block(local_x as u8, block_height + 1, local_z as u8, {
                         self.resource_manager
                             .get_block_state_id(
-                                "minecraft:snow".into(),
+                                "minecraft:snow",
                                 Some(map! {
                                     "layers".to_string() => (
                                         (remaining_height * 7.0).ceil() + 1.0

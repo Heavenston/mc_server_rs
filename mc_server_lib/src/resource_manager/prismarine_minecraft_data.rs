@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use url::Url;
 
-const PRIMARINE_MINECRAFT_DATA_BASE_URL: &'static str =
+const PRIMARINE_MINECRAFT_DATA_BASE_URL: &str =
     "https://raw.githubusercontent.com/PrismarineJS/minecraft-data/master";
 
 async fn download_minecraft_data_file(file: impl Into<PathBuf>) -> Result<serde_json::Value> {

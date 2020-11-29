@@ -97,10 +97,7 @@ impl BoxedEntity {
     }
 
     pub fn is_unknown(&self) -> bool {
-        match self {
-            BoxedEntity::Unknown(..) => true,
-            _ => false,
-        }
+        matches!(self, BoxedEntity::Unknown(..))
     }
     pub fn into_known(self) -> BoxedEntity {
         if let BoxedEntity::Unknown(entity) = self {
@@ -130,10 +127,7 @@ impl BoxedEntity {
     }
 
     pub fn is_player(&self) -> bool {
-        match self {
-            BoxedEntity::Player(..) => true,
-            _ => false,
-        }
+        matches!(self, BoxedEntity::Player(..))
     }
     pub fn as_player(&self) -> &Box<PlayerEntity> {
         match self {
@@ -161,10 +155,7 @@ impl BoxedEntity {
     }
 
     pub fn is_living_entity(&self) -> bool {
-        match self {
-            BoxedEntity::LivingEntity(..) => true,
-            _ => false,
-        }
+        matches!(self, BoxedEntity::LivingEntity(..))
     }
     pub fn as_living_entity(&self) -> &Box<LivingEntity> {
         match self {

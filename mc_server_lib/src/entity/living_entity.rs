@@ -55,7 +55,7 @@ impl Entity for LivingEntity {
     fn get_spawn_packet(&self) -> RawPacket {
         C02SpawnLivingEntity {
             entity_id: self.entity_id(),
-            entity_uuid: self.uuid.clone(),
+            entity_uuid: self.uuid,
             kind: self.kind,
             x: self.location.x,
             y: self.location.y,
@@ -109,7 +109,7 @@ impl Entity for LivingEntity {
         self.metadata.clone()
     }
     fn metadata_value(&self, id: u8) -> Option<MetadataValue> {
-        self.metadata.get(&id).map(|v| v.clone())
+        self.metadata.get(&id).cloned()
     }
     fn set_metadata_value(&mut self, id: u8, value: MetadataValue) -> bool {
         self.metadata.insert(id, value);

@@ -45,7 +45,7 @@ impl Slot {
                 }
                 else {
                     nbt::Blob::from_reader(&mut Cursor::new(remaining))
-                        .map_err(|s| std::io::Error::from(s))?
+                        .map_err(std::io::Error::from)?
                 },
             })
         }
