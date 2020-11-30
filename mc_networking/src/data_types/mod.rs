@@ -1,7 +1,7 @@
 use crate::{data_types::encoder::PacketEncoder, DecodingError, DecodingResult};
 
 use byteorder::ReadBytesExt;
-use bytes::{Bytes};
+use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read};
 use tokio::prelude::{io::AsyncReadExt, AsyncRead};

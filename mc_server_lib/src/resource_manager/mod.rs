@@ -20,8 +20,7 @@ use tokio::{
     sync::RwLock,
 };
 
-const VERSION_MANIFEST_URL: &str =
-    "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+const VERSION_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 const MINECRAFT_VERSION: &str = "1.16.4";
 const ENABLE_CACHE_COMPRESSION: bool = false;
 
@@ -71,7 +70,12 @@ async fn get_server_jar_url() -> Result<String> {
             version_url = Some(version["url"].as_str().unwrap().to_owned());
         }
     }
-    let version_url = version_url.unwrap_or_else(|| panic!("The version expected ({}) does not exist", MINECRAFT_VERSION));
+    let version_url = version_url.unwrap_or_else(|| {
+        panic!(
+            "The version expected ({}) does not exist",
+            MINECRAFT_VERSION
+        )
+    });
 
     let version_json = download_file_to_json(&version_url)
         .await?

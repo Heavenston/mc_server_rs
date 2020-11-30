@@ -157,7 +157,10 @@ impl Client {
         fov_modifier: f32,
     ) -> PacketSendResult {
         self.send_packet(&C30PlayerAbilities {
-            flags: ((invulnerable as u8) * 0x01) | ((flying as u8) * 0x02) | ((allow_flying as u8) * 0x04) | ((creative_mode as u8) * 0x08),
+            flags: ((invulnerable as u8) * 0x01)
+                | ((flying as u8) * 0x02)
+                | ((allow_flying as u8) * 0x04)
+                | ((creative_mode as u8) * 0x08),
             flying_speed,
             fov_modifier,
         })

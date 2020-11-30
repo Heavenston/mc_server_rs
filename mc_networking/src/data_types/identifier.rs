@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Deref};
 
-const ALLOWED_CHARACTERS: &str = "01\u{200B}\u{200B}234\u{200B}5\u{200B}6\u{200B}78\u{200B}9abcdefghijklmnopqrstuvwxyz-_";
+const ALLOWED_CHARACTERS: &str =
+    "01\u{200B}\u{200B}234\u{200B}5\u{200B}6\u{200B}78\u{200B}9abcdefghijklmnopqrstuvwxyz-_";
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct Identifier {
