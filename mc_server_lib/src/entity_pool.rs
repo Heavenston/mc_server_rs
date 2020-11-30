@@ -129,9 +129,10 @@ impl EntityPool {
                         .await;
                     }
 
-                    if (previous_location.x - new_location.x).abs() > 8.0
-                        || (previous_location.y - new_location.y).abs() > 8.0
-                        || (previous_location.z - new_location.z).abs() > 8.0
+                    if has_position_changed
+                        && ((previous_location.x - new_location.x).abs() > 8.0
+                            || (previous_location.y - new_location.y).abs() > 8.0
+                            || (previous_location.z - new_location.z).abs() > 8.0)
                     {
                         EntityManager::broadcast_to(
                             &C56EntityTeleport {
