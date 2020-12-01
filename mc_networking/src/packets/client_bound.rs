@@ -539,6 +539,20 @@ mod play {
         }
     }
 
+    #[derive(Clone, Debug)]
+    pub struct C19PlayDisconnect {
+        pub reason: serde_json::Value,
+    }
+    impl ClientBoundPacket for C19PlayDisconnect {
+        fn packet_id() -> i32 {
+            0x19
+        }
+
+        fn encode(&self, encoder: &mut PacketEncoder) {
+            encoder.write_string(&self.reason.to_string());
+        }
+    }
+
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///

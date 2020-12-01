@@ -15,6 +15,7 @@ use outgoing_packets::*;
 use lazy_static::lazy_static;
 use log::*;
 use openssl::{self, pkey, rsa::Rsa};
+use serde_json::json;
 use std::sync::Arc;
 use tokio::{self, net::TcpStream, sync::RwLock, task::spawn};
 
@@ -77,23 +78,54 @@ impl Client {
                     match e {
                         ClientListenError::IoError(e)
                         | ClientListenError::DecodingError(DecodingError::IoError(e)) => {
-                            if e.kind() == std::io::ErrorKind::UnexpectedEof
+                            if (e.kind() == std::io::ErrorKind::UnexpectedEof
+                                || e.kind() == std::io::ErrorKind::Interrupted
+                                || e.kind() == std::io::ErrorKind::ConnectionReset
+                                || e.kind() == std::io::ErrorKind::ConnectionAborted)
                                 && *state.read().await == ClientState::Play
                             {
                                 *state.write().await = ClientState::Disconnected;
                                 listener_sender.try_send(ClientEvent::Logout).unwrap();
                             }
                             else if *state.read().await == ClientState::Play {
-                                error!("Unexpected error while handling {:?}, {:#?}", peer_addr, e);
+                                *state.write().await = ClientState::Disconnected;
+                                listener_sender.try_send(ClientEvent::Logout).unwrap();
+                                packet_sender
+                                    .send_async(OutgoingPacketEvent::Packet(
+                                        C19PlayDisconnect {
+                                            reason: json!({
+                                                "text": "Unexpected io error"
+                                            }),
+                                        }
+                                        .to_rawpacket(),
+                                    ))
+                                    .await
+                                    .unwrap();
+                                error!(
+                                    "Unexpected io error while handling {:?}, {:#?}",
+                                    peer_addr, e
+                                );
                             }
                         }
                         ClientListenError::EventSenderSendError(e) => {
-                            warn!("could not send event {:?} from client {:?}", e, peer_addr);
                             *state.write().await = ClientState::Disconnected;
-                            // TODO: Send a disconnect packet to client
+                            panic!("could not send event {:?} from client {:?}", e, peer_addr);
                         }
 
                         e => {
+                            *state.write().await = ClientState::Disconnected;
+                            listener_sender.try_send(ClientEvent::Logout).unwrap();
+                            packet_sender
+                                .send_async(OutgoingPacketEvent::Packet(
+                                    C19PlayDisconnect {
+                                        reason: json!({
+                                            "text": "Unexpected error"
+                                        }),
+                                    }
+                                    .to_rawpacket(),
+                                ))
+                                .await
+                                .unwrap();
                             error!("Unexpected error while handling {:?}, {:#?}", peer_addr, e);
                         }
                     }
