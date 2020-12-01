@@ -1,15 +1,24 @@
 use serde::{Deserialize, Serialize};
 use std::{fmt, ops::Deref};
 
-const ALLOWED_CHARACTERS: &str =
-    "01\u{200B}\u{200B}234\u{200B}5\u{200B}6\u{200B}78\u{200B}9abcdefghijklmnopqrstuvwxyz-_";
+const ALLOWED_CHARACTERS: &str = "0123456789abcdefghijklmnopqrstuvwxyz-_";
 
 #[derive(Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct Identifier {
-    text: String,
+pub struct Identifier<T: Deref<Target = str> = String> {
+    text: T,
     name_pos: usize,
 }
-impl Identifier {
+impl<T: Deref<Target = str>> Identifier<T> {
+    /// Created a new identifier from text
+    /// will panic if the text doesn't contain a namespace (i.e. minecraft:*)
+    /// use Identifier::from if you want to use the default minecraft:namespace
+    pub fn new(text: T) -> Self {
+        Self {
+            name_pos: text.find(':').expect("invalid identifier") + 1,
+            text,
+        }
+    }
+
     pub fn namespace(&self) -> &str {
         &self.text[0..self.name_pos - 1]
     }
@@ -18,14 +27,16 @@ impl Identifier {
     }
 }
 
-impl fmt::Debug for Identifier {
+impl<T: Deref<Target = str>> fmt::Debug for Identifier<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("Identifier").field(&self.text).finish()
+        f.debug_tuple("Identifier")
+            .field(&self.text.deref())
+            .finish()
     }
 }
 
-impl From<&str> for Identifier {
-    fn from(text: &str) -> Self {
+impl<'a> From<&'a str> for Identifier<String> {
+    fn from(text: &'a str) -> Self {
         let this = if text.contains(':') {
             let name_pos = text.find(':').unwrap() + 1;
             Self {
