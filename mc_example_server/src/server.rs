@@ -463,7 +463,23 @@ impl Server {
                     entity_pool.players.write().await.remove_entity(player_eid);
                     chunk_holder.remove_player(player_eid).await;
                     chat_manager.players.write().await.remove_entity(player_eid);
-                    let uuid = *player_ref.unwrap().entity.read().await.uuid();
+                    let uuid = player_ref
+                        .as_ref()
+                        .unwrap()
+                        .entity
+                        .read()
+                        .await
+                        .uuid()
+                        .clone();
+                    let username = player_ref
+                        .as_ref()
+                        .unwrap()
+                        .entity
+                        .read()
+                        .await
+                        .as_player()
+                        .username
+                        .clone();
                     server
                         .players
                         .read()
@@ -473,6 +489,7 @@ impl Server {
                         })
                         .await
                         .unwrap();
+                    info!("{} left the game", username);
                     break;
                 }
 
