@@ -11,7 +11,7 @@ use std::sync::{
     Arc,
 };
 use tokio::{
-    sync::RwLock,
+    sync::{RwLock, RwLockReadGuard},
     time::{sleep, sleep_until, Duration, Instant},
 };
 
@@ -64,15 +64,22 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
     pub async fn add_player(&self, player: PlayerRef) {
         self.players.write().await.add_entity(player).await;
     }
-    pub async fn remove_player(&self, id: i32) {
+    /// Remove a player from the chunk_pool and saves all chunks left loaded by the player
+    pub async fn remove_player(self: &Arc<Self>, id: i32) {
         if let Some(interrupt) = self.update_view_position_interrupts.read().await.get(&id) {
             interrupt.store(true, Ordering::Relaxed);
         }
         let player_ref = self.players.write().await.remove_entity(id).unwrap();
-        let player_entity = player_ref.entity.read().await;
-        let player_entity = player_entity.as_player();
-        for (x, z) in player_entity.loaded_chunks.clone() {
-            self.reduce_chunk_load_count(x, z).await;
+        let loaded_chunks = player_ref
+            .entity
+            .read()
+            .await
+            .as_player()
+            .loaded_chunks
+            .clone();
+        let chunk_loadings = self.chunk_loadings.read().await;
+        for (x, z) in loaded_chunks {
+            self.reduce_chunk_load_count(&chunk_loadings, x, z);
         }
     }
 
@@ -166,10 +173,22 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         }
         self.chunks.read().await.get(&(x, z)).cloned()
     }
-    async fn reduce_chunk_load_count(&self, x: i32, z: i32) {
-        if let Some(n) = self.chunk_loadings.read().await.get(&(x, z)) {
+    /// Reduce the load count on a chunk, this will spawn a tokio task
+    /// to save the chunk asynchronously if the load count reaches 0
+    fn reduce_chunk_load_count(
+        self: &Arc<Self>,
+        chunk_loadings: &RwLockReadGuard<'_, FxIndexMap<(i32, i32), AtomicI16>>,
+        x: i32,
+        z: i32,
+    ) {
+        if let Some(n) = chunk_loadings.get(&(x, z)) {
             if n.fetch_sub(1, Ordering::Relaxed) - 1 <= 0 {
-                self.save_chunk(x, z).await;
+                tokio::task::spawn({
+                    let this = Arc::clone(self);
+                    async move {
+                        this.save_chunk(x, z).await;
+                    }
+                });
             }
         }
     }
@@ -193,7 +212,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
     /// Update a player view position, unloading/loading chunks accordingly
     /// if do_delay is true a delay is added between chunk load to reduce lag spikes (should be false on player spawning)
     pub async fn update_player_view_position(
-        &self,
+        self: &Arc<Self>,
         player_id: i32,
         chunk_x: i32,
         chunk_z: i32,
@@ -233,6 +252,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .as_player()
             .loaded_chunks
             .clone();
+        let chunk_loadings = self.chunk_loadings.read().await;
 
         tokio::join!(
             {
@@ -243,7 +263,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                         let (dx, dz) = (chunk_x - chunk.0, chunk_z - chunk.1);
                         if dx.abs() > view_distance || dz.abs() > view_distance {
                             let start = Instant::now();
-                            self.reduce_chunk_load_count(chunk.0, chunk.1).await;
+                            self.reduce_chunk_load_count(&chunk_loadings, chunk.0, chunk.1);
                             player_ref
                                 .send_packet(&C1CUnloadChunk {
                                     chunk_x: chunk.0,
@@ -334,7 +354,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
         self.synced_player_chunks.read().await[&player]
     }
 
-    pub async fn refresh_player_chunks(&self, player_id: i32) {
+    pub async fn refresh_player_chunks(self: &Arc<Self>, player_id: i32) {
         let entity_ref = self
             .players
             .read()
