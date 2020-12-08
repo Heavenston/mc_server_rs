@@ -157,14 +157,15 @@ impl CommandExecutor for SummonCommand {
                                     entities.add_entity(entity).await;
                                 }
                             }
-                            None => player_ref
-                                .send_chat_message(json!({
-                                    "text": "Invalid entity type",
-                                    "color": "red",
-                                    "bold": "true"
-                                }))
-                                .await
-                                .unwrap(),
+                            None => {
+                                player_ref
+                                    .send_chat_message(json!({
+                                        "text": "Invalid entity type",
+                                        "color": "red",
+                                        "bold": "true"
+                                    }))
+                                    .await
+                            }
                         }
                         Ok(true)
                     }

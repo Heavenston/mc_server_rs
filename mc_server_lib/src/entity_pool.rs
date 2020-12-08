@@ -292,18 +292,16 @@ impl EntityPool {
                             });
 
                         player_ref
-                            .send_raw_packet(entity.get_spawn_packet())
-                            .await
-                            .unwrap();
+                            .send_raw_packet_async(entity.get_spawn_packet())
+                            .await;
                         player_entity.loaded_entities.insert(eid);
                         // Send head look
                         player_ref
-                            .send_packet(&C3AEntityHeadLook {
+                            .send_packet_async(&C3AEntityHeadLook {
                                 entity_id: eid,
                                 head_yaw: entity.location().yaw_angle(),
                             })
-                            .await
-                            .unwrap();
+                            .await;
                         // Send entity equipment
                         {
                             let equipment = entity.get_equipment().to_owned();
@@ -342,7 +340,7 @@ impl EntityPool {
                                     .push((C47EntityEquipmentSlot::Feet, equipment.feet));
                             }
                             if !packet.equipment.is_empty() {
-                                player_ref.send_packet(&packet).await.unwrap();
+                                player_ref.send_packet_async(&packet).await;
                             }
                         }
                     }
@@ -354,11 +352,10 @@ impl EntityPool {
                             });
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
                         player_ref
-                            .send_packet(&C36DestroyEntities {
+                            .send_packet_async(&C36DestroyEntities {
                                 entities: vec![eid],
                             })
-                            .await
-                            .unwrap();
+                            .await;
                         player_entity.loaded_entities.remove(&eid);
                     }
                 }
@@ -423,7 +420,7 @@ impl EntityPool {
         if let Some(player) = entity.try_as_player() {
             player
                 .client
-                .send_packet(&C34PlayerPositionAndLook {
+                .send_packet_async(&C34PlayerPositionAndLook {
                     x: location.x,
                     y: location.y,
                     z: location.z,
@@ -432,8 +429,7 @@ impl EntityPool {
                     flags: 0,
                     teleport_id: 0,
                 })
-                .await
-                .unwrap();
+                .await;
         }
     }
     pub async fn sync_entity_metadata(&self, entity: &BoxedEntity) -> Result<()> {

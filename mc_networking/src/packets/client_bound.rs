@@ -928,6 +928,25 @@ mod play {
         pub flying_speed: f32,
         pub fov_modifier: f32,
     }
+    impl C30PlayerAbilities {
+        pub fn new(
+            invulnerable: bool,
+            flying: bool,
+            allow_flying: bool,
+            creative_mode: bool,
+            flying_speed: f32,
+            fov_modifier: f32,
+        ) -> Self {
+            C30PlayerAbilities {
+                flags: ((invulnerable as u8) * 0x01)
+                    | ((flying as u8) * 0x02)
+                    | ((allow_flying as u8) * 0x04)
+                    | ((creative_mode as u8) * 0x08),
+                flying_speed,
+                fov_modifier,
+            }
+        }
+    }
     impl ClientBoundPacket for C30PlayerAbilities {
         fn packet_id() -> i32 {
             0x30

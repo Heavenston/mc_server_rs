@@ -4,7 +4,6 @@ mod keep_alive;
 mod outgoing_packets;
 
 use crate::{
-    data_types::Angle,
     packets::{client_bound::*, PacketCompression, RawPacket},
     DecodingError,
 };
@@ -34,8 +33,6 @@ pub enum ClientState {
     Play,
     Disconnected,
 }
-
-type PacketSendResult = Result<(), std::io::Error>;
 
 #[derive(Clone)]
 pub struct Client {
@@ -156,77 +153,23 @@ impl Client {
         self.state.read().await.clone()
     }
 
-    pub async fn send_raw_packet(&self, packet: RawPacket) -> PacketSendResult {
+    pub async fn send_raw_packet_async(&self, packet: RawPacket) {
         self.packet_sender
             .send_async(OutgoingPacketEvent::Packet(packet))
             .await
             .unwrap();
-        Ok(())
     }
-    pub async fn send_packet<U: ClientBoundPacket>(&self, packet: &U) -> PacketSendResult {
+    pub fn send_raw_packet_sync(&self, packet: RawPacket) {
+        self.packet_sender
+            .send(OutgoingPacketEvent::Packet(packet))
+            .unwrap();
+    }
+    pub async fn send_packet_async<U: ClientBoundPacket>(&self, packet: &U) {
         let raw_packet = packet.to_rawpacket();
-        self.send_raw_packet(raw_packet).await
+        self.send_raw_packet_async(raw_packet).await;
     }
-
-    pub async fn hold_item_change(&self, slot: i8) -> PacketSendResult {
-        self.send_packet(&C3FHoldItemChange { slot }).await?;
-        Ok(())
-    }
-
-    pub async fn update_view_position(&self, chunk_x: i32, chunk_z: i32) -> PacketSendResult {
-        self.send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn send_player_abilities(
-        &self,
-        invulnerable: bool,
-        flying: bool,
-        allow_flying: bool,
-        creative_mode: bool,
-        flying_speed: f32,
-        fov_modifier: f32,
-    ) -> PacketSendResult {
-        self.send_packet(&C30PlayerAbilities {
-            flags: ((invulnerable as u8) * 0x01)
-                | ((flying as u8) * 0x02)
-                | ((allow_flying as u8) * 0x04)
-                | ((creative_mode as u8) * 0x08),
-            flying_speed,
-            fov_modifier,
-        })
-        .await?;
-        Ok(())
-    }
-
-    pub async fn destroy_entities(&self, entities: Vec<i32>) -> PacketSendResult {
-        self.send_packet(&C36DestroyEntities { entities }).await?;
-        Ok(())
-    }
-
-    pub async fn send_entity_head_look(&self, entity_id: i32, head_yaw: Angle) -> PacketSendResult {
-        self.send_packet(&C3AEntityHeadLook {
-            entity_id,
-            head_yaw,
-        })
-        .await?;
-        Ok(())
-    }
-
-    pub async fn unload_chunk(&self, chunk_x: i32, chunk_z: i32) -> PacketSendResult {
-        self.send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
-            .await?;
-        Ok(())
-    }
-
-    pub async fn send_chat_message(&self, message: serde_json::Value) -> PacketSendResult {
-        self.send_packet(&C0EChatMessage {
-            json_data: message,
-            position: 2,
-            sender: None,
-        })
-        .await?;
-        Ok(())
+    pub fn send_packet_sync<U: ClientBoundPacket>(&self, packet: &U) {
+        let raw_packet = packet.to_rawpacket();
+        self.send_raw_packet_sync(raw_packet);
     }
 }

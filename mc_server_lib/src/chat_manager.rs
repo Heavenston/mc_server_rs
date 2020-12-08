@@ -67,9 +67,8 @@ impl ChatManager {
             .await
             .get_entity(player_id)
             .unwrap()
-            .send_packet(&self.get_declare_commands().await)
-            .await
-            .unwrap();
+            .send_packet_async(&self.get_declare_commands().await)
+            .await;
     }
 
     pub async fn register_command(&self, command: Arc<dyn CommandExecutor>) {
@@ -136,8 +135,7 @@ impl ChatManager {
                     position: 0, // Chat box
                     sender: Some(*sender.entity.read().await.uuid()),
                 })
-                .await
-                .unwrap();
+                .await;
         }
     }
 
@@ -151,8 +149,7 @@ impl ChatManager {
                 position: 1, // System message
                 sender: None,
             })
-            .await
-            .unwrap();
+            .await;
     }
     /// Sends a message to one player
     pub async fn send_message(&self, target: i32, message: serde_json::Value) {
@@ -161,12 +158,11 @@ impl ChatManager {
             .await
             .get_entity(target)
             .unwrap()
-            .send_packet(&C0EChatMessage {
+            .send_packet_async(&C0EChatMessage {
                 json_data: message,
                 position: 1, // System message
                 sender: None,
             })
-            .await
-            .unwrap();
+            .await;
     }
 }

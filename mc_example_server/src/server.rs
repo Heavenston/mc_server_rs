@@ -228,7 +228,7 @@ impl Server {
 
                     // Join Game
                     client
-                        .send_packet(&{
+                        .send_packet_async(&{
                             let player_entity = player_ref.entity.read().await;
                             let player_entity = player_entity.as_player();
 
@@ -326,8 +326,7 @@ impl Server {
                                 is_flat: true,
                             }
                         })
-                        .await
-                        .unwrap();
+                        .await;
 
                     let my_player_info = C32PlayerInfoPlayerUpdate::AddPlayer {
                         uuid: *player_ref.entity.read().await.uuid(),
@@ -355,10 +354,7 @@ impl Server {
                             }
                             players
                         };
-                        client
-                            .send_packet(&C32PlayerInfo { players })
-                            .await
-                            .unwrap();
+                        client.send_packet_async(&C32PlayerInfo { players }).await;
                     }
                     // Send to all his player info
                     server
@@ -368,10 +364,9 @@ impl Server {
                         .broadcast(&C32PlayerInfo {
                             players: vec![my_player_info],
                         })
-                        .await
-                        .unwrap();
+                        .await;
 
-                    player_ref.update_abilities().await.unwrap();
+                    player_ref.update_abilities().await;
                     server
                         .players
                         .write()
@@ -450,12 +445,11 @@ impl Server {
                         slots
                     };
                     player_ref
-                        .send_packet(&C13WindowItems {
+                        .send_packet_async(&C13WindowItems {
                             window_id: 0,
                             slots: player_inventory_slots,
                         })
-                        .await
-                        .unwrap();
+                        .await;
                 }
                 ClientEvent::Logout => {
                     server.players.write().await.remove_entity(player_eid);
@@ -487,8 +481,7 @@ impl Server {
                         .broadcast(&C32PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
                         })
-                        .await
-                        .unwrap();
+                        .await;
                     info!("{} left the game", username);
                     break;
                 }
@@ -507,8 +500,7 @@ impl Server {
                                 ping: delay as i32,
                             }],
                         })
-                        .await
-                        .unwrap();
+                        .await;
                 }
 
                 ClientEvent::ChatMessage { message } => {
@@ -649,14 +641,13 @@ impl Server {
                             .get_block(position.x, position.y as u8, position.z)
                             .await;
                         player_ref
-                            .send_packet(&C07AcknowledgePlayerDigging {
+                            .send_packet_async(&C07AcknowledgePlayerDigging {
                                 position: position.clone(),
                                 block: block as i32,
                                 status: S1BPlayerDiggingStatus::CancelledDigging,
                                 successful,
                             })
-                            .await
-                            .unwrap();
+                            .await;
                     }
                 }
                 ClientEvent::PlayerBlockPlacement {
@@ -874,8 +865,7 @@ impl Server {
                     } ]
                 }),
             })
-            .await
-            .unwrap();
+            .await;
         self.tick_stage.store(0, Ordering::SeqCst);
     }
 }

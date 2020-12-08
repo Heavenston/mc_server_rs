@@ -61,15 +61,14 @@ impl<T: Into<Arc<RwLock<BoxedEntity>>> + Clone> EntityManager<T> {
 }
 
 impl PlayerManager {
-    pub async fn broadcast(&self, packet: &impl ClientBoundPacket) -> Result<()> {
+    pub async fn broadcast(&self, packet: &impl ClientBoundPacket) {
         for entity in self.entities() {
-            entity.send_packet(packet).await?;
+            entity.send_packet_async(packet).await;
         }
-        Ok(())
     }
     pub async fn broadcast_to(packet: &impl ClientBoundPacket, players: &Vec<PlayerRef>) {
         for player in players {
-            player.send_packet(packet).await.unwrap();
+            player.send_packet_async(packet).await;
         }
     }
     pub async fn send_to_player(
@@ -79,15 +78,15 @@ impl PlayerManager {
     ) -> Result<()> {
         self.get_entity(player_id)
             .ok_or(Error::msg("Invalid player id"))?
-            .send_packet(packet)
-            .await?;
+            .send_packet_async(packet)
+            .await;
         Ok(())
     }
     pub async fn send_raw_to_player(&self, player_id: i32, packet: RawPacket) -> Result<()> {
         self.get_entity(player_id)
             .ok_or(Error::msg("Invalid player id"))?
-            .send_raw_packet(packet)
-            .await?;
+            .send_raw_packet_async(packet)
+            .await;
         Ok(())
     }
     pub async fn get_filtered_players(
