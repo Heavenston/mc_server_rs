@@ -1,9 +1,17 @@
 mod chunk_loader;
 
-use mc_ecs_server_lib::{chunk_manager::ChunkManager, mc_schedule::McSchedule};
+use mc_ecs_server_lib::{
+    chunk_manager::ChunkManager,
+    entity::{
+        chunk::{ChunkLoaderComponent, ChunkLocationComponent},
+        LocationComponent,
+    },
+    mc_schedule::McSchedule,
+};
 
 use chunk_loader::StoneChunkLoader;
 use legion::{World, WorldOptions};
+use mc_utils::Location;
 use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
@@ -14,6 +22,10 @@ use std::{
 };
 
 fn ticker(counter: Arc<AtomicUsize>, mut schedule: McSchedule, mut world: World) {
+    world.push((
+        ChunkLoaderComponent { radius: 10 },
+        ChunkLocationComponent::new(0, 0),
+    ));
     loop {
         schedule.tick(&mut world);
         counter.fetch_add(1, Ordering::Relaxed);

@@ -28,24 +28,15 @@ pub struct ChunkLocationComponent {
     pub changed: bool,
 }
 impl ChunkLocationComponent {
-    pub fn new() -> Self {
+    pub fn new(x: i32, z: i32) -> Self {
         Self {
             last_x: 0,
             last_z: 0,
-            x: 0,
-            z: 0,
+            x,
+            z,
             changed: true,
         }
     }
-}
-
-#[readonly::make]
-pub struct ChunkComponent {
-    #[readonly]
-    pub x: i32,
-    #[readonly]
-    pub z: i32,
-    pub data: Box<ChunkData>,
 }
 
 #[system(par_for_each)]
@@ -55,8 +46,8 @@ pub fn chunk_locations_update(
     location: &LocationComponent,
     chunk_loc: &mut ChunkLocationComponent,
 ) {
-    let chunk_x = location.loc.chunk_x();
-    let chunk_z = location.loc.chunk_z();
+    let chunk_x = location.0.chunk_x();
+    let chunk_z = location.0.chunk_z();
 
     chunk_loc.changed = if chunk_loc.x != chunk_x || chunk_loc.z != chunk_z {
         true
@@ -72,15 +63,19 @@ pub fn chunk_locations_update(
     chunk_loc.z = chunk_z;
 }
 
-#[system]
-#[write_component(ChunkComponent)]
-#[read_component(ChunkLoaderComponent)]
-#[read_component(LocationComponent)]
-pub fn chunk_loaders_updates(world: &mut SubWorld) {
-    let mut loaders_query = <(&ChunkLoaderComponent, &LocationComponent)>::query();
-    loaders_query
-        .par_iter(world)
-        .for_each(|(chunk_loader, location)| {});
+#[system(par_for_each)]
+#[filter(maybe_changed::<ChunkLocationComponent>())]
+pub fn chunk_loaders_updates(
+    chunk_loader: &ChunkLoaderComponent,
+    chunk_location: &ChunkLocationComponent,
+    #[resource] chunk_scheduler: &ChunkScheduler,
+) {
+    let r = chunk_loader.radius;
+    for x in chunk_location.x - r..chunk_location.x + r {
+        for z in chunk_location.z - r..chunk_location.z + r {
+            chunk_scheduler.load_chunk(x, z);
+        }
+    }
 }
 
 #[system(par_for_each)]
@@ -95,7 +90,7 @@ pub fn chunk_observer_chunk_loadings(
         return;
     }
 
-    client.client.send_packet_sync(&C40UpdateViewPosition {
+    client.0.send_packet_sync(&C40UpdateViewPosition {
         chunk_x: chunk_pos.x,
         chunk_z: chunk_pos.z,
     });

@@ -12,24 +12,18 @@ use mc_utils::Location;
 const NETWORK_ID_COUNTER: AtomicI32 = AtomicI32::new(0);
 
 #[readonly::make]
-pub struct NetworkIdComponent {
-    pub id: i32,
-}
+pub struct NetworkIdComponent(pub i32);
 impl NetworkIdComponent {
     pub fn new() -> Self {
-        Self {
-            id: NETWORK_ID_COUNTER.fetch_add(1, Ordering::Relaxed),
-        }
+        Self(NETWORK_ID_COUNTER.fetch_add(1, Ordering::Relaxed))
     }
 }
 
-pub struct LocationComponent {
-    pub loc: Location,
-}
+pub struct LocationComponent(pub Location);
 
-pub struct MobKindComponent(i32);
+pub struct MobKindComponent(pub i32);
 
-pub struct ObjectUuidComponent(Uuid);
+pub struct ObjectUuidComponent(pub Uuid);
 
 pub struct LivingEntityComponent;
 
@@ -37,10 +31,8 @@ pub struct ExperienceOrbComponent {
     pub count: i16,
 }
 
-pub struct ClientComponent {
-    pub client: Client,
-}
+pub struct ClientComponent(pub Client);
 
-pub struct UsernameComponent(String);
+pub struct UsernameComponent(pub String);
 
-pub struct CustomNameComponent(serde_json::Value);
+pub struct CustomNameComponent(pub serde_json::Value);
