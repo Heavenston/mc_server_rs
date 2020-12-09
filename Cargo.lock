@@ -953,6 +953,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 
 [[package]]
+name = "mc_ecs_example_server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bincode",
+ "byteorder",
+ "bytes 0.6.0",
+ "chrono",
+ "clap",
+ "downcast-rs",
+ "fern",
+ "flume",
+ "hematite-nbt",
+ "log",
+ "mc_networking",
+ "mc_server_lib",
+ "mc_utils",
+ "noise",
+ "serde",
+ "serde_json",
+ "tokio 0.3.5",
+ "uuid",
+]
+
+[[package]]
 name = "mc_ecs_server_lib"
 version = "0.1.0"
 dependencies = [
