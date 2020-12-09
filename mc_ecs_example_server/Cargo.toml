@@ -11,19 +11,5 @@ mc_networking = { path = "../mc_networking" }
 mc_utils = { path = "../mc_utils" }
 mc_ecs_server_lib = { path = "../mc_ecs_server_lib" }
 tokio = { version = "0.3", features = ["full"] }
-byteorder = "1.3.4"
-anyhow = "1.0"
-serde = "1.0"
-serde_json = "1.0"
-log = "0.4"
-fern = { version = "0.6", features = ["colored"] }
-chrono = "0.4"
-async-trait = "0.1.41"
-uuid = { version = "0.8", features = ["v4", "v3"] }
-hematite-nbt = "0.5.0"
-downcast-rs = "1.2.0"
-noise = "0.6.0"
-clap = "2.33"
-bincode = "1.3"
-bytes = "0.6"
-flume = "0.9"
+legion = "0.3"
+rayon = "1.5"

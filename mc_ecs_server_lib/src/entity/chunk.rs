@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use smallvec::SmallVec;
 
 use crate::{
-    chunk_manager::ChunkManager,
+    chunk_manager::ChunkScheduler,
     entity::{ClientComponent, LocationComponent},
 };
 use mc_networking::packets::client_bound::*;
@@ -89,7 +89,7 @@ pub fn chunk_observer_chunk_loadings(
     chunk_observer: &mut ChunkObserverComponent,
     chunk_pos: &ChunkLocationComponent,
     client: &ClientComponent,
-    #[resource] chunk_holder: &ChunkManager,
+    #[resource] chunk_scheduler: &ChunkScheduler,
 ) {
     if !chunk_pos.changed {
         return;

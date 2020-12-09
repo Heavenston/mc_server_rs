@@ -956,26 +956,12 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 name = "mc_ecs_example_server"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "async-trait",
- "bincode",
- "byteorder",
- "bytes 0.6.0",
- "chrono",
- "clap",
- "downcast-rs",
- "fern",
- "flume",
- "hematite-nbt",
- "log",
+ "legion",
+ "mc_ecs_server_lib",
  "mc_networking",
- "mc_server_lib",
  "mc_utils",
- "noise",
- "serde",
- "serde_json",
+ "rayon",
  "tokio 0.3.5",
- "uuid",
 ]
 
 [[package]]
@@ -992,6 +978,7 @@ dependencies = [
  "readonly",
  "serde_json",
  "smallvec",
+ "static_assertions",
  "tokio 0.3.5",
  "uuid",
 ]
@@ -1824,6 +1811,12 @@ checksum = "7e529d73e80d64b5f2631f9035113347c578a1c9c7774b83a2b880788459ab36"
 dependencies = [
  "lock_api",
 ]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "stdweb"
