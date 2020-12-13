@@ -46,7 +46,7 @@ fn on_event(counter_event: &mut CounterEvent, count: &u32) {
 
 #[test]
 fn positions() {
-    let mut event_manager = EventManager::new();
+    let event_manager = EventManager::new();
 
     event_manager.on(CounterHandler::new(5), Some(EventHandlerPosition::Final));
     event_manager.on(CounterHandler::new(3), Some(EventHandlerPosition::Last));
@@ -61,7 +61,7 @@ fn positions() {
 
 #[test]
 fn once_events() {
-    let mut event_manager = EventManager::new();
+    let event_manager = EventManager::new();
 
     event_manager.once(CounterHandler::new(1));
     
