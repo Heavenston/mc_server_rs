@@ -1,0 +1,11 @@
+[package]
+name = "mc_events"
+version = "0.1.0"
+authors = ["Heavenstone <malolegendrelemaire@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+mc_events_macros = { path = "./mc_events_macros" }
+dashmap = "3.11"
+ahash = "0.6"
+downcast-rs = "1.2"
