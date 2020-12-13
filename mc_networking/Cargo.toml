@@ -20,4 +20,4 @@ thiserror = "1.0"
 openssl = { version = "0.10", features = ["vendored"] }
 lazy_static = "1.4.0"
 rand = "0.7.3"
-flume = "0.9"
+flume = "0.10"
