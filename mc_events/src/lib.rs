@@ -32,11 +32,15 @@ pub enum EventHandlerPosition {
     Final,
 }
 
+#[derive(Default)]
+struct EventHandlers {
+    normal: Vec<Box<dyn EventHandler>>,
+    final_: SmallVec<[Box<dyn EventHandler>; 2]>,
+    once: SmallVec<[Box<dyn EventHandler>; 1]>,
+}
+
 pub struct EventManager {
-    pub handlers: ADashMap<
-        TypeId,
-        (Vec<Box<dyn EventHandler>>, SmallVec<[Box<dyn EventHandler>; 2]>)
-    >,
+    handlers: ADashMap<TypeId, EventHandlers>,
 }
 impl EventManager {
     pub fn new() -> Self {
@@ -55,14 +59,27 @@ impl EventManager {
             handlers
         }
         else {
-            self.handlers.insert(event_type, (vec![], SmallVec::new()));
+            self.handlers.insert(event_type, EventHandlers::default());
             self.handlers.get_mut(&event_type).unwrap()
         };
         match position {
-            EventHandlerPosition::First => handlers.0.insert(0, handler),
-            EventHandlerPosition::Last => handlers.0.push(handler),
-            EventHandlerPosition::Final => handlers.1.push(handler),
+            EventHandlerPosition::First => handlers.normal.insert(0, handler),
+            EventHandlerPosition::Last => handlers.normal.push(handler),
+            EventHandlerPosition::Final => handlers.final_.push(handler),
         }
+    }
+
+    /// Schedule an event handler that will only be called once
+    pub fn once<T: EventHandler + 'static>(&mut self, handler: T) {
+        let event_type = handler.event_type();
+        if let Some(mut handlers) = self.handlers.get_mut(&event_type) {
+            handlers.once.push(Box::new(handler));
+        }
+        else {
+            let mut handlers = EventHandlers::default();
+            handlers.once.push(Box::new(handler));
+            self.handlers.insert(event_type, handlers);
+        };
     }
 
     /// Dispatch an event calling every event handler
@@ -72,10 +89,16 @@ impl EventManager {
             return;
         }
 
-        for handler in self.handlers.get_mut(&event_type).unwrap().0.iter_mut() {
+        let mut handlers = self.handlers.get_mut(&event_type).unwrap();
+        let mut once = SmallVec::new();
+        std::mem::swap(&mut once, &mut handlers.once);
+        for handler in once.iter_mut() {
             handler.on_event(event);
         }
-        for handler in self.handlers.get_mut(&event_type).unwrap().1.iter_mut() {
+        for handler in handlers.normal.iter_mut() {
+            handler.on_event(event);
+        }
+        for handler in handlers.final_.iter_mut() {
             handler.on_event(event);
         }
     }
