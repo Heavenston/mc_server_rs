@@ -57,9 +57,22 @@ pub fn event_callback(attr: TokenStream, item: TokenStream) -> TokenStream {
         let states_values = states.iter().map(|(is_mut, n, v)| quote! {
             let #n: &#is_mut #v = &#is_mut self.#n;
         });
+        let states_args = states.iter().map(|(_, n, v)| quote! {
+            #n: #v
+        });
+        let states = states.iter().map(|(_, n, _)| quote! {
+            #n
+        });
         quote! {
             #visibility struct #struct_name {
                 #(#states_fields),*
+            }
+            impl #struct_name {
+                pub fn new(#(#states_args),*) -> Self {
+                    Self {
+                        #(#states),*
+                    }
+                }
             }
             impl EventHandler for #struct_name {
                 fn event_type(&self) -> TypeId {
