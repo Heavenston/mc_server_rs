@@ -1,21 +1,19 @@
 mod chunk_loader;
 
 use mc_ecs_server_lib::{
-    chunk_manager::ChunkManager,
     entity::{
         chunk::{ChunkLoaderComponent, ChunkLocationComponent},
-        LocationComponent,
     },
     mc_schedule::McSchedule,
 };
 
 use chunk_loader::StoneChunkLoader;
-use legion::{World, WorldOptions};
-use mc_utils::Location;
+use legion::{World};
+
 use std::{
     sync::{
         atomic::{AtomicUsize, Ordering},
-        Arc, RwLock,
+        Arc,
     },
     thread::sleep,
     time::{Duration, Instant},

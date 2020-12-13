@@ -1,7 +1,6 @@
 pub mod chunk;
 
 use std::{
-    ops::Deref,
     sync::atomic::{AtomicI32, Ordering},
 };
 use uuid::Uuid;

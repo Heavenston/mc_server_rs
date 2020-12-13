@@ -1,25 +1,15 @@
 extern crate static_assertions as sa;
 
 use crate::entity::chunk::*;
-use mc_networking::packets::client_bound::ClientBoundPacket;
-use mc_utils::{abort_contract::AbortContract, ChunkData};
+
+use mc_utils::ChunkData;
 
 use dashmap::{DashMap, DashSet};
-use legion::{
-    maybe_changed,
-    query::*,
-    system,
-    systems::CommandBuffer,
-    world::{SubWorld, World},
-    Entity, EntityStore,
-};
-use rayon::{ThreadPool, ThreadPoolBuilder};
+use legion::{query::*, system, systems::CommandBuffer, world::SubWorld, Entity, EntityStore};
+use rayon::ThreadPoolBuilder;
 use std::{
-    collections::{HashMap, HashSet},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Condvar, Mutex, RwLock,
-    },
+    collections::HashSet,
+    sync::{Arc, RwLock},
 };
 
 #[system]
@@ -57,9 +47,7 @@ pub(crate) fn chunk_manager_loader(
         let mut entry = world.entry_mut(chunk).unwrap();
         entry.get_component_mut::<ChunkComponent>().unwrap().loaded = true;
         cmd.add_component(chunk, LoadedChunkComponent { data });
-        chunk_manager
-            .chunks
-            .insert((chunk_x, chunk_z), chunk);
+        chunk_manager.chunks.insert((chunk_x, chunk_z), chunk);
     }
 }
 
@@ -121,7 +109,7 @@ impl ChunkManager {
         });
         Some(chunk)
     }
-    pub(crate) fn unload_chunk(&self, x: i32, z: i32, data: &Box<ChunkData>) {}
+    pub(crate) fn unload_chunk(&self, _x: i32, _z: i32, _data: &Box<ChunkData>) {}
 }
 
 sa::assert_impl_all!(ChunkManager: Send, Sync);

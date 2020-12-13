@@ -4,7 +4,7 @@ use crate::{
 };
 
 use legion::{
-    systems::{Executor, ParallelRunnable, Resources, Schedule, Step},
+    systems::{Resources, Schedule, Step},
     World,
 };
 use std::sync::Arc;

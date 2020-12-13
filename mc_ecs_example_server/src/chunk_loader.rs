@@ -16,5 +16,5 @@ impl ChunkLoader for StoneChunkLoader {
         chunk_data
     }
 
-    fn save_chunk(&self, x: i32, z: i32, data: &ChunkData) {}
+    fn save_chunk(&self, _x: i32, _z: i32, _data: &ChunkData) {}
 }

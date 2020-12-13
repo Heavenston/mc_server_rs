@@ -10,14 +10,12 @@ use mc_utils::ChunkData;
 use ahash::AHashSet;
 use legion::{
     maybe_changed,
-    query::*,
     system,
     systems::CommandBuffer,
-    world::{SubWorld, World},
+    world::{SubWorld},
     Entity, EntityStore,
 };
-use rayon::prelude::*;
-use smallvec::SmallVec;
+
 
 /// Makes chunks around the entity (Based on [LocationComponent]) loaded
 pub struct ChunkLoaderComponent {
@@ -117,10 +115,10 @@ pub(crate) fn chunk_loaders_updates(
 #[system(par_for_each)]
 pub(crate) fn chunk_observer_chunk_loadings(
     chunk_loader: &ChunkLoaderComponent,
-    chunk_observer: &mut ChunkObserverComponent,
+    _chunk_observer: &mut ChunkObserverComponent,
     chunk_pos: &ChunkLocationComponent,
     client: &ClientComponent,
-    #[resource] chunk_manager: &ChunkManager,
+    #[resource] _chunk_manager: &ChunkManager,
 ) {
     if !chunk_pos.changed {
         return;
@@ -131,5 +129,5 @@ pub(crate) fn chunk_observer_chunk_loadings(
         chunk_z: chunk_pos.z,
     });
 
-    for square_dist in 0..chunk_loader.radius {}
+    for _square_dist in 0..chunk_loader.radius {}
 }
