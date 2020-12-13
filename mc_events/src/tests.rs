@@ -38,28 +38,22 @@ impl Event for CounterEvent {
     }
 }
 
-struct CounterHandler(u32);
-impl EventHandler for CounterHandler {
-    fn event_type(&self) -> TypeId {
-        TypeId::of::<CounterEvent>()
-    }
-    fn on_event(&mut self, event: &mut dyn Event) {
-        let counter_event = event.downcast_mut::<CounterEvent>().unwrap();
-        counter_event.0 += 1;
-        assert_eq!(counter_event.0, self.0);
-    }
+#[event_callback(CounterHandler)]
+fn on_event(counter_event: &mut CounterEvent, count: &u32) {
+    counter_event.0 += 1;
+    assert_eq!(counter_event.0, *count);
 }
 
 #[test]
 fn positions() {
     let mut event_manager = EventManager::new();
 
-    event_manager.on(CounterHandler(5), Some(EventHandlerPosition::Final));
-    event_manager.on(CounterHandler(3), Some(EventHandlerPosition::Last));
-    event_manager.on(CounterHandler(2), Some(EventHandlerPosition::First));
-    event_manager.on(CounterHandler(6), Some(EventHandlerPosition::Final));
-    event_manager.on(CounterHandler(4), Some(EventHandlerPosition::Last));
-    event_manager.on(CounterHandler(1), Some(EventHandlerPosition::First));
+    event_manager.on(CounterHandler{count: 5}, Some(EventHandlerPosition::Final));
+    event_manager.on(CounterHandler{count: 3}, Some(EventHandlerPosition::Last));
+    event_manager.on(CounterHandler{count: 2}, Some(EventHandlerPosition::First));
+    event_manager.on(CounterHandler{count: 6}, Some(EventHandlerPosition::Final));
+    event_manager.on(CounterHandler{count: 4}, Some(EventHandlerPosition::Last));
+    event_manager.on(CounterHandler{count: 1}, Some(EventHandlerPosition::First));
 
     let mut event = CounterEvent(0);
     event_manager.dispatch(&mut event);
@@ -69,7 +63,7 @@ fn positions() {
 fn once_events() {
     let mut event_manager = EventManager::new();
 
-    event_manager.once(CounterHandler(1));
+    event_manager.once(CounterHandler{count: 1});
     
     let mut event = CounterEvent(0);
     event_manager.dispatch(&mut event);
