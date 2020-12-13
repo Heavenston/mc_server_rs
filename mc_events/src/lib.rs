@@ -51,7 +51,7 @@ impl EventManager {
 
     /// Add an event handler with specified [EventHandlerPosition]
     /// if [Option::None] is given than it will use [EventHandlerPosition:Last]
-    pub fn on<T: EventHandler + 'static>(&mut self, handler: T, position: Option<EventHandlerPosition>) {
+    pub fn on<T: EventHandler + 'static>(&self, handler: T, position: Option<EventHandlerPosition>) {
         let position = position.unwrap_or(EventHandlerPosition::Last);
         let handler = Box::new(handler);
         let event_type = handler.event_type();
@@ -70,7 +70,7 @@ impl EventManager {
     }
 
     /// Schedule an event handler that will only be called once
-    pub fn once<T: EventHandler + 'static>(&mut self, handler: T) {
+    pub fn once<T: EventHandler + 'static>(&self, handler: T) {
         let event_type = handler.event_type();
         if let Some(mut handlers) = self.handlers.get_mut(&event_type) {
             handlers.once.push(Box::new(handler));
