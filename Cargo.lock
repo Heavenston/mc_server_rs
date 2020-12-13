@@ -991,6 +991,7 @@ dependencies = [
  "dashmap",
  "downcast-rs",
  "mc_events_macros",
+ "smallvec",
 ]
 
 [[package]]
