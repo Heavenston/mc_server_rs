@@ -21,23 +21,29 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn ticker(counter: Arc<AtomicUsize>, mut schedule: McSchedule, mut world: World) {
-    world.push((
-        ChunkLoaderComponent { radius: 10 },
+fn ticker(tps_counter: Arc<AtomicUsize>, mut schedule: McSchedule, mut world: World) {
+    let to_remove = world.push((
+        ChunkLoaderComponent { radius: 10, loaded_chunks: Default::default() },
         ChunkLocationComponent::new(0, 0),
     ));
+    let mut counter = 0;
     loop {
+        counter += 1;
         schedule.tick(&mut world);
-        counter.fetch_add(1, Ordering::Relaxed);
+        tps_counter.fetch_add(1, Ordering::Relaxed);
+        if counter == 50000 {
+            println!("Removed");
+            world.remove(to_remove);
+        }
         std::thread::yield_now();
     }
 }
 
 fn main() {
-    let counter = Arc::new(AtomicUsize::new(0));
+    let tps_counter = Arc::new(AtomicUsize::new(0));
 
     std::thread::spawn({
-        let counter = counter.clone();
+        let counter = tps_counter.clone();
         move || {
             let world: World = World::default();
             let schedule = McSchedule::new(Arc::new(StoneChunkLoader));
@@ -50,8 +56,8 @@ fn main() {
     let mut i = 0;
     loop {
         i += 1;
-        let ticks = counter.load(Ordering::SeqCst);
-        counter.store(0, Ordering::SeqCst);
+        let ticks = tps_counter.load(Ordering::SeqCst);
+        tps_counter.store(0, Ordering::SeqCst);
         let tps = ticks as f64 / delay.as_secs_f64();
         println!("TPS: {:.0}", tps);
         println!("MSPT: {:?}", Duration::from_secs_f64(1.0 / (tps.max(0.01))));

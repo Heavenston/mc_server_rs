@@ -1,23 +1,31 @@
-use ahash::AHashSet;
-use legion::{maybe_changed, query::*, system, world::SubWorld, Entity};
-use rayon::prelude::*;
-use smallvec::SmallVec;
+use std::collections::HashSet;
 
 use crate::{
-    chunk_manager::ChunkScheduler,
+    chunk_manager::ChunkManager,
     entity::{ClientComponent, LocationComponent},
 };
 use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
-/// Works like a flag that makes chunks around it (Based on [LocationComponent]) loaded
+use ahash::AHashSet;
+use legion::{
+    maybe_changed,
+    query::*,
+    system,
+    systems::CommandBuffer,
+    world::{SubWorld, World},
+    Entity, EntityStore,
+};
+use rayon::prelude::*;
+use smallvec::SmallVec;
+
+/// Makes chunks around the entity (Based on [LocationComponent]) loaded
 pub struct ChunkLoaderComponent {
     pub radius: i32,
-}
-/// Will send chunks to the Client (from [ClientComponent])
-pub struct ChunkObserverComponent {
     pub loaded_chunks: AHashSet<(i32, i32)>,
 }
+/// Will send chunks to the Client (from [ClientComponent])
+pub struct ChunkObserverComponent;
 
 #[readonly::make]
 pub struct ChunkLocationComponent {
@@ -39,9 +47,20 @@ impl ChunkLocationComponent {
     }
 }
 
+pub struct ChunkComponent {
+    pub loaded: bool,
+    pub x: i32,
+    pub z: i32,
+    pub loaders: HashSet<Entity>,
+}
+
+pub struct LoadedChunkComponent {
+    pub data: Box<ChunkData>,
+}
+
 #[system(par_for_each)]
 #[filter(maybe_changed::<LocationComponent>())]
-pub fn chunk_locations_update(
+pub(crate) fn chunk_locations_update(
     _: &ChunkLoaderComponent,
     location: &LocationComponent,
     chunk_loc: &mut ChunkLocationComponent,
@@ -63,28 +82,45 @@ pub fn chunk_locations_update(
     chunk_loc.z = chunk_z;
 }
 
-#[system(par_for_each)]
+#[system(for_each)]
 #[filter(maybe_changed::<ChunkLocationComponent>())]
-pub fn chunk_loaders_updates(
+#[write_component(ChunkComponent)]
+#[read_component(LoadedChunkComponent)]
+pub(crate) fn chunk_loaders_updates(
+    entity: &Entity,
+    world: &mut SubWorld,
+    cmd: &mut CommandBuffer,
     chunk_loader: &ChunkLoaderComponent,
     chunk_location: &ChunkLocationComponent,
-    #[resource] chunk_scheduler: &ChunkScheduler,
+    #[resource] chunk_manager: &ChunkManager,
 ) {
+    if !chunk_location.changed {
+        return;
+    }
     let r = chunk_loader.radius;
     for x in chunk_location.x - r..chunk_location.x + r {
         for z in chunk_location.z - r..chunk_location.z + r {
-            chunk_scheduler.load_chunk(x, z);
+            match chunk_manager.get_chunk(x, z) {
+                Some(chunk) => {
+                    let mut entry = world.entry_mut(chunk).unwrap();
+                    let loaded_chunk = entry.get_component_mut::<ChunkComponent>().unwrap();
+                    loaded_chunk.loaders.insert(*entity);
+                }
+                None => {
+                    chunk_manager.load_chunk(cmd, x, z);
+                }
+            }
         }
     }
 }
 
 #[system(par_for_each)]
-pub fn chunk_observer_chunk_loadings(
+pub(crate) fn chunk_observer_chunk_loadings(
     chunk_loader: &ChunkLoaderComponent,
     chunk_observer: &mut ChunkObserverComponent,
     chunk_pos: &ChunkLocationComponent,
     client: &ClientComponent,
-    #[resource] chunk_scheduler: &ChunkScheduler,
+    #[resource] chunk_manager: &ChunkManager,
 ) {
     if !chunk_pos.changed {
         return;

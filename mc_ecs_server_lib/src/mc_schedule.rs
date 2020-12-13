@@ -1,5 +1,5 @@
 use crate::{
-    chunk_manager::{ChunkLoader, ChunkManager, ChunkScheduler},
+    chunk_manager::{ChunkLoader, ChunkManager},
     entity::chunk::*,
 };
 
@@ -19,7 +19,6 @@ fn chunks_schedule() -> Schedule {
 }
 
 pub struct McSchedule {
-    pub chunk_manager: ChunkManager,
     pub resources: Resources,
     schedule: Schedule,
 }
@@ -40,11 +39,9 @@ impl McSchedule {
     pub fn new(chunk_loader: Arc<impl ChunkLoader + 'static>) -> Self {
         let mut resources = Resources::default();
 
-        let chunk_manager = ChunkManager::new(chunk_loader);
-        resources.insert(chunk_manager.scheduler());
+        resources.insert(ChunkManager::new(chunk_loader));
 
         Self {
-            chunk_manager,
             schedule: Self::create_schedule(),
             resources,
         }

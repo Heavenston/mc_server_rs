@@ -1,4 +1,4 @@
-use mc_ecs_server_lib::chunk_manager::{Chunk, ChunkLoader};
+use mc_ecs_server_lib::chunk_manager::ChunkLoader;
 use mc_utils::ChunkData;
 
 pub struct StoneChunkLoader;
@@ -16,5 +16,5 @@ impl ChunkLoader for StoneChunkLoader {
         chunk_data
     }
 
-    fn save_chunk(&self, _chunk: Chunk) {}
+    fn save_chunk(&self, x: i32, z: i32, data: &ChunkData) {}
 }
