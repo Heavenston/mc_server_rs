@@ -1,3 +1,4 @@
+#[cfg(test)]
 mod tests;
 
 pub use mc_events_macros::*;
@@ -47,12 +48,5 @@ impl EventManager {
         for handler in self.handlers.get(&event_type).unwrap().iter() {
             handler.on_event(event);
         }
-    }
-}
-
-struct EmptyEvent(String);
-impl Event for EmptyEvent {
-    fn is_cancellable(&self) -> bool {
-        false
     }
 }

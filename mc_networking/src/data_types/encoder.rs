@@ -282,6 +282,35 @@ pub mod varint {
 
     create_varint_encoders!(input_type: VarInt, unsigned_type: u32);
     create_varint_decoders!(output_type: VarInt, max_byte_size: MAX_BYTE_SIZE);
+
+    #[cfg(test)]
+    const VARINT_EXPECTATIONS: &[(i32, &[u8])] = &[
+        (1, &[1]),
+        (50, &[50]),
+        (1000, &[0b11101000, 0b111]),
+        (VarInt::MAX, &[!0, !0, !0, !0, 0b111]),
+    ];
+
+    #[test]
+    fn varint_encoding() {
+        for (e_in, out) in VARINT_EXPECTATIONS {
+            assert_eq!(&*encode(*e_in), *out);
+        }
+    }
+    #[test]
+    fn varint_decoding() {
+        for (out, e_in) in VARINT_EXPECTATIONS {
+            assert_eq!(decode_buf(&mut Bytes::from(*e_in)).unwrap(), *out);
+        }
+    }
+    #[test]
+    fn varint_endecoding() {
+        for i in [0, 5, 1000, 766876, 29, 43223, 43234324, 49494].iter() {
+            let mut bytes = encode(*i);
+            let decoded = decode_buf(&mut bytes).unwrap();
+            assert_eq!(*i, decoded);
+        }
+    }
 }
 pub mod varlong {
     use crate::{data_types::VarLong, DecodingError, DecodingResult};

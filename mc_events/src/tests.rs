@@ -1,4 +1,10 @@
 use crate::*;
+struct EmptyEvent(String);
+impl Event for EmptyEvent {
+    fn is_cancellable(&self) -> bool {
+        false
+    }
+}
 
 #[event_callback(OnEvent)]
 fn on_event(event: &mut EmptyEvent) {
