@@ -16,7 +16,7 @@ impl_downcast!(Event);
 
 pub trait EventHandler {
     fn event_type(&self) -> TypeId;
-    fn on_event(&self, event: &mut dyn Event);
+    fn on_event(&mut self, event: &mut dyn Event);
 }
 
 pub struct EventManager {
@@ -45,7 +45,7 @@ impl EventManager {
             return;
         }
 
-        for handler in self.handlers.get(&event_type).unwrap().iter() {
+        for handler in self.handlers.get_mut(&event_type).unwrap().iter_mut() {
             handler.on_event(event);
         }
     }

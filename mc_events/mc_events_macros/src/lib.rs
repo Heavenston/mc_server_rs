@@ -28,7 +28,7 @@ pub fn event_callback(attr: TokenStream, item: TokenStream) -> TokenStream {
             fn event_type(&self) -> TypeId {
                 TypeId::of::<#event_type>()
             }
-            fn on_event(&self, #event_name: &mut dyn Event) {
+            fn on_event(&mut self, #event_name: &mut dyn Event) {
                 let #event_name: &mut #event_type = event.downcast_mut::<#event_type>().unwrap();
                 #block
             }
