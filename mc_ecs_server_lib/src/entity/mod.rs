@@ -1,8 +1,6 @@
 pub mod chunk;
 
-use std::{
-    sync::atomic::{AtomicI32, Ordering},
-};
+use std::sync::atomic::{AtomicI32, Ordering};
 use uuid::Uuid;
 
 use mc_networking::client::Client;

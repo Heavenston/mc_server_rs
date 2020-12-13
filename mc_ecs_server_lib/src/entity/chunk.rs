@@ -8,14 +8,7 @@ use mc_networking::packets::client_bound::*;
 use mc_utils::ChunkData;
 
 use ahash::AHashSet;
-use legion::{
-    maybe_changed,
-    system,
-    systems::CommandBuffer,
-    world::{SubWorld},
-    Entity, EntityStore,
-};
-
+use legion::{maybe_changed, system, systems::CommandBuffer, world::SubWorld, Entity, EntityStore};
 
 /// Makes chunks around the entity (Based on [LocationComponent]) loaded
 pub struct ChunkLoaderComponent {
