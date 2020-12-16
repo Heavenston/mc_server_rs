@@ -72,10 +72,7 @@ pub struct ChunkData {
 impl ChunkData {
     pub fn new() -> Self {
         Self {
-            sections: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None,
-            ],
+            sections: Default::default(),
             biomes: [1; 1024],
         }
     }
