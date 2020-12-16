@@ -984,25 +984,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mc_events"
-version = "0.1.0"
-dependencies = [
- "ahash 0.6.2",
- "dashmap",
- "downcast-rs",
- "mc_events_macros",
- "smallvec",
-]
-
-[[package]]
-name = "mc_events_macros"
-version = "0.1.0"
-dependencies = [
- "quote",
- "syn",
-]
-
-[[package]]
 name = "mc_example_server"
 version = "0.1.0"
 dependencies = [
