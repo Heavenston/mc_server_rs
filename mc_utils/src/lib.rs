@@ -1,4 +1,5 @@
 pub mod abort_contract;
+pub mod tick_scheduler;
 mod chunk_data;
 mod location;
 
