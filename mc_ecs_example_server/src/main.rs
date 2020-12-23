@@ -6,14 +6,7 @@ use mc_ecs_server_lib::mc_schedule::McSchedule;
 use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
 
 use legion::{Schedule, World};
-use std::{
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-    thread::sleep,
-    time::{Duration, Instant},
-};
+use std::{sync::Arc, time::Duration};
 
 fn main() {
     let mut world: World = World::default();
