@@ -32,6 +32,7 @@ impl Deref for PacketCompression {
     }
 }
 
+#[derive(Clone)]
 pub struct RawPacket {
     pub packet_id: i32,
     pub data: Bytes,
