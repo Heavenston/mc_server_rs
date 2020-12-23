@@ -1,19 +1,14 @@
-use crate::{
-    chunk_manager::{ChunkLoader, ChunkManager},
-    entity::chunk::*,
-};
+use crate::entity::chunk::*;
 
 use legion::{
     systems::{Resources, Schedule, Step},
     World,
 };
-use std::sync::Arc;
 
 fn chunks_schedule() -> Schedule {
     Schedule::builder()
         .add_system(chunk_locations_update_system())
         .flush()
-        .add_system(chunk_loaders_updates_system())
         .add_system(chunk_observer_chunk_loadings_system())
         .build()
 }
@@ -24,8 +19,9 @@ pub struct McSchedule {
 }
 
 impl McSchedule {
-    fn create_schedule() -> Schedule {
-        let schedules = vec![chunks_schedule()];
+    fn create_schedule(other_schedules: &mut Vec<Schedule>) -> Schedule {
+        let mut schedules = vec![chunks_schedule()];
+        schedules.append(other_schedules);
         let mut final_schedule_steps = vec![];
 
         for schedule in schedules {
@@ -36,15 +32,19 @@ impl McSchedule {
         Schedule::from(final_schedule_steps)
     }
 
-    pub fn new(chunk_loader: Arc<impl ChunkLoader + 'static>) -> Self {
-        let mut resources = Resources::default();
-
-        resources.insert(ChunkManager::new(chunk_loader));
+    pub fn new() -> Self {
+        let resources = Resources::default();
 
         Self {
-            schedule: Self::create_schedule(),
+            schedule: Self::create_schedule(&mut vec![]),
             resources,
         }
+    }
+
+    /// Set the custom schedule that will be run at the end of every tick
+    /// This will overwrite the previous schedule provided
+    pub fn set_custom_schedule(&mut self, schedule: Schedule) {
+        self.schedule = Self::create_schedule(&mut vec![schedule]);
     }
 
     /// Execute "execute" on the created schedule

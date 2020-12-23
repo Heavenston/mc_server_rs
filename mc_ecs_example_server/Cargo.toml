@@ -13,3 +13,4 @@ mc_ecs_server_lib = { path = "../mc_ecs_server_lib" }
 tokio = { version = "0.3", features = ["full"] }
 legion = "0.3"
 rayon = "1.5"
+dashmap = "3.11"
