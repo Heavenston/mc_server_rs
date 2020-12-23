@@ -1,6 +1,5 @@
 use legion::Entity;
 
-
 /// Trait to represent a chunk provider which manages chunk loading
 pub trait ChunkProvider: Send + Sync {
     /// Called when a chunk gets in range of a player

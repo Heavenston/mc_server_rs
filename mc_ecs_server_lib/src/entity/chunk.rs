@@ -1,11 +1,8 @@
-
-
 use crate::{
     chunk_manager::ChunkProvider,
     entity::{ClientComponent, LocationComponent},
 };
 use mc_networking::packets::client_bound::*;
-
 
 use ahash::AHashSet;
 use legion::{maybe_changed, system, Entity};

@@ -29,10 +29,14 @@ fn main() {
 
     TickScheduler::builder()
         .profiling_interval(Duration::from_secs(3))
-        .build().start(move || {
-            schedule.tick(&mut world);
-        }, Some(|profiler: &TickProfiler| {
-            println!("TPS: {:.0}", profiler.tick_per_seconds());
-            println!("DPT: {:?}", profiler.duration_per_tick());
-        }));
+        .build()
+        .start(
+            move || {
+                schedule.tick(&mut world);
+            },
+            Some(|profiler: &TickProfiler| {
+                println!("TPS: {:.0}", profiler.tick_per_seconds());
+                println!("DPT: {:?}", profiler.duration_per_tick());
+            }),
+        );
 }

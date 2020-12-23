@@ -1,11 +1,13 @@
-use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
-use std::thread::{spawn, sleep};
+use std::{
+    sync::{Arc, RwLock},
+    thread::{sleep, spawn},
+    time::{Duration, Instant},
+};
 
 fn interval(delay: Duration, mut callback: impl FnMut() -> ()) {
     let start = Instant::now();
     let mut i = 0;
-    loop {  
+    loop {
         i += 1;
         callback();
         let sleep_to = start + delay.checked_mul(i).unwrap();
@@ -34,7 +36,10 @@ impl TickProfiler {
             None
         }
         else {
-            Some(self.tick_duration_sum.div_f64(self.ticks_since_last_check as f64))
+            Some(
+                self.tick_duration_sum
+                    .div_f64(self.ticks_since_last_check as f64),
+            )
         }
     }
 }
@@ -58,14 +63,18 @@ impl TickScheduler {
                 minimum_duration_per_ticks: minimum_duration_per_ticks.clone(),
                 ticks_since_last_check: 0,
                 tick_duration_sum: Duration::from_nanos(0),
-                profiling_interval
+                profiling_interval,
             })),
         }
     }
 
     /// Starts the [TickScheduler] from the provided callbacks
     /// This will create a new thread if a profiler_callback is given
-    pub fn start(self, mut tick_callback: impl FnMut() -> (), profiler_callback: Option<impl 'static + FnMut(&TickProfiler) -> () + Send + Sync>) {
+    pub fn start(
+        self,
+        mut tick_callback: impl FnMut() -> (),
+        profiler_callback: Option<impl 'static + FnMut(&TickProfiler) -> () + Send + Sync>,
+    ) {
         if let Some(mut profiler_callback) = profiler_callback {
             let profiling_interval = self.profiler.read().unwrap().profiling_interval.clone();
             let profiler = self.profiler.clone();
@@ -78,7 +87,12 @@ impl TickScheduler {
             });
         }
 
-        let delay = self.profiler.read().unwrap().minimum_duration_per_ticks.clone();
+        let delay = self
+            .profiler
+            .read()
+            .unwrap()
+            .minimum_duration_per_ticks
+            .clone();
         interval(delay, move || {
             let start = Instant::now();
             tick_callback();
@@ -114,7 +128,7 @@ impl TickSchedulerBuilder {
         self.profiling_interval = profiling_interval;
         self
     }
-    
+
     /// Consumes the builder and create a [TickScheduler] based on the config
     pub fn build(self) -> TickScheduler {
         TickScheduler::new(self.minimum_duration_per_ticks, self.profiling_interval)
