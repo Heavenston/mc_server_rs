@@ -957,11 +957,13 @@ name = "mc_ecs_example_server"
 version = "0.1.0"
 dependencies = [
  "dashmap",
+ "flume",
  "legion",
  "mc_ecs_server_lib",
  "mc_networking",
  "mc_utils",
  "rayon",
+ "serde_json",
  "tokio 0.3.5",
 ]
 
