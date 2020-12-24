@@ -4,7 +4,7 @@ use byteorder::ReadBytesExt;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read};
-use tokio::{io::{AsyncReadExt, AsyncRead}, };
+use tokio::io::{AsyncRead, AsyncReadExt};
 use uuid::Uuid;
 
 pub mod bitbuffer;

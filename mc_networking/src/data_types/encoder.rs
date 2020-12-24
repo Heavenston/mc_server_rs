@@ -276,7 +276,7 @@ pub mod varint {
     use byteorder::ReadBytesExt;
     use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::{io::{AsyncReadExt, AsyncRead}};
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub const MAX_BYTE_SIZE: usize = 5;
 
@@ -318,7 +318,7 @@ pub mod varlong {
     use byteorder::ReadBytesExt;
     use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::{io::{AsyncReadExt, AsyncRead} };
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub const MAX_BYTE_SIZE: usize = 10;
 
@@ -331,7 +331,7 @@ pub mod string {
 
     use bytes::{BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::{io::{AsyncReadExt, AsyncRead}, };
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub fn encode_into(string: &str, bytes: &mut impl BufMut) {
         let text = string.as_bytes();

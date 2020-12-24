@@ -42,11 +42,7 @@ async fn start_network_server(addr: impl ToSocketAddrs) {
 
     loop {
         let (socket, ..) = listener.accept().await.unwrap();
-        let (client, event_receiver) = Client::new(
-            socket, 
-            100, 
-            500
-        );
+        let (client, event_receiver) = Client::new(socket, 100, 500);
         tokio::spawn(client_handler::handle_client(client, event_receiver));
     }
 }
@@ -54,7 +50,10 @@ async fn start_network_server(addr: impl ToSocketAddrs) {
 fn main() {
     std::thread::spawn(start_legion_world);
 
-    let tokio_runtime = runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let tokio_runtime = runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     tokio_runtime.enter();
     tokio_runtime.block_on(start_network_server("0.0.0.0:25565"));
 }

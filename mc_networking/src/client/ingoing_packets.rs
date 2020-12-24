@@ -16,8 +16,8 @@ use serde_json::json;
 use std::{convert::TryInto, sync::Arc};
 use thiserror::Error;
 use tokio::{
-    net::tcp::OwnedReadHalf,
     io::AsyncReadExt,
+    net::tcp::OwnedReadHalf,
     sync::{oneshot, Notify, RwLock},
     time::Instant,
 };
