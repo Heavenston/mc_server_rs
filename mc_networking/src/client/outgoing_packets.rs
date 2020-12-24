@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use tokio::{
     net::tcp::OwnedWriteHalf,
-    prelude::io::AsyncWriteExt,
+    io::AsyncWriteExt,
     sync::{Notify, RwLock},
     task::block_in_place,
 };

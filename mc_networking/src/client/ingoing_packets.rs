@@ -17,7 +17,7 @@ use std::{convert::TryInto, sync::Arc};
 use thiserror::Error;
 use tokio::{
     net::tcp::OwnedReadHalf,
-    prelude::io::AsyncReadExt,
+    io::AsyncReadExt,
     sync::{oneshot, Notify, RwLock},
     time::Instant,
 };

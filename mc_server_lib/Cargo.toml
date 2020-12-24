@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 mc_networking = { path = "../mc_networking" }
 mc_utils = { path = "../mc_utils" }
-tokio = { version = "0.3", features = ["full"] }
+tokio = { version = "1.0", features = ["full"] }
 tokio-compat-02 = "0.1"
 byteorder = "1.3.4"
 anyhow = "1.0"
