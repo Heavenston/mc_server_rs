@@ -8,7 +8,6 @@ use legion::{
 fn chunks_schedule() -> Schedule {
     Schedule::builder()
         .add_system(chunk_locations_update_system())
-        .flush()
         .add_system(chunk_observer_chunk_loadings_system())
         .build()
 }

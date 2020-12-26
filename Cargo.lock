@@ -379,6 +379,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f71114c59eb4f52969c1b53526d6e6f0ca89f19775e3ffd6cbabb4f0acc9426a"
+dependencies = [
+ "cfg-if 1.0.0",
+ "num_cpus",
+]
+
+[[package]]
 name = "deflate"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -915,7 +925,7 @@ checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
 name = "mc_ecs_example_server"
 version = "0.1.0"
 dependencies = [
- "dashmap",
+ "dashmap 4.0.0",
  "flume",
  "legion",
  "mc_ecs_server_lib",
@@ -932,7 +942,7 @@ version = "0.1.0"
 dependencies = [
  "ahash 0.6.2",
  "crossbeam",
- "dashmap",
+ "dashmap 3.11.10",
  "legion",
  "mc_networking",
  "mc_utils",
