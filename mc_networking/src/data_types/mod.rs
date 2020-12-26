@@ -59,7 +59,7 @@ impl Slot {
     }
 
     pub fn encode(&self) -> Bytes {
-        let mut encoder = PacketEncoder::new();
+        let mut encoder = PacketEncoder::default();
         match self {
             Slot::NotPresent => encoder.write_bool(false),
             Slot::Present {
@@ -73,7 +73,7 @@ impl Slot {
                 nbt::ser::to_writer(&mut encoder, nbt, None).unwrap();
             }
         }
-        encoder.consume()
+        encoder.into_inner().freeze()
     }
 
     pub fn is_present(&self) -> bool {
@@ -123,10 +123,10 @@ pub struct Particle {
 }
 impl Particle {
     pub fn encode(&self) -> Bytes {
-        let mut data = PacketEncoder::new();
+        let mut data = PacketEncoder::default();
         data.write_varint(self.id);
         data.write_varint(self.data);
-        data.consume()
+        data.into_inner().freeze()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
@@ -200,7 +200,7 @@ pub enum MetadataValue {
 }
 impl MetadataValue {
     pub fn encode(&self) -> Bytes {
-        let mut data = PacketEncoder::new();
+        let mut data = PacketEncoder::default();
         match self {
             MetadataValue::Byte(b) => {
                 data.write_u8(0);
@@ -327,7 +327,7 @@ impl MetadataValue {
                 data.write_varint(pos.encode() as i32);
             }
         };
-        data.consume()
+        data.into_inner().freeze()
     }
 
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {

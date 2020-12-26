@@ -1,26 +1,21 @@
-use crate::{
-    data_types::{Angle, VarInt, VarLong},
-    packets::RawPacket,
-    DecodingResult,
-};
+use crate::{DecodingResult, data_types::{Angle, VarInt, VarLong}, packets::RawPacket};
 
 use byteorder::{ReadBytesExt, BE};
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::io::{Cursor, Read, Result as IoResult, Write};
 use uuid::Uuid;
 
-pub struct PacketEncoder {
-    data: BytesMut,
+pub struct PacketEncoder<D: BufMut = BytesMut> {
+    data: D,
 }
-impl PacketEncoder {
-    pub fn new() -> Self {
+impl<D: BufMut> PacketEncoder<D> {
+    pub fn new(data: D) -> Self {
         Self {
-            data: BytesMut::new(),
+            data
         }
     }
-
-    pub fn consume(self) -> Bytes {
-        self.data.freeze()
+    pub fn into_inner(self) -> D {
+        self.data
     }
 
     pub fn write_u8(&mut self, v: u8) {
@@ -79,7 +74,7 @@ impl PacketEncoder {
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.data.extend_from_slice(bytes);
+        self.data.put_slice(bytes);
     }
 
     pub fn write_string(&mut self, text: &str) {
@@ -98,6 +93,13 @@ impl Write for PacketEncoder {
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
+    }
+}
+impl Default for PacketEncoder<BytesMut> {
+    fn default() -> Self {
+        Self {
+            data: BytesMut::new(),
+        }
     }
 }
 

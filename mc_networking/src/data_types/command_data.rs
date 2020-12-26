@@ -20,7 +20,7 @@ impl Node for RootNode {
     }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
-        let mut encoder = PacketEncoder::new();
+        let mut encoder = PacketEncoder::default();
 
         encoder.write_u8(
             0u8 // Node Type
@@ -37,7 +37,7 @@ impl Node for RootNode {
             encoder.write_varint(graph_encoder.add_node(redirect_node));
         }
 
-        encoder.consume()
+        encoder.into_inner().freeze()
     }
 }
 
@@ -54,7 +54,7 @@ impl Node for LiteralNode {
     }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
-        let mut encoder = PacketEncoder::new();
+        let mut encoder = PacketEncoder::default();
 
         encoder.write_u8(
             1u8 // Node Type
@@ -72,7 +72,7 @@ impl Node for LiteralNode {
         }
         encoder.write_string(&self.name);
 
-        encoder.consume()
+        encoder.into_inner().freeze()
     }
 }
 
@@ -94,7 +94,7 @@ impl Node for ArgumentNode {
     }
 
     fn encode(&self, graph_encoder: &mut GraphEncoder) -> Bytes {
-        let mut encoder = PacketEncoder::new();
+        let mut encoder = PacketEncoder::default();
 
         encoder.write_u8(
             2u8 // Node Type
@@ -119,7 +119,7 @@ impl Node for ArgumentNode {
             encoder.write_string(suggestions_type);
         }
 
-        encoder.consume()
+        encoder.into_inner().freeze()
     }
 }
 

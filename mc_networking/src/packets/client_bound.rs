@@ -5,9 +5,9 @@ pub trait ClientBoundPacket {
     fn encode(&self, encoder: &mut PacketEncoder);
 
     fn to_rawpacket(&self) -> RawPacket {
-        let mut packet_encoder = PacketEncoder::new();
+        let mut packet_encoder = PacketEncoder::default();
         self.encode(&mut packet_encoder);
-        RawPacket::new(Self::packet_id(), packet_encoder.consume())
+        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
     }
 }
 
@@ -507,14 +507,14 @@ mod play {
         pub fn new(channel: Identifier) -> Self {
             Self {
                 channel,
-                encoder: PacketEncoder::new(),
+                encoder: PacketEncoder::default(),
             }
         }
 
         pub fn build(self) -> C17PluginMessage {
             C17PluginMessage {
                 channel: self.channel,
-                data: self.encoder.consume(),
+                data: self.encoder.into_inner().freeze(),
             }
         }
     }
@@ -664,7 +664,7 @@ mod play {
                     encoder.write_varint(*biome);
                 }
             }
-            let mut data_encoder = PacketEncoder::new();
+            let mut data_encoder = PacketEncoder::default();
             for chunk_section in self.chunk_sections.iter() {
                 data_encoder.write_i16(chunk_section.block_count);
                 data_encoder.write_u8(chunk_section.bits_per_block);
@@ -679,7 +679,7 @@ mod play {
                     data_encoder.write_i64(*long);
                 }
             }
-            let data = data_encoder.consume();
+            let data = data_encoder.into_inner();
             encoder.write_varint(data.len() as i32);
             encoder.write_bytes(&data);
             encoder.write_varint(self.block_entities.len() as i32);

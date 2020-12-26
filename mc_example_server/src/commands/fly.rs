@@ -40,10 +40,10 @@ impl CommandExecutor for FlyCommand {
                         name: "speed".to_string(),
                         parser: "brigadier:float".into(),
                         properties: {
-                            let mut encoder = PacketEncoder::new();
+                            let mut encoder = PacketEncoder::default();
                             encoder.write_u8(0x01);
                             encoder.write_f32(0.0);
-                            encoder.consume()
+                            encoder.into_inner().freeze()
                         },
                         suggestions_type: None,
                     })],
