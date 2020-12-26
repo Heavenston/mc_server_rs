@@ -8,7 +8,7 @@ use mc_utils::Location;
 use anyhow::Result;
 use fxhash::FxBuildHasher;
 use indexmap::IndexMap;
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 type FxIndexMap<K, V> = IndexMap<K, V, FxBuildHasher>;
 
