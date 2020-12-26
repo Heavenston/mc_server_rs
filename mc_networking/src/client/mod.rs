@@ -84,10 +84,6 @@ impl Client {
                             *state.write().await = ClientState::Disconnected;
                             listener_sender.try_send(ClientEvent::Logout).unwrap();
                         }
-                        ClientListenError::EventSenderSendError(e) => {
-                            *state.write().await = ClientState::Disconnected;
-                            panic!("could not send event {:?} from client {:?}", e, peer_addr);
-                        }
 
                         e => {
                             *state.write().await = ClientState::Disconnected;

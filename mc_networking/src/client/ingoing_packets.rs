@@ -28,8 +28,6 @@ pub(super) enum ClientListenError {
     DecodingError(#[from] DecodingError),
     #[error("io error: {0}")]
     IoError(#[from] std::io::Error),
-    #[error("could not send an event down the event sender: {0:?}")]
-    EventSenderSendError(#[from] flume::TrySendError<ClientEvent>),
     #[error("could not send packet")]
     PacketSenderSendError(#[from] flume::SendError<OutgoingPacketEvent>),
     #[error("could not receive an event response")]
