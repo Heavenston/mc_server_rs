@@ -933,7 +933,7 @@ dependencies = [
  "mc_utils",
  "rayon",
  "serde_json",
- "tokio 1.0.0",
+ "tokio 1.0.1",
 ]
 
 [[package]]
@@ -951,7 +951,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "static_assertions",
- "tokio 1.0.0",
+ "tokio 1.0.1",
  "uuid",
 ]
 
@@ -977,7 +977,7 @@ dependencies = [
  "noise",
  "serde",
  "serde_json",
- "tokio 1.0.0",
+ "tokio 1.0.1",
  "uuid",
 ]
 
@@ -997,7 +997,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
- "tokio 1.0.0",
+ "tokio 1.0.1",
  "uuid",
 ]
 
@@ -1021,7 +1021,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "tokio 1.0.0",
+ "tokio 1.0.1",
  "tokio-compat-02",
  "url",
  "uuid",
@@ -1862,9 +1862,9 @@ checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
 
 [[package]]
 name = "syn"
-version = "1.0.55"
+version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a571a711dddd09019ccc628e1b17fe87c59b09d513c06c026877aa708334f37a"
+checksum = "a9802ddde94170d186eeee5005b798d9c159fa970403f1be19976d0cfb939b72"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1991,9 +1991,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f4bfdcbd00fa893ac0549b38aa27080636a0104b0d0c38475a99439405e1df8"
+checksum = "d258221f566b6c803c7b4714abadc080172b272090cdc5e244a6d4dd13c3a6bd"
 dependencies = [
  "autocfg",
  "bytes 1.0.0",

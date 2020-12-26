@@ -3,9 +3,9 @@ use mc_networking::client::{
     Client,
 };
 
-use std::sync::{Mutex, Arc};
 use legion::{system, systems::CommandBuffer};
 use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 pub type ClientList = Mutex<Vec<HandledClient>>;
 
@@ -15,10 +15,7 @@ pub struct HandledClient {
 }
 
 #[system]
-pub fn handle_clients(
-    _cmd: &mut CommandBuffer,
-    #[state] client_list: &Arc<ClientList>
-) {
+pub fn handle_clients(_cmd: &mut CommandBuffer, #[state] client_list: &Arc<ClientList>) {
     let mut client_list = client_list.lock().unwrap();
     client_list.par_iter_mut().for_each(|handled_client| {
         while let Ok(event) = handled_client.event_receiver.try_recv() {
