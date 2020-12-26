@@ -134,9 +134,9 @@ pub(super) async fn listen_ingoing_packets(
                     S00Request::decode(raw_packet)?;
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender.try_send(ClientEvent::ServerListPing {
+                        event_sender.send_async(ClientEvent::ServerListPing {
                             response: response_sender,
-                        })?;
+                        }).await.unwrap();
                         response_receiver.await.unwrap()
                     };
                     packet_sender
@@ -203,10 +203,10 @@ pub(super) async fn listen_ingoing_packets(
 
                     let event_response = {
                         let (response_sender, response_receiver) = oneshot::channel();
-                        event_sender.try_send(ClientEvent::LoginStart {
+                        event_sender.send_async(ClientEvent::LoginStart {
                             username: login_state.name.clone(),
                             response: response_sender,
-                        })?;
+                        }).await.unwrap();
                         response_receiver.await?
                     };
                     match event_response {
@@ -241,7 +241,7 @@ pub(super) async fn listen_ingoing_packets(
                                     .await?;
                                 *(state.write().await) = ClientState::Play;
 
-                                event_sender.try_send(ClientEvent::LoggedIn)?;
+                                event_sender.send_async(ClientEvent::LoggedIn).await.unwrap();
                                 keep_alive_task = Some(tokio::task::spawn({
                                     let data = Arc::clone(&keep_alive_data);
                                     let packet_sender = packet_sender.clone();
@@ -330,37 +330,37 @@ pub(super) async fn listen_ingoing_packets(
                         }
                     }));
 
-                    event_sender.try_send(ClientEvent::LoggedIn)?;
+                    event_sender.send_async(ClientEvent::LoggedIn).await.unwrap();
                 }
             }
 
             ClientState::Play => {
                 if raw_packet.packet_id == S03ChatMessage::packet_id() {
                     let chat_message = S03ChatMessage::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::ChatMessage {
+                    event_sender.send_async(ClientEvent::ChatMessage {
                         message: chat_message.message,
-                    })?
+                    }).await.unwrap()
                 }
                 else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()
                 }
                 else if raw_packet.packet_id == S09ClickWindow::packet_id() {
                     let click_window = S09ClickWindow::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::ClickWindow {
+                    event_sender.send_async(ClientEvent::ClickWindow {
                         window_id: click_window.window_id,
                         slot_id: click_window.slot_id,
                         button: click_window.button,
                         action_number: click_window.action_number,
                         mode: click_window.mode,
                         clicked_item: click_window.clicked_item,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S0BPluginMessage::packet_id() {
                     let plugin_message = S0BPluginMessage::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PluginMessage {
+                    event_sender.send_async(ClientEvent::PluginMessage {
                         channel: plugin_message.channel,
                         data: plugin_message.data,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S10KeepAlive::packet_id() {
                     debug!("Received keep alive");
@@ -370,82 +370,82 @@ pub(super) async fn listen_ingoing_packets(
                     if keep_alive.id == data.last_id {
                         data.has_responded = true;
                     }
-                    event_sender.try_send(ClientEvent::Ping {
+                    event_sender.send_async(ClientEvent::Ping {
                         delay: data.sent_at.elapsed().as_millis(),
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
                     let player_position = S12PlayerPosition::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerPosition {
+                    event_sender.send_async(ClientEvent::PlayerPosition {
                         x: player_position.x,
                         y: player_position.feet_y,
                         z: player_position.z,
                         on_ground: player_position.on_ground,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
                     let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerPositionAndRotation {
+                    event_sender.send_async(ClientEvent::PlayerPositionAndRotation {
                         x: packet.x,
                         y: packet.feet_y,
                         z: packet.z,
                         yaw: packet.yaw,
                         pitch: packet.pitch,
                         on_ground: packet.on_ground,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
                     let player_rotation = S14PlayerRotation::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerRotation {
+                    event_sender.send_async(ClientEvent::PlayerRotation {
                         yaw: player_rotation.yaw,
                         pitch: player_rotation.pitch,
                         on_ground: player_rotation.on_ground,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S1CEntityAction::packet_id() {
                     let entity_action = S1CEntityAction::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::EntityAction {
+                    event_sender.send_async(ClientEvent::EntityAction {
                         entity_id: entity_action.entity_id,
                         action_id: entity_action.action_id,
                         jump_boost: entity_action.jump_boost,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
                     let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerAbilities {
+                    event_sender.send_async(ClientEvent::PlayerAbilities {
                         is_flying: player_abilities.flags & 0x02 == 0x02,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S1BPlayerDigging::packet_id() {
                     let player_digging = S1BPlayerDigging::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerDigging {
+                    event_sender.send_async(ClientEvent::PlayerDigging {
                         status: player_digging.status,
                         position: player_digging.position,
                         face: player_digging.face,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S25HeldItemChange::packet_id() {
                     let held_item_change = S25HeldItemChange::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::HeldItemChange {
+                    event_sender.send_async(ClientEvent::HeldItemChange {
                         slot: held_item_change.slot,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
                     let creative_inventory_action = S28CreativeInventoryAction::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::CreativeInventoryAction {
+                    event_sender.send_async(ClientEvent::CreativeInventoryAction {
                         slot_id: creative_inventory_action.slot_id,
                         slot: creative_inventory_action.slot,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::Animation {
+                    event_sender.send_async(ClientEvent::Animation {
                         hand: animation.hand,
-                    })?;
+                    }).await.unwrap();
                 }
                 else if raw_packet.packet_id == S2EPlayerBlockPlacement::packet_id() {
                     let player_block_placement = S2EPlayerBlockPlacement::decode(raw_packet)?;
-                    event_sender.try_send(ClientEvent::PlayerBlockPlacement {
+                    event_sender.send_async(ClientEvent::PlayerBlockPlacement {
                         hand: player_block_placement.hand,
                         position: player_block_placement.position,
                         face: player_block_placement.face,
@@ -453,7 +453,7 @@ pub(super) async fn listen_ingoing_packets(
                         cursor_position_y: player_block_placement.cursor_position_y,
                         cursor_position_z: player_block_placement.cursor_position_z,
                         inside_block: player_block_placement.inside_block,
-                    })?;
+                    }).await.unwrap();
                 }
                 else {
                     debug!("Unknown packet id received {:02x}", raw_packet.packet_id);
