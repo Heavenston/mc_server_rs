@@ -74,35 +74,15 @@ impl Client {
                 {
                     match e {
                         ClientListenError::IoError(e)
-                        | ClientListenError::DecodingError(DecodingError::IoError(e)) => {
+                        | ClientListenError::DecodingError(DecodingError::IoError(e))
                             if (e.kind() == std::io::ErrorKind::UnexpectedEof
                                 || e.kind() == std::io::ErrorKind::Interrupted
                                 || e.kind() == std::io::ErrorKind::ConnectionReset
                                 || e.kind() == std::io::ErrorKind::ConnectionAborted)
-                                && *state.read().await == ClientState::Play
-                            {
-                                *state.write().await = ClientState::Disconnected;
-                                listener_sender.try_send(ClientEvent::Logout).unwrap();
-                            }
-                            else if *state.read().await == ClientState::Play {
-                                *state.write().await = ClientState::Disconnected;
-                                listener_sender.try_send(ClientEvent::Logout).unwrap();
-                                packet_sender
-                                    .send_async(OutgoingPacketEvent::Packet(
-                                        C19PlayDisconnect {
-                                            reason: json!({
-                                                "text": "Unexpected io error"
-                                            }),
-                                        }
-                                        .to_rawpacket(),
-                                    ))
-                                    .await
-                                    .unwrap();
-                                error!(
-                                    "Unexpected io error while handling {:?}, {:#?}",
-                                    peer_addr, e
-                                );
-                            }
+                                && *state.read().await == ClientState::Play =>
+                        {
+                            *state.write().await = ClientState::Disconnected;
+                            listener_sender.try_send(ClientEvent::Logout).unwrap();
                         }
                         ClientListenError::EventSenderSendError(e) => {
                             *state.write().await = ClientState::Disconnected;
