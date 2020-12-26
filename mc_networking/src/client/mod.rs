@@ -79,19 +79,10 @@ impl Client {
                                 || e.kind() == std::io::ErrorKind::Interrupted
                                 || e.kind() == std::io::ErrorKind::ConnectionReset
                                 || e.kind() == std::io::ErrorKind::ConnectionAborted)
-                                && *state.read().await == ClientState::Play =>
-                        {
-                            *state.write().await = ClientState::Disconnected;
-                            listener_sender.try_send(ClientEvent::Logout).unwrap();
-                        }
-                        ClientListenError::EventSenderSendError(e) => {
-                            *state.write().await = ClientState::Disconnected;
-                            panic!("could not send event {:?} from client {:?}", e, peer_addr);
-                        }
+                                && *state.read().await == ClientState::Play => (),
 
                         e => {
                             *state.write().await = ClientState::Disconnected;
-                            listener_sender.try_send(ClientEvent::Logout).unwrap();
                             packet_sender
                                 .send_async(OutgoingPacketEvent::Packet(
                                     C19PlayDisconnect {
@@ -106,6 +97,8 @@ impl Client {
                             error!("Unexpected error while handling {:?}, {:#?}", peer_addr, e);
                         }
                     }
+                    *state.write().await = ClientState::Disconnected;
+                    listener_sender.try_send(ClientEvent::Logout).unwrap();
                 };
             }
         });
