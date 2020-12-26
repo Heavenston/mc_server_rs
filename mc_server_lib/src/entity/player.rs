@@ -2,7 +2,6 @@ use super::{BoxedEntity, Entity, EntityEquipment};
 use mc_networking::{
     client::Client,
     data_types::{MetadataValue, Pose, Slot},
-    map,
     packets::{client_bound::*, RawPacket},
 };
 use mc_utils::Location;
@@ -16,6 +15,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use maplit::hashmap;
 
 #[derive(Clone)]
 pub struct PlayerRef {
@@ -226,7 +226,7 @@ impl Entity for PlayerEntity {
     }
 
     fn metadata(&self) -> HashMap<u8, MetadataValue> {
-        map! {
+        hashmap! {
             0 => self.metadata_value(0).unwrap(),
             6 => self.metadata_value(6).unwrap()
         }
