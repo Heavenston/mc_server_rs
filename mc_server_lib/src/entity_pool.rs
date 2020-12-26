@@ -286,15 +286,12 @@ impl EntityPool {
                         entity.location().h_distance2(&player_entity.location) < view_distance2;
                     if !is_loaded && should_be_loaded {
                         drop(player_entity);
-                        let mut player_entity =
-                            RwLockWriteGuard::map(player_ref.entity.write().await, |p| {
-                                p.as_player_mut()
-                            });
+                        let mut player_entity = player_ref.entity.write().await;
 
                         player_ref
                             .send_raw_packet_async(entity.get_spawn_packet())
                             .await;
-                        player_entity.loaded_entities.insert(eid);
+                        player_entity.as_player_mut().loaded_entities.insert(eid);
                         // Send head look
                         player_ref
                             .send_packet_async(&C3AEntityHeadLook {
@@ -346,17 +343,14 @@ impl EntityPool {
                     }
                     else if is_loaded && !should_be_loaded {
                         drop(player_entity);
-                        let mut player_entity =
-                            RwLockWriteGuard::map(player_ref.entity.write().await, |p| {
-                                p.as_player_mut()
-                            });
+                        let mut player_entity = player_ref.entity.write().await;
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
                         player_ref
                             .send_packet_async(&C36DestroyEntities {
                                 entities: vec![eid],
                             })
                             .await;
-                        player_entity.loaded_entities.remove(&eid);
+                        player_entity.as_player_mut().loaded_entities.remove(&eid);
                     }
                 }
             }
