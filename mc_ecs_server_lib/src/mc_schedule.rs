@@ -12,12 +12,15 @@ fn chunks_schedule() -> Schedule {
         .build()
 }
 
+/// Schedules all required systems from the lib
+/// To add custom systems use [McSchedule::set_custom_schedule]
 pub struct McSchedule {
     pub resources: Resources,
     schedule: Schedule,
 }
 
 impl McSchedule {
+    /// Creates a schedule and adds the given schedules at the end
     fn create_schedule(other_schedules: &mut Vec<Schedule>) -> Schedule {
         let mut schedules = vec![chunks_schedule()];
         schedules.append(other_schedules);
@@ -31,6 +34,7 @@ impl McSchedule {
         Schedule::from(final_schedule_steps)
     }
 
+    /// Creates a new [McSchedule]
     pub fn new() -> Self {
         let resources = Resources::default();
 
