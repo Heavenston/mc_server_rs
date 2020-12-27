@@ -10,10 +10,11 @@ pub trait ClientBoundPacket {
         RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
     }
 
-    fn to_rawpacket_in<'a>(&self, bytes: BytesMut) -> RawPacket {
+    fn to_rawpacket_in<'a>(&self, bytes: &mut BytesMut) -> RawPacket {
+        assert!(bytes.is_empty());
         let mut packet_encoder = PacketEncoder::new(bytes);
         self.encode(&mut packet_encoder);
-        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
+        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().split().freeze())
     }
 }
 

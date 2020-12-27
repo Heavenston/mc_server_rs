@@ -6,7 +6,7 @@ use crate::{data_types::encoder::varint, DecodingError, DecodingResult};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use flate2::{write::ZlibEncoder, Compression};
 
-use std::{borrow::Borrow, fmt::Debug, io::Write, ops::Deref};
+use std::{fmt::Debug, io::Write, ops::Deref};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PacketCompression(i32);
