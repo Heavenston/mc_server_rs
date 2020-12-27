@@ -34,6 +34,7 @@ pub enum ClientState {
     Disconnected,
 }
 
+/// Handles TCPStreams as minecraft clients into a stream of events
 #[derive(Clone)]
 pub struct Client {
     compression: Arc<RwLock<PacketCompression>>,
@@ -44,6 +45,7 @@ pub struct Client {
     peer_addr: std::net::SocketAddr,
 }
 impl Client {
+    /// Creates a new [Client] from a tokio socket
     pub fn new(
         socket: TcpStream,
         event_buffer: usize,
@@ -122,25 +124,34 @@ impl Client {
         )
     }
 
+    /// Return the current connection state
     pub async fn get_state(&self) -> ClientState {
         self.state.read().await.clone()
     }
 
+    /// Add a raw packet to the send buffer
+    /// Block asynchronously if the buffer is full
     pub async fn send_raw_packet_async(&self, packet: RawPacket) {
         self.packet_sender
             .send_async(OutgoingPacketEvent::Packet(packet))
             .await
             .unwrap();
     }
+    /// Add a raw packet to the send buffer
+    /// Block the current thread if the buffer is full
     pub fn send_raw_packet_sync(&self, packet: RawPacket) {
         self.packet_sender
             .send(OutgoingPacketEvent::Packet(packet))
             .unwrap();
     }
+    /// Add a packet to the send buffer
+    /// Block asynchronously if the buffer is full
     pub async fn send_packet_async<U: ClientBoundPacket>(&self, packet: &U) {
         let raw_packet = packet.to_rawpacket();
         self.send_raw_packet_async(raw_packet).await;
     }
+    /// Add a packet to the send buffer
+    /// Block the current thread if the buffer is full
     pub fn send_packet_sync<U: ClientBoundPacket>(&self, packet: &U) {
         let raw_packet = packet.to_rawpacket();
         self.send_raw_packet_sync(raw_packet);
