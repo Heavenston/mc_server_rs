@@ -85,7 +85,7 @@ impl<D: BufMut> PacketEncoder<D> {
         self.write_bytes(uuid.as_bytes());
     }
 }
-impl Write for PacketEncoder {
+impl<D: BufMut> Write for PacketEncoder<D> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.write_bytes(buf);
         Ok(buf.len())

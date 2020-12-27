@@ -2,16 +2,24 @@ use crate::{data_types::encoder::PacketEncoder, packets::RawPacket};
 
 pub trait ClientBoundPacket {
     fn packet_id() -> i32;
-    fn encode(&self, encoder: &mut PacketEncoder);
+    fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>);
 
     fn to_rawpacket(&self) -> RawPacket {
         let mut packet_encoder = PacketEncoder::default();
         self.encode(&mut packet_encoder);
         RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
     }
+
+    fn to_rawpacket_in<'a>(&self, bytes: BytesMut) -> RawPacket {
+        let mut packet_encoder = PacketEncoder::new(bytes);
+        self.encode(&mut packet_encoder);
+        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
+    }
 }
 
 mod status {
+    use bytes::BufMut;
+
     use super::ClientBoundPacket;
     use crate::data_types::encoder::PacketEncoder;
 
@@ -27,7 +35,7 @@ mod status {
             0x00
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.json_response.to_string());
         }
     }
@@ -44,16 +52,18 @@ mod status {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i64(self.payload);
         }
     }
 }
+use bytes::{BufMut, BytesMut};
 pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
     use crate::data_types::{encoder::PacketEncoder, Identifier, VarInt};
+    use bytes::BufMut;
     use uuid::Uuid;
 
     /// Disconnect the player with the specified message
@@ -68,7 +78,7 @@ mod login {
             0x00
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.reason.to_string());
         }
     }
@@ -87,7 +97,7 @@ mod login {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.server_id);
             encoder.write_varint(self.public_key.len() as VarInt);
             encoder.write_bytes(self.public_key.as_slice());
@@ -109,7 +119,7 @@ mod login {
             0x02
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_uuid(&self.uuid);
             encoder.write_string(&self.username);
         }
@@ -127,7 +137,7 @@ mod login {
             0x03
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.threshold);
         }
     }
@@ -146,7 +156,7 @@ mod login {
             0x04
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.message_id);
             encoder.write_string(&self.channel);
             encoder.write_bytes(self.data.as_slice());
@@ -167,7 +177,7 @@ mod play {
         DecodingResult as Result,
     };
 
-    use bytes::Bytes;
+    use bytes::{BufMut, Bytes};
     use serde::Serialize;
     use std::{collections::HashMap, sync::Arc};
     use uuid::Uuid;
@@ -195,18 +205,18 @@ mod play {
             0x00
         }
 
-        fn encode(&self, packet_encoder: &mut PacketEncoder) {
-            packet_encoder.write_varint(self.entity_id);
-            packet_encoder.write_uuid(&self.object_uuid);
-            packet_encoder.write_f64(self.x);
-            packet_encoder.write_f64(self.y);
-            packet_encoder.write_f64(self.z);
-            packet_encoder.write_angle(self.pitch);
-            packet_encoder.write_angle(self.yaw);
-            packet_encoder.write_i32(self.data);
-            packet_encoder.write_i16(self.velocity_x);
-            packet_encoder.write_i16(self.velocity_y);
-            packet_encoder.write_i16(self.velocity_z);
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_uuid(&self.object_uuid);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_angle(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_i32(self.data);
+            encoder.write_i16(self.velocity_x);
+            encoder.write_i16(self.velocity_y);
+            encoder.write_i16(self.velocity_z);
         }
     }
 
@@ -226,7 +236,7 @@ mod play {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
@@ -258,7 +268,7 @@ mod play {
             0x02
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.entity_uuid);
             encoder.write_varint(self.kind);
@@ -290,7 +300,7 @@ mod play {
             0x03
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.entity_uuid);
             encoder.write_varint(self.motive);
@@ -317,7 +327,7 @@ mod play {
             0x04
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.uuid);
             encoder.write_f64(self.x);
@@ -341,7 +351,7 @@ mod play {
             0x05
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_u8(self.animation);
         }
@@ -363,7 +373,7 @@ mod play {
             0x07
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.position.encode());
             encoder.write_varint(self.block);
             encoder.write_varint(self.status as VarInt);
@@ -390,7 +400,7 @@ mod play {
             0x0E
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.json_data.to_string());
             encoder.write_u8(self.position);
             match self.sender.as_ref() {
@@ -416,7 +426,7 @@ mod play {
             0x0B
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.position.encode());
             encoder.write_varint(self.block_id);
         }
@@ -436,7 +446,7 @@ mod play {
             0x10
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             let mut graph_encoder = command_data::GraphEncoder::new();
             let root_node = self.root_node.clone() as Arc<dyn command_data::Node>;
             let root_index = graph_encoder.add_node(&root_node);
@@ -464,7 +474,7 @@ mod play {
             0x13
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.window_id);
             encoder.write_i16(self.slots.len() as i16);
             for slot in self.slots.iter() {
@@ -492,7 +502,7 @@ mod play {
             0x15
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i8(self.window_id);
             encoder.write_i16(self.slot_id);
             encoder.write_bytes(&self.slot_data.encode());
@@ -533,7 +543,7 @@ mod play {
             0x17
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.channel);
             encoder.write_bytes(&self.data);
         }
@@ -548,7 +558,7 @@ mod play {
             0x19
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.reason.to_string());
         }
     }
@@ -567,7 +577,7 @@ mod play {
             0x1C
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.chunk_x);
             encoder.write_i32(self.chunk_z);
         }
@@ -586,7 +596,7 @@ mod play {
             0x1D
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.reason);
             encoder.write_f32(self.value);
         }
@@ -608,7 +618,7 @@ mod play {
             0x1F
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i64(self.id);
         }
     }
@@ -651,7 +661,7 @@ mod play {
             0x20
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.chunk_x);
             encoder.write_i32(self.chunk_z);
             encoder.write_bool(self.full_chunk && self.biomes.is_some());
@@ -793,7 +803,7 @@ mod play {
             0x24
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.entity_id);
             encoder.write_bool(self.is_hardcore);
             encoder.write_u8(self.gamemode);
@@ -835,7 +845,7 @@ mod play {
             0x27
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_i16(self.delta_x);
             encoder.write_i16(self.delta_y);
@@ -868,7 +878,7 @@ mod play {
             0x28
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_i16(self.delta_x);
             encoder.write_i16(self.delta_y);
@@ -896,7 +906,7 @@ mod play {
             0x29
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_angle(self.yaw);
             encoder.write_angle(self.pitch);
@@ -916,7 +926,7 @@ mod play {
             0x2A
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
         }
     }
@@ -952,7 +962,7 @@ mod play {
             0x30
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.flags);
             encoder.write_f32(self.flying_speed);
             encoder.write_f32(self.fov_modifier);
@@ -1006,7 +1016,7 @@ mod play {
             0x32
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             let action = match self.players.first() {
                 Some(C32PlayerInfoPlayerUpdate::AddPlayer { .. }) => 0,
                 Some(C32PlayerInfoPlayerUpdate::UpdateGamemode { .. }) => 1,
@@ -1100,7 +1110,7 @@ mod play {
             0x34
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
             encoder.write_f64(self.z);
@@ -1123,7 +1133,7 @@ mod play {
             0x36
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entities.len() as i32);
             for eid in self.entities.iter() {
                 encoder.write_varint(*eid);
@@ -1147,7 +1157,7 @@ mod play {
             0x3A
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_angle(self.head_yaw);
         }
@@ -1177,7 +1187,7 @@ mod play {
             0x3B
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(
                 (((self.section_x as u64) & 0x3FFFFF) << 42)
                     | ((self.section_y as u64) & 0xFFFFF)
@@ -1209,7 +1219,7 @@ mod play {
             0x3F
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i8(self.slot);
         }
     }
@@ -1229,7 +1239,7 @@ mod play {
             0x40
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.chunk_x);
             encoder.write_varint(self.chunk_z);
         }
@@ -1249,7 +1259,7 @@ mod play {
             0x42
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.location.encode());
         }
     }
@@ -1268,7 +1278,7 @@ mod play {
             0x44
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             for (key, value) in self.metadata.iter() {
                 encoder.write_u8(*key);
@@ -1302,7 +1312,7 @@ mod play {
             0x47
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             for (i, (slot_pos, slot)) in self.equipment.iter().enumerate() {
                 encoder.write_u8(
@@ -1335,7 +1345,7 @@ mod play {
             0x53
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.header.to_string());
             encoder.write_string(&self.footer.to_string());
         }
@@ -1359,7 +1369,7 @@ mod play {
             0x56
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
