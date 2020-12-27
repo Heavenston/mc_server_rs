@@ -26,7 +26,7 @@ mod status {
 
     /// Response to S00Request with server ping infos
     ///
-    /// https://wiki.vg/Protocol#Response
+    /// <https://wiki.vg/Protocol#Response>
     #[derive(Clone, Debug)]
     pub struct C00Response {
         pub json_response: serde_json::Value,
@@ -43,7 +43,7 @@ mod status {
 
     /// Response to S01Ping with provided payload
     ///
-    /// https://wiki.vg/Protocol#Pong
+    /// <https://wiki.vg/Protocol#Pong>
     #[derive(Clone, Debug)]
     pub struct C01Pong {
         pub payload: i64,
@@ -69,7 +69,7 @@ mod login {
 
     /// Disconnect the player with the specified message
     ///
-    /// https://wiki.vg/Protocol#Disconnect_.28login.29
+    /// <https://wiki.vg/Protocol#Disconnect_.28login.29>
     #[derive(Clone, Debug)]
     pub struct C00LoginDisconnect {
         pub reason: serde_json::Value,
@@ -86,7 +86,7 @@ mod login {
 
     /// Request packet encryption
     ///
-    /// https://wiki.vg/Protocol#Encryption_Request
+    /// <https://wiki.vg/Protocol#Encryption_Request>
     #[derive(Clone, Debug)]
     pub struct C01EncryptionRequest {
         pub server_id: String,
@@ -109,7 +109,7 @@ mod login {
 
     /// Finishes Login stage
     ///
-    /// https://wiki.vg/Protocol#Login_Success
+    /// <https://wiki.vg/Protocol#Login_Success>
     #[derive(Clone, Debug)]
     pub struct C02LoginSuccess {
         pub uuid: Uuid,
@@ -128,7 +128,7 @@ mod login {
 
     /// Set packet compression
     ///
-    /// https://wiki.vg/Protocol#Set_Compression
+    /// <https://wiki.vg/Protocol#Set_Compression>
     #[derive(Clone, Debug)]
     pub struct C03SetCompression {
         pub threshold: i32,
@@ -145,7 +145,7 @@ mod login {
 
     /// Used to implement a custom handshaking flow together with S02LoginPluginResponse.
     ///
-    /// https://wiki.vg/Protocol#Login_Plugin_Request
+    /// <https://wiki.vg/Protocol#Login_Plugin_Request>
     #[derive(Clone, Debug)]
     pub struct C04LoginPluginRequest {
         pub message_id: i32,
@@ -185,7 +185,7 @@ mod play {
 
     /// Sent by the server when a vehicle or other non-living entity is created.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Entity
+    /// <https://wiki.vg/Protocol#Spawn_Entity>
     #[derive(Clone, Debug)]
     pub struct C00SpawnEntity {
         pub entity_id: VarInt,
@@ -223,7 +223,7 @@ mod play {
 
     /// Spawns one or more experience orbs.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Experience_Orb
+    /// <https://wiki.vg/Protocol#Spawn_Experience_Orb>
     #[derive(Clone, Debug)]
     pub struct C01SpawnExperienceOrb {
         pub entity_id: VarInt,
@@ -248,7 +248,7 @@ mod play {
 
     /// Sent by the server when a living entity is spawned.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Living_Entity
+    /// <https://wiki.vg/Protocol#Spawn_Living_Entity>
     #[derive(Clone, Debug)]
     pub struct C02SpawnLivingEntity {
         pub entity_id: VarInt,
@@ -287,7 +287,7 @@ mod play {
 
     /// This packet shows location, name, and type of painting.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Painting
+    /// <https://wiki.vg/Protocol#Spawn_Painting>
     #[derive(Clone, Debug)]
     pub struct C03SpawnPainting {
         pub entity_id: VarInt,
@@ -312,7 +312,7 @@ mod play {
 
     /// This packet is sent by the server when a player comes into visible range.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Player
+    /// <https://wiki.vg/Protocol#Spawn_Player>
     #[derive(Clone, Debug)]
     pub struct C04SpawnPlayer {
         pub entity_id: VarInt,
@@ -341,7 +341,7 @@ mod play {
 
     /// Sent whenever an entity should change animation.
     ///
-    /// https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C05EntityAnimation {
         pub entity_id: VarInt,
@@ -358,7 +358,7 @@ mod play {
         }
     }
 
-    /// https://wiki.vg/Protocol#Acknowledge_Player_Digging
+    /// <https://wiki.vg/Protocol#Acknowledge_Player_Digging>
     #[derive(Clone, Debug)]
     pub struct C07AcknowledgePlayerDigging {
         /// Position where the digging was happening
@@ -386,7 +386,7 @@ mod play {
     /// it helps respect the user's chat visibility options.
     /// See processing chat for more info about these positions.
     ///
-    /// https://wiki.vg/Protocol#Chat_Message_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Chat_Message_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C0EChatMessage {
         /// Limited to 32767 bytes
@@ -416,7 +416,7 @@ mod play {
 
     /// Fired whenever a block is changed within the render distance.
     ///
-    /// https://wiki.vg/Protocol#Block_Change
+    /// <https://wiki.vg/Protocol#Block_Change>
     #[derive(Clone, Debug)]
     pub struct C0BBlockChange {
         pub position: Position,
@@ -437,7 +437,7 @@ mod play {
     /// This is a directed graph, with one root node.
     /// Each redirect or child node must refer only to nodes that have already been declared.
     ///
-    /// https://wiki.vg/Protocol#Declare_Commands
+    /// <https://wiki.vg/Protocol#Declare_Commands>
     #[derive(Clone)]
     pub struct C10DeclareCommands {
         pub root_node: Arc<command_data::RootNode>,
@@ -464,7 +464,7 @@ mod play {
     /// Sent by the server when items in multiple slots (in a window) are added/removed.
     /// This includes the main inventory, equipped armour and crafting slots.
     ///
-    /// https://wiki.vg/Protocol#Window_Items
+    /// <https://wiki.vg/Protocol#Window_Items>
     #[derive(Clone, Debug)]
     pub struct C13WindowItems {
         pub window_id: u8,
@@ -486,7 +486,7 @@ mod play {
 
     /// Sent by the server when an item in a slot (in a window) is added/removed.
     ///
-    /// https://wiki.vg/Protocol#Set_Slot
+    /// <https://wiki.vg/Protocol#Set_Slot>
     #[derive(Clone, Debug)]
     pub struct C15SetSlot {
         /// The window which is being updated. 0 for player inventory. Note that all known window types include the player inventory.
@@ -533,7 +533,7 @@ mod play {
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///
-    /// https://wiki.vg/Protocol#Unload_Chunk
+    /// <https://wiki.vg/Protocol#Unload_Chunk>
     #[derive(Clone, Debug)]
     pub struct C17PluginMessage {
         pub channel: Identifier,
@@ -567,7 +567,7 @@ mod play {
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///
-    /// https://wiki.vg/Protocol#Unload_Chunk
+    /// <https://wiki.vg/Protocol#Unload_Chunk>
     #[derive(Clone, Debug)]
     pub struct C1CUnloadChunk {
         pub chunk_x: i32,
@@ -586,7 +586,7 @@ mod play {
 
     /// Used for a wide variety of game state things, from whether to bed use to gamemode to demo messages.
     ///
-    /// https://wiki.vg/Protocol#Change_Game_State
+    /// <https://wiki.vg/Protocol#Change_Game_State>
     #[derive(Clone, Debug)]
     pub struct C1DChangeGameState {
         pub reason: u8,
@@ -609,7 +609,7 @@ mod play {
     /// Vice versa, if the server does not send any keep-alives for 20 seconds,
     /// the client will disconnect and yields a "Timed out" exception.
     ///
-    /// https://wiki.vg/Protocol#Keep_Alive_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Keep_Alive_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C1FKeepAlive {
         pub id: i64,
@@ -632,7 +632,7 @@ mod play {
         pub data_array: Vec<i64>,
     }
 
-    /// https://wiki.vg/Protocol#Chunk_Data
+    /// <https://wiki.vg/Protocol#Chunk_Data>
     #[derive(Clone, Debug)]
     pub struct C20ChunkData {
         /// Chunk coordinate (block coordinate divided by 16, rounded down)
@@ -780,7 +780,7 @@ mod play {
 
     /// Send information about the game
     ///
-    /// https://wiki.vg/Protocol#Join_Game
+    /// <https://wiki.vg/Protocol#Join_Game>
     #[derive(Clone, Debug)]
     pub struct C24JoinGame {
         pub entity_id: i32,
@@ -829,7 +829,7 @@ mod play {
     /// This packet is sent by the server when an entity moves less then 8 blocks;
     /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
     ///
-    /// https://wiki.vg/Protocol#Entity_Position
+    /// <https://wiki.vg/Protocol#Entity_Position>
     #[derive(Clone, Debug)]
     pub struct C27EntityPosition {
         pub entity_id: VarInt,
@@ -858,7 +858,7 @@ mod play {
     /// This packet is sent by the server when an entity moves less then 8 blocks;
     /// if an entity moves more than 8 blocks C56EntityTeleport should be sent instead.
     ///
-    /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
+    /// <https://wiki.vg/Protocol#Entity_Position_and_Rotation>
     #[derive(Clone, Debug)]
     pub struct C28EntityPositionAndRotation {
         pub entity_id: VarInt,
@@ -892,7 +892,7 @@ mod play {
 
     /// This packet is sent by the server when an entity rotates.
     ///
-    /// https://wiki.vg/Protocol#Entity_Rotation
+    /// <https://wiki.vg/Protocol#Entity_Rotation>
     #[derive(Clone, Debug)]
     pub struct C29EntityRotation {
         pub entity_id: VarInt,
@@ -917,7 +917,7 @@ mod play {
 
     /// This packet is sent by the server when an entity doesn't move
     ///
-    /// https://wiki.vg/Protocol#Entity_Movement
+    /// <https://wiki.vg/Protocol#Entity_Movement>
     #[derive(Clone, Debug)]
     pub struct C2AEntityMovement {
         pub entity_id: VarInt,
@@ -932,7 +932,7 @@ mod play {
         }
     }
 
-    /// https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C30PlayerAbilities {
         pub flags: u8,
@@ -1006,7 +1006,7 @@ mod play {
 
     /// Sent by the server to update the user list (<tab> in the client).
     ///
-    /// https://wiki.vg/Protocol#Player_Info
+    /// <https://wiki.vg/Protocol#Player_Info>
     #[derive(Clone, Debug)]
     pub struct C32PlayerInfo {
         /// List of players, must all be of the same type
@@ -1095,7 +1095,7 @@ mod play {
 
     /// Updates the player's position on the server.
     ///
-    /// https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C34PlayerPositionAndLook {
         pub x: f64,
@@ -1124,7 +1124,7 @@ mod play {
 
     /// Sent by the server when a list of entities is to be destroyed on the client.
     ///
-    /// https://wiki.vg/Protocol#Destroy_Entities
+    /// <https://wiki.vg/Protocol#Destroy_Entities>
     #[derive(Clone, Debug)]
     pub struct C36DestroyEntities {
         pub entities: Vec<VarInt>,
@@ -1146,7 +1146,7 @@ mod play {
     /// While sending the Entity Look packet changes the vertical rotation of the head,
     /// sending this packet appears to be necessary to rotate the head horizontally.
     ///
-    /// https://wiki.vg/Protocol#Entity_Head_Look
+    /// <https://wiki.vg/Protocol#Entity_Head_Look>
     #[derive(Clone, Debug)]
     pub struct C3AEntityHeadLook {
         pub entity_id: VarInt,
@@ -1174,7 +1174,7 @@ mod play {
 
     /// Fired whenever 2 or more blocks are changed within the same chunk on the same tick.
     ///
-    /// https://wiki.vg/Prrotocol#Multi_Block_Change
+    /// <https://wiki.vg/Prrotocol#Multi_Block_Change>
     #[derive(Clone, Debug)]
     pub struct C3BMultiBlockChange {
         pub section_x: i32,
@@ -1209,7 +1209,7 @@ mod play {
 
     /// Sent to change the player's slot selection.
     ///
-    /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C3FHoldItemChange {
         /// The slot which the player has selected (0–8)
@@ -1229,7 +1229,7 @@ mod play {
     /// This is used to determine what chunks should remain loaded and if a chunk load should be ignored;
     /// chunks outside of the view distance may be unloaded.
     ///
-    /// https://wiki.vg/Protocol#Update_View_Position
+    /// <https://wiki.vg/Protocol#Update_View_Position>
     #[derive(Clone, Debug)]
     pub struct C40UpdateViewPosition {
         pub chunk_x: i32,
@@ -1250,7 +1250,7 @@ mod play {
     /// (the point at which players spawn at, and which the compass points to).
     /// It can be sent at any time to update the point compasses point at.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Position
+    /// <https://wiki.vg/Protocol#Spawn_Position>
     #[derive(Clone, Debug)]
     pub struct C42SpawnPosition {
         pub location: Position,
@@ -1268,7 +1268,7 @@ mod play {
     /// Updates one or more metadata properties for an existing entity.
     /// Any properties not included in the Metadata field are left unchanged.
     ///
-    /// https://wiki.vg/Protocol#Entity_Metadata
+    /// <https://wiki.vg/Protocol#Entity_Metadata>
     #[derive(Clone, Debug)]
     pub struct C44EntityMetadata {
         pub entity_id: i32,
@@ -1302,7 +1302,7 @@ mod play {
 
     /// Change one or more slots in an entity equipment
     ///
-    /// https://wiki.vg/Protocol#Entity_Equipment
+    /// <https://wiki.vg/Protocol#Entity_Equipment>
     #[derive(Clone, Debug)]
     pub struct C47EntityEquipment {
         pub entity_id: VarInt,
@@ -1333,7 +1333,7 @@ mod play {
     /// This packet may be used by custom servers to display additional information above/below the player list.
     /// It is never sent by the Notchian server.
     ///
-    /// https://wiki.vg/Protocol#Player_List_Header_And_Footer
+    /// <https://wiki.vg/Protocol#Player_List_Header_And_Footer>
     #[derive(Clone, Debug)]
     pub struct C53PlayerListHeaderAndFooter {
         /// To remove the header, send a empty text component: {"text":""}
@@ -1354,7 +1354,7 @@ mod play {
 
     /// This packet is sent by the server when an entity moves more than 8 blocks.
     ///
-    /// https://wiki.vg/Protocol#Entity_Teleport
+    /// <https://wiki.vg/Protocol#Entity_Teleport>
     #[derive(Clone, Debug)]
     pub struct C56EntityTeleport {
         pub entity_id: VarInt,

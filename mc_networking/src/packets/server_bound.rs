@@ -37,7 +37,7 @@ mod handshake {
 
     /// This causes the server to switch into the target state.
     ///
-    /// https://wiki.vg/Protocol#Handshake
+    /// <https://wiki.vg/Protocol#Handshake>
     #[derive(Clone, Debug)]
     pub struct S00Handshake {
         pub protocol_version: VarInt,
@@ -68,7 +68,7 @@ mod status {
 
     /// Initiate SLP and should be responded with C00Response
     ///
-    /// https://wiki.vg/Protocol#Request
+    /// <https://wiki.vg/Protocol#Request>
     #[derive(Clone, Debug)]
     pub struct S00Request;
     impl ServerBoundPacket for S00Request {
@@ -83,7 +83,7 @@ mod status {
 
     /// Should be responses with C01Pong with provided payload
     ///
-    /// https://wiki.vg/Protocol#Ping
+    /// <https://wiki.vg/Protocol#Ping>
     #[derive(Clone, Debug)]
     pub struct S01Ping {
         pub payload: i64,
@@ -111,7 +111,7 @@ mod login {
 
     /// Initiate login state
     ///
-    /// https://wiki.vg/Protocol#Login_Start
+    /// <https://wiki.vg/Protocol#Login_Start>
     #[derive(Clone, Debug)]
     pub struct S00LoginStart {
         pub name: String,
@@ -130,7 +130,7 @@ mod login {
 
     /// Will succeed C01EncryptionRequest
     ///
-    /// https://wiki.vg/Protocol#Encryption_Response
+    /// <https://wiki.vg/Protocol#Encryption_Response>
     #[derive(Clone, Debug)]
     pub struct S01EncryptionResponse {
         pub shared_secret: Vec<u8>,
@@ -157,7 +157,7 @@ mod login {
 
     /// Will succeed C02LoginPluginRequest
     ///
-    /// https://wiki.vg/Protocol#Login_Plugin_Response
+    /// <https://wiki.vg/Protocol#Login_Plugin_Response>
     #[derive(Clone, Debug)]
     pub struct S02LoginPluginResponse {
         pub message_id: VarInt,
@@ -197,7 +197,7 @@ mod play {
 
     /// Sent by client as confirmation of C36PlayerPositionAndLook.
     ///
-    /// https://wiki.vg/Protocol#Teleport_Confirm
+    /// <https://wiki.vg/Protocol#Teleport_Confirm>
     #[derive(Clone, Debug)]
     pub struct S00TeleportConfirm {
         pub teleport_id: VarInt,
@@ -217,7 +217,7 @@ mod play {
     /// Used to send a chat message to the server.
     /// The message may not be longer than 256 characters or else the server will kick the client.
     ///
-    /// https://wiki.vg/Protocol#Chat_Message_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Chat_Message_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S03ChatMessage {
         pub message: String,
@@ -237,7 +237,7 @@ mod play {
     /// 0: Perform Respawn | Sent when the client is ready to complete login and when the client is ready to respawn after death.
     /// 1: Request Stats   | Sent when the client opens the Statistics menu
     ///
-    /// https://wiki.vg/Protocol#Client_Status
+    /// <https://wiki.vg/Protocol#Client_Status>
     #[derive(Clone, Debug)]
     pub struct S04ClientStatus {
         pub action_id: VarInt,
@@ -256,7 +256,7 @@ mod play {
 
     /// Sent when the player connects, or when settings are changed.
     ///
-    /// https://wiki.vg/Protocol#Client_Settings
+    /// <https://wiki.vg/Protocol#Client_Settings>
     #[derive(Clone, Debug)]
     pub struct S05ClientSettings {
         /// e.g. en_GB
@@ -267,7 +267,7 @@ mod play {
         pub chat_mode: VarInt,
         /// “Colors” multiplayer setting
         pub chat_colors: bool,
-        /// Bit mask, see in https://wiki.vg/Protocol#Client_Settings
+        /// Bit mask, see in <https://wiki.vg/Protocol#Client_Settings>
         pub displayed_skin_parts: u8,
         /// 0: Left, 1: Right
         pub main_hand: VarInt,
@@ -291,7 +291,7 @@ mod play {
 
     /// This packet is sent by the player when it clicks on a slot in a window.
     ///
-    /// https://wiki.vg/Protocol#Click_Window
+    /// <https://wiki.vg/Protocol#Click_Window>
     #[derive(Clone, Debug)]
     pub struct S09ClickWindow {
         /// The ID of the window which was clicked. 0 for player inventory.
@@ -327,7 +327,7 @@ mod play {
 
     /// Mods and plugins can use this to send their data.
     ///
-    /// https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S0BPluginMessage {
         pub channel: String,
@@ -348,7 +348,7 @@ mod play {
 
     /// Sent by the client after C1FKeepAlive
     ///
-    /// https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S10KeepAlive {
         pub id: i64,
@@ -367,7 +367,7 @@ mod play {
 
     /// Updates the player's XYZ position on the server.
     ///
-    /// https://wiki.vg/Protocol#Player_Position
+    /// <https://wiki.vg/Protocol#Player_Position>
     #[derive(Clone, Debug)]
     pub struct S12PlayerPosition {
         /// Absolute position
@@ -396,7 +396,7 @@ mod play {
 
     /// A combination of S13PlayerRotation and S11PlayerPosition.
     ///
-    /// https://wiki.vg/Protocol#Player_Position_And_Rotation_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Player_Position_And_Rotation_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S13PlayerPositionAndRotation {
         /// Absolute position
@@ -431,7 +431,7 @@ mod play {
 
     /// Updates the direction the player is looking in.
     ///
-    /// https://wiki.vg/Protocol#Player_Rotation
+    /// <https://wiki.vg/Protocol#Player_Rotation>
     #[derive(Clone, Debug)]
     pub struct S14PlayerRotation {
         /// Absolute rotation on the X Axis, in degrees
@@ -457,7 +457,7 @@ mod play {
 
     /// This packet is used to indicate whether the player is on ground (walking/swimming), or airborne (jumping/falling).
     ///
-    /// https://wiki.vg/Protocol#Player_Movement
+    /// <https://wiki.vg/Protocol#Player_Movement>
     #[derive(Clone, Debug)]
     pub struct S15PlayerMovement {
         pub on_ground: bool,
@@ -477,7 +477,7 @@ mod play {
     /// The vanilla client sends this packet when the player starts/stops flying with the Flags parameter changed accordingly.
     /// All other parameters are ignored by the vanilla server.
     ///
-    /// https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S1APlayerAbilities {
         /// 0x02: is flying
@@ -538,7 +538,7 @@ mod play {
 
     /// Sent when the player mines a block.
     ///
-    /// https://wiki.vg/Protocol#Player_Digging
+    /// <https://wiki.vg/Protocol#Player_Digging>
     #[derive(Clone, Debug)]
     pub struct S1BPlayerDigging {
         /// The action the player is taking against the block
@@ -597,7 +597,7 @@ mod play {
     /// sneaking (crouching), sprinting, exiting a bed,
     /// jumping with a horse, and opening a horse's inventory while riding it.
     ///
-    /// https://wiki.vg/Protocol#Entity_Action
+    /// <https://wiki.vg/Protocol#Entity_Action>
     #[derive(Clone, Debug)]
     pub struct S1CEntityAction {
         /// Player ID
@@ -625,7 +625,7 @@ mod play {
     /// the player will send this packet.
     /// This action can be described as "set inventory slot".
     ///
-    /// https://wiki.vg/Protocol#Creative_Inventory_Action
+    /// <https://wiki.vg/Protocol#Creative_Inventory_Action>
     #[derive(Clone, Debug)]
     pub struct S28CreativeInventoryAction {
         pub slot_id: i16,
@@ -646,7 +646,7 @@ mod play {
 
     /// Sent when the player changes the slot selection
     ///
-    /// https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S25HeldItemChange {
         /// The slot which the player has selected (0–8)
@@ -666,7 +666,7 @@ mod play {
 
     /// Sent when the player's arm swings.
     ///
-    /// https://wiki.vg/Protocol#Animation_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Animation_.28serverbound.29>
     #[derive(Clone, Debug)]
     pub struct S2CAnimation {
         /// Hand used for the animation. 0: main hand, 1: off hand.
@@ -686,7 +686,7 @@ mod play {
 
     /// Upon placing a block, this packet is sent once.
     ///
-    /// https://wiki.vg/Protocol#Player_Block_Placement
+    /// <https://wiki.vg/Protocol#Player_Block_Placement>
     #[derive(Clone, Debug)]
     pub struct S2EPlayerBlockPlacement {
         /// The hand from which the block is placed; 0: main hand, 1: off hand

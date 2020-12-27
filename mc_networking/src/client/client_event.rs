@@ -41,7 +41,7 @@ pub enum ClientEvent {
     },
     /// This is sent by the player when it clicks on a slot in a window.
     ///
-    /// https://wiki.vg/Protocol#Click_Window
+    /// <https://wiki.vg/Protocol#Click_Window>
     /// Correspond to packet S09ClickWindow
     ClickWindow {
         /// The ID of the window which was clicked. 0 for player inventory.
@@ -60,7 +60,7 @@ pub enum ClientEvent {
     },
     /// Mods and plugins can use this to send their data.
     ///
-    /// https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29>
     /// Correspond to the packet S0BPluginMessage
     PluginMessage {
         channel: String,
@@ -93,7 +93,7 @@ pub enum ClientEvent {
     /// sneaking (crouching), sprinting, exiting a bed,
     /// jumping with a horse, and opening a horse's inventory while riding it.
     ///
-    /// https://wiki.vg/Protocol#Entity_Action
+    /// <https://wiki.vg/Protocol#Entity_Action>
     /// Correspond to the packet S1CEntityAction
     EntityAction {
         /// Player ID
@@ -105,14 +105,14 @@ pub enum ClientEvent {
     },
     /// The vanilla client sends this when the player starts/stops flying.
     ///
-    /// https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29>
     /// Correspond to the packet S1APlayerAbilities
     PlayerAbilities {
         is_flying: bool,
     },
     /// Sent when the player mines a block.
     ///
-    /// https://wiki.vg/Protocol#Player_Digging
+    /// <https://wiki.vg/Protocol#Player_Digging>
     /// Correspond to the packet S1BPlayerDigging
     PlayerDigging {
         status: S1BPlayerDiggingStatus,
@@ -121,7 +121,7 @@ pub enum ClientEvent {
     },
     /// Sent when the player changes the slot selection
     ///
-    /// https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29>
     /// Correspond to the packet S25HeldItemChange
     HeldItemChange {
         /// The slot which the player has selected (0–8)
@@ -131,7 +131,7 @@ pub enum ClientEvent {
     /// the player will send this packet.
     /// This action can be described as "set inventory slot".
     ///
-    /// https://wiki.vg/Protocol#Creative_Inventory_Action
+    /// <https://wiki.vg/Protocol#Creative_Inventory_Action>
     /// Correspond to the packet S28CreativeInventoryAction
     CreativeInventoryAction {
         slot_id: i16,
@@ -139,14 +139,14 @@ pub enum ClientEvent {
     },
     /// Sent when the player's arm swings.
     ///
-    /// https://wiki.vg/Protocol#Animation_.28serverbound.29
+    /// <https://wiki.vg/Protocol#Animation_.28serverbound.29>
     /// Correspond to the packet S2CAnimation
     Animation {
         hand: i32,
     },
     /// Upon placing a block, this packet is sent once.
     ///
-    /// https://wiki.vg/Protocol#Player_Block_Placement
+    /// <https://wiki.vg/Protocol#Player_Block_Placement>
     /// Correspond to the packet S2EPlayerBlockPlacement
     PlayerBlockPlacement {
         /// The hand from which the block is placed; 0: main hand, 1: off hand
