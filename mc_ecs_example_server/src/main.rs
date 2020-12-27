@@ -1,9 +1,11 @@
 mod chunk_loader;
 mod client_handler;
+mod event_handler;
 
 use crate::chunk_loader::*;
 use chunk_loader::StoneChunkProvider;
 use client_handler::*;
+use event_handler::MyEventHandler;
 use mc_ecs_server_lib::mc_schedule::McSchedule;
 use mc_networking::client::Client;
 use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
@@ -16,7 +18,7 @@ fn start_legion_world(client_list: Arc<ClientList>) {
     let chunk_provider = Arc::new(StoneChunkProvider::new());
 
     let mut world: World = World::default();
-    let mut schedule = McSchedule::new();
+    let mut schedule = McSchedule::new(MyEventHandler);
 
     schedule.set_custom_schedule(
         Schedule::builder()
