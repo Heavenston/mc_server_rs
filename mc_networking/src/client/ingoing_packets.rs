@@ -160,6 +160,7 @@ pub(super) async fn listen_ingoing_packets(
                         ))
                         .await?;
                     *(state.write().await) = ClientState::Disconnected;
+                    event_sender.send_async(ClientEvent::Logout).await.unwrap();
                     break;
                 }
                 else {
@@ -269,6 +270,7 @@ pub(super) async fn listen_ingoing_packets(
                                 ))
                                 .await?;
                             *(state.write().await) = ClientState::Disconnected;
+                            event_sender.send_async(ClientEvent::Logout).await.unwrap();
                             break;
                         }
                     };

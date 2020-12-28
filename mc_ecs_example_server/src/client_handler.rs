@@ -3,28 +3,38 @@ use mc_networking::client::{
     Client,
 };
 
-use legion::{system, systems::CommandBuffer};
+use legion::{Entity, EntityStore, IntoQuery, system, systems::CommandBuffer, world::SubWorld};
 use rayon::prelude::*;
 use std::sync::{Arc, Mutex};
 
-pub type ClientList = Mutex<Vec<HandledClient>>;
-
-pub struct HandledClient {
+pub struct ClientComponent {
     pub client: Client,
     pub event_receiver: flume::Receiver<ClientEvent>,
 }
 
 #[system]
-pub fn handle_clients(_cmd: &mut CommandBuffer, #[state] client_list: &Arc<ClientList>) {
-    let mut client_list = client_list.lock().unwrap();
-    client_list.par_iter_mut().for_each(|handled_client| {
-        while let Ok(event) = handled_client.event_receiver.try_recv() {
-            handle_client_event(handled_client, event);
-        }
-    });
+#[write_component(ClientComponent)]
+pub fn handle_clients(world: &mut SubWorld, cmd: &mut CommandBuffer) {
+    // TODO: Find a way to avoid allocation
+    let to_remove = <(Entity, &mut ClientComponent)>::query()
+        .par_iter_mut(world)
+        .filter_map(|(entity, client_component,)| {
+            while let Ok(event) = client_component.event_receiver.try_recv() {
+                if handle_client_event(client_component, event) {
+                    return Some(entity);
+                }
+            }
+            None
+        })
+        .copied()
+        .collect::<Vec<Entity>>();
+    for entity in to_remove {
+        cmd.remove(entity);
+    }
 }
 
-pub fn handle_client_event(_handled_client: &mut HandledClient, event: ClientEvent) {
+fn handle_client_event(client_component: &mut ClientComponent, event: ClientEvent) -> bool {
+    let mut should_delete = false;
     match event {
         ClientEvent::ServerListPing { response } => {
             response
@@ -43,6 +53,11 @@ pub fn handle_client_event(_handled_client: &mut HandledClient, event: ClientEve
                 .unwrap();
         }
 
+        ClientEvent::Logout => {
+            should_delete = true;
+        }
+
         _ => (),
     }
+    should_delete
 }
