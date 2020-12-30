@@ -3,9 +3,8 @@ use mc_networking::client::{
     Client,
 };
 
-use legion::{Entity, EntityStore, IntoQuery, system, systems::CommandBuffer, world::SubWorld};
+use legion::{Entity, IntoQuery, system, systems::CommandBuffer, world::SubWorld};
 use rayon::prelude::*;
-use std::sync::{Arc, Mutex};
 
 pub struct ClientComponent {
     pub client: Client,
