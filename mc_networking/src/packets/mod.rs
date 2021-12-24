@@ -32,12 +32,13 @@ impl Deref for PacketCompression {
     }
 }
 
-pub struct RawPacket {
+#[derive(Clone)]
+pub struct RawPacket<D: Deref<Target = [u8]> = Bytes> {
     pub packet_id: i32,
-    pub data: Bytes,
+    pub data: D,
 }
-impl RawPacket {
-    pub fn new(packet_id: i32, data: Bytes) -> Self {
+impl<D: Deref<Target = [u8]>> RawPacket<D> {
+    pub fn new(packet_id: i32, data: D) -> Self {
         Self { packet_id, data }
     }
 
@@ -86,7 +87,8 @@ impl RawPacket {
         std::mem::swap(dst, &mut packet_length_bytes);
         dst.unsplit(packet_length_bytes);
     }
-
+}
+impl RawPacket<Bytes> {
     /// Decodes the content part of a Packet (packet_id + data)
     fn decode_content(stream: &mut BytesMut, size: usize) -> DecodingResult<Self> {
         let packet_id = varint::decode_buf(stream)?;
@@ -96,7 +98,7 @@ impl RawPacket {
         })
     }
 
-    pub fn decode(bytes: &mut BytesMut, compression: PacketCompression) -> DecodingResult<Self> {
+    pub fn decode(bytes: &mut BytesMut, compression: PacketCompression) -> DecodingResult<RawPacket<Bytes>> {
         let mut taker = bytes.take(varint::MAX_BYTE_SIZE);
         let packet_length = varint::decode_buf(&mut taker)?;
         taker.get_mut().reserve(packet_length as usize);

@@ -9,8 +9,8 @@ use openssl::symm::{Cipher, Crypter, Mode};
 use std::sync::Arc;
 
 use tokio::{
+    io::AsyncWriteExt,
     net::tcp::OwnedWriteHalf,
-    prelude::io::AsyncWriteExt,
     sync::{Notify, RwLock},
     task::block_in_place,
 };

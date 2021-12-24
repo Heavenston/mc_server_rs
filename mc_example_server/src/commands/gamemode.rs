@@ -108,7 +108,7 @@ impl CommandExecutor for GamemodeCommand {
                 _ => return Ok(false),
             }
             player_ref.update_gamemode().await;
-            player_ref.update_abilities().await.unwrap();
+            player_ref.update_abilities().await;
             Ok(true)
         }
         else {

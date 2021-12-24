@@ -242,9 +242,8 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .unwrap()
             .clone();
         player_ref
-            .send_packet(&C40UpdateViewPosition { chunk_x, chunk_z })
-            .await
-            .unwrap();
+            .send_packet_async(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .await;
         let loaded_chunks = player_ref
             .entity
             .read()
@@ -265,12 +264,11 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                             let start = Instant::now();
                             self.reduce_chunk_load_count(&chunk_loadings, chunk.0, chunk.1);
                             player_ref
-                                .send_packet(&C1CUnloadChunk {
+                                .send_packet_async(&C1CUnloadChunk {
                                     chunk_x: chunk.0,
                                     chunk_z: chunk.1,
                                 })
-                                .await
-                                .unwrap();
+                                .await;
                             player_ref
                                 .entity
                                 .write()
@@ -319,7 +317,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                                         self.increase_chunk_load_count(chunk_x + dx, chunk_z + dz)
                                             .await;
                                         let chunk = chunk.read().await.encode();
-                                        player_ref.send_packet(&chunk).await.unwrap();
+                                        player_ref.send_packet_async(&chunk).await;
                                         player_ref
                                             .entity
                                             .write()
@@ -371,9 +369,8 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .clone();
         for (chunk_x, chunk_z) in loaded_chunks {
             entity_ref
-                .send_packet(&C1CUnloadChunk { chunk_x, chunk_z })
-                .await
-                .unwrap();
+                .send_packet_async(&C1CUnloadChunk { chunk_x, chunk_z })
+                .await;
         }
         entity_ref
             .entity
@@ -456,10 +453,10 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             }
 
             for block_change in block_changes.iter() {
-                player_ref.send_packet(block_change).await.unwrap();
+                player_ref.send_packet_async(block_change).await;
             }
             for multi_block_change in multi_block_changes.iter() {
-                player_ref.send_packet(multi_block_change).await.unwrap();
+                player_ref.send_packet_async(multi_block_change).await;
             }
         }
     }

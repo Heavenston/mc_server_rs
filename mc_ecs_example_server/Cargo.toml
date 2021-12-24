@@ -1,0 +1,18 @@
+[package]
+name = "mc_ecs_example_server"
+version = "0.1.0"
+authors = ["Heavenstone <malolegendrelemaire@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mc_networking = { path = "../mc_networking" }
+mc_utils = { path = "../mc_utils" }
+mc_ecs_server_lib = { path = "../mc_ecs_server_lib" }
+tokio = { version = "1.0", features = ["full"] }
+legion = "0.3"
+rayon = "1.5"
+dashmap = "4.0"
+flume = "0.10"
+serde_json = "1.0"

@@ -35,10 +35,10 @@ impl CommandExecutor for SummonCommand {
             name: "amount".to_string(),
             parser: "brigadier:integer".into(),
             properties: {
-                let mut encoder = PacketEncoder::new();
+                let mut encoder = PacketEncoder::default();
                 encoder.write_u8(0x01);
                 encoder.write_i32(1);
-                encoder.consume()
+                encoder.into_inner().freeze()
             },
             suggestions_type: None,
         }) as Arc<dyn Node>;
@@ -157,14 +157,15 @@ impl CommandExecutor for SummonCommand {
                                     entities.add_entity(entity).await;
                                 }
                             }
-                            None => player_ref
-                                .send_chat_message(json!({
-                                    "text": "Invalid entity type",
-                                    "color": "red",
-                                    "bold": "true"
-                                }))
-                                .await
-                                .unwrap(),
+                            None => {
+                                player_ref
+                                    .send_chat_message(json!({
+                                        "text": "Invalid entity type",
+                                        "color": "red",
+                                        "bold": "true"
+                                    }))
+                                    .await
+                            }
                         }
                         Ok(true)
                     }

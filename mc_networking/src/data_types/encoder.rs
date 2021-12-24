@@ -1,26 +1,21 @@
-use crate::{
-    data_types::{Angle, VarInt, VarLong},
-    packets::RawPacket,
-    DecodingResult,
-};
+use crate::{DecodingResult, data_types::{Angle, VarInt, VarLong}, packets::RawPacket};
 
 use byteorder::{ReadBytesExt, BE};
-use bytes::{Buf, Bytes, BytesMut};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::io::{Cursor, Read, Result as IoResult, Write};
 use uuid::Uuid;
 
-pub struct PacketEncoder {
-    data: BytesMut,
+pub struct PacketEncoder<D: BufMut = BytesMut> {
+    data: D,
 }
-impl PacketEncoder {
-    pub fn new() -> Self {
+impl<D: BufMut> PacketEncoder<D> {
+    pub fn new(data: D) -> Self {
         Self {
-            data: BytesMut::new(),
+            data
         }
     }
-
-    pub fn consume(self) -> Bytes {
-        self.data.freeze()
+    pub fn into_inner(self) -> D {
+        self.data
     }
 
     pub fn write_u8(&mut self, v: u8) {
@@ -79,7 +74,7 @@ impl PacketEncoder {
     }
 
     pub fn write_bytes(&mut self, bytes: &[u8]) {
-        self.data.extend_from_slice(bytes);
+        self.data.put_slice(bytes);
     }
 
     pub fn write_string(&mut self, text: &str) {
@@ -90,7 +85,7 @@ impl PacketEncoder {
         self.write_bytes(uuid.as_bytes());
     }
 }
-impl Write for PacketEncoder {
+impl<D: BufMut> Write for PacketEncoder<D> {
     fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
         self.write_bytes(buf);
         Ok(buf.len())
@@ -98,6 +93,13 @@ impl Write for PacketEncoder {
 
     fn flush(&mut self) -> Result<(), std::io::Error> {
         Ok(())
+    }
+}
+impl Default for PacketEncoder<BytesMut> {
+    fn default() -> Self {
+        Self {
+            data: BytesMut::new(),
+        }
     }
 }
 
@@ -276,12 +278,41 @@ pub mod varint {
     use byteorder::ReadBytesExt;
     use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub const MAX_BYTE_SIZE: usize = 5;
 
     create_varint_encoders!(input_type: VarInt, unsigned_type: u32);
     create_varint_decoders!(output_type: VarInt, max_byte_size: MAX_BYTE_SIZE);
+
+    #[cfg(test)]
+    const VARINT_EXPECTATIONS: &[(i32, &[u8])] = &[
+        (1, &[1]),
+        (50, &[50]),
+        (1000, &[0b11101000, 0b111]),
+        (VarInt::MAX, &[!0, !0, !0, !0, 0b111]),
+    ];
+
+    #[test]
+    fn varint_encoding() {
+        for (e_in, out) in VARINT_EXPECTATIONS {
+            assert_eq!(&*encode(*e_in), *out);
+        }
+    }
+    #[test]
+    fn varint_decoding() {
+        for (out, e_in) in VARINT_EXPECTATIONS {
+            assert_eq!(decode_buf(&mut Bytes::from(*e_in)).unwrap(), *out);
+        }
+    }
+    #[test]
+    fn varint_endecoding() {
+        for i in [0, 5, 1000, 766876, 29, 43223, 43234324, 49494].iter() {
+            let mut bytes = encode(*i);
+            let decoded = decode_buf(&mut bytes).unwrap();
+            assert_eq!(*i, decoded);
+        }
+    }
 }
 pub mod varlong {
     use crate::{data_types::VarLong, DecodingError, DecodingResult};
@@ -289,7 +320,7 @@ pub mod varlong {
     use byteorder::ReadBytesExt;
     use bytes::{Buf, BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub const MAX_BYTE_SIZE: usize = 10;
 
@@ -302,7 +333,7 @@ pub mod string {
 
     use bytes::{BufMut, Bytes, BytesMut};
     use std::io::Read;
-    use tokio::prelude::{io::AsyncReadExt, AsyncRead};
+    use tokio::io::{AsyncRead, AsyncReadExt};
 
     pub fn encode_into(string: &str, bytes: &mut impl BufMut) {
         let text = string.as_bytes();

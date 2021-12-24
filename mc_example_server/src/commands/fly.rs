@@ -40,10 +40,10 @@ impl CommandExecutor for FlyCommand {
                         name: "speed".to_string(),
                         parser: "brigadier:float".into(),
                         properties: {
-                            let mut encoder = PacketEncoder::new();
+                            let mut encoder = PacketEncoder::default();
                             encoder.write_u8(0x01);
                             encoder.write_f32(0.0);
-                            encoder.consume()
+                            encoder.into_inner().freeze()
                         },
                         suggestions_type: None,
                     })],
@@ -79,20 +79,18 @@ impl CommandExecutor for FlyCommand {
                                     "color": "red",
                                     "bold": "true"
                                 }))
-                                .await
-                                .unwrap();
+                                .await;
                         }
                         else {
                             player_ref.entity.write().await.as_player_mut().can_fly = true;
-                            player_ref.update_abilities().await.unwrap();
+                            player_ref.update_abilities().await;
                             player_ref
                                 .send_chat_message(json!({
                                     "text": "Fly is now enabled",
                                     "color": "green",
                                     "bold": "true"
                                 }))
-                                .await
-                                .unwrap();
+                                .await;
                         }
                         Ok(true)
                     }
@@ -109,21 +107,19 @@ impl CommandExecutor for FlyCommand {
                                     "color": "red",
                                     "bold": "true"
                                 }))
-                                .await
-                                .unwrap();
+                                .await;
                         }
                         else {
                             player_ref.entity.write().await.as_player_mut().can_fly = false;
                             player_ref.entity.write().await.as_player_mut().is_flying = false;
-                            player_ref.update_abilities().await.unwrap();
+                            player_ref.update_abilities().await;
                             player_ref
                                 .send_chat_message(json!({
                                     "text": "Fly is now disabled",
                                     "color": "green",
                                     "bold": "true"
                                 }))
-                                .await
-                                .unwrap();
+                                .await;
                         }
                         Ok(true)
                     }
@@ -139,15 +135,14 @@ impl CommandExecutor for FlyCommand {
                         }
                         let speed = speed.unwrap();
                         player_ref.entity.write().await.as_player_mut().flying_speed = 0.05 * speed;
-                        player_ref.update_abilities().await.unwrap();
+                        player_ref.update_abilities().await;
                         player_ref
                             .send_chat_message(json!({
                                 "text": format!("Flight speed set to x{}", speed),
                                 "color": "green",
                                 "bold": "true"
                             }))
-                            .await
-                            .unwrap();
+                            .await;
                         Ok(true)
                     }
                 }

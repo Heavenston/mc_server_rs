@@ -2,12 +2,10 @@ use super::{BoxedEntity, Entity, EntityEquipment};
 use mc_networking::{
     client::Client,
     data_types::{MetadataValue, Pose, Slot},
-    map,
     packets::{client_bound::*, RawPacket},
 };
 use mc_utils::Location;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Borrow,
@@ -17,6 +15,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use maplit::hashmap;
 
 #[derive(Clone)]
 pub struct PlayerRef {
@@ -35,30 +34,36 @@ impl PlayerRef {
     /// Sends the C1DChangeGameState packet
     /// Note that the abilities should be send
     pub async fn update_gamemode(&self) {
-        self.send_packet(&C1DChangeGameState {
+        self.send_packet_async(&C1DChangeGameState {
             reason: 3, // Change Gamemode
             value: self.entity.read().await.as_player().gamemode as f32,
         })
-        .await
-        .unwrap();
+        .await;
     }
 
     /// Sends the C30PlayerAbilities packet
-    pub async fn update_abilities(&self) -> Result<()> {
+    pub async fn update_abilities(&self) {
         let player = self.entity.read().await;
         let player = player.as_player();
         player
             .client
-            .send_player_abilities(
+            .send_packet_async(&C30PlayerAbilities::new(
                 player.invulnerable,
                 player.is_flying,
                 player.can_fly,
                 player.gamemode == 1,
                 player.flying_speed,
                 player.fov_modifier,
-            )
-            .await?;
-        Ok(())
+            ))
+            .await;
+    }
+    pub async fn send_chat_message(&self, json_data: serde_json::Value) {
+        self.send_packet_async(&C0EChatMessage {
+            json_data,
+            position: 1,
+            sender: None,
+        })
+        .await;
     }
 }
 impl Into<Arc<RwLock<BoxedEntity>>> for PlayerRef {
@@ -221,7 +226,7 @@ impl Entity for PlayerEntity {
     }
 
     fn metadata(&self) -> HashMap<u8, MetadataValue> {
-        map! {
+        hashmap! {
             0 => self.metadata_value(0).unwrap(),
             6 => self.metadata_value(6).unwrap()
         }

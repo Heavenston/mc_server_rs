@@ -2,22 +2,31 @@ use crate::{data_types::encoder::PacketEncoder, packets::RawPacket};
 
 pub trait ClientBoundPacket {
     fn packet_id() -> i32;
-    fn encode(&self, encoder: &mut PacketEncoder);
+    fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>);
 
     fn to_rawpacket(&self) -> RawPacket {
-        let mut packet_encoder = PacketEncoder::new();
+        let mut packet_encoder = PacketEncoder::default();
         self.encode(&mut packet_encoder);
-        RawPacket::new(Self::packet_id(), packet_encoder.consume())
+        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().freeze())
+    }
+
+    fn to_rawpacket_in<'a>(&self, bytes: &mut BytesMut) -> RawPacket {
+        assert!(bytes.is_empty());
+        let mut packet_encoder = PacketEncoder::new(bytes);
+        self.encode(&mut packet_encoder);
+        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().split().freeze())
     }
 }
 
 mod status {
+    use bytes::BufMut;
+
     use super::ClientBoundPacket;
     use crate::data_types::encoder::PacketEncoder;
 
     /// Response to S00Request with server ping infos
     ///
-    /// https://wiki.vg/Protocol#Response
+    /// <https://wiki.vg/Protocol#Response>
     #[derive(Clone, Debug)]
     pub struct C00Response {
         pub json_response: serde_json::Value,
@@ -27,14 +36,14 @@ mod status {
             0x00
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.json_response.to_string());
         }
     }
 
     /// Response to S01Ping with provided payload
     ///
-    /// https://wiki.vg/Protocol#Pong
+    /// <https://wiki.vg/Protocol#Pong>
     #[derive(Clone, Debug)]
     pub struct C01Pong {
         pub payload: i64,
@@ -44,21 +53,23 @@ mod status {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i64(self.payload);
         }
     }
 }
+use bytes::{BufMut, BytesMut};
 pub use status::*;
 
 mod login {
     use super::ClientBoundPacket;
     use crate::data_types::{encoder::PacketEncoder, Identifier, VarInt};
+    use bytes::BufMut;
     use uuid::Uuid;
 
     /// Disconnect the player with the specified message
     ///
-    /// https://wiki.vg/Protocol#Disconnect_.28login.29
+    /// <https://wiki.vg/Protocol#Disconnect_.28login.29>
     #[derive(Clone, Debug)]
     pub struct C00LoginDisconnect {
         pub reason: serde_json::Value,
@@ -68,14 +79,14 @@ mod login {
             0x00
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.reason.to_string());
         }
     }
 
     /// Request packet encryption
     ///
-    /// https://wiki.vg/Protocol#Encryption_Request
+    /// <https://wiki.vg/Protocol#Encryption_Request>
     #[derive(Clone, Debug)]
     pub struct C01EncryptionRequest {
         pub server_id: String,
@@ -87,7 +98,7 @@ mod login {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.server_id);
             encoder.write_varint(self.public_key.len() as VarInt);
             encoder.write_bytes(self.public_key.as_slice());
@@ -98,7 +109,7 @@ mod login {
 
     /// Finishes Login stage
     ///
-    /// https://wiki.vg/Protocol#Login_Success
+    /// <https://wiki.vg/Protocol#Login_Success>
     #[derive(Clone, Debug)]
     pub struct C02LoginSuccess {
         pub uuid: Uuid,
@@ -109,7 +120,7 @@ mod login {
             0x02
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_uuid(&self.uuid);
             encoder.write_string(&self.username);
         }
@@ -117,7 +128,7 @@ mod login {
 
     /// Set packet compression
     ///
-    /// https://wiki.vg/Protocol#Set_Compression
+    /// <https://wiki.vg/Protocol#Set_Compression>
     #[derive(Clone, Debug)]
     pub struct C03SetCompression {
         pub threshold: i32,
@@ -127,14 +138,14 @@ mod login {
             0x03
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.threshold);
         }
     }
 
     /// Used to implement a custom handshaking flow together with S02LoginPluginResponse.
     ///
-    /// https://wiki.vg/Protocol#Login_Plugin_Request
+    /// <https://wiki.vg/Protocol#Login_Plugin_Request>
     #[derive(Clone, Debug)]
     pub struct C04LoginPluginRequest {
         pub message_id: i32,
@@ -146,7 +157,7 @@ mod login {
             0x04
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.message_id);
             encoder.write_string(&self.channel);
             encoder.write_bytes(self.data.as_slice());
@@ -167,14 +178,14 @@ mod play {
         DecodingResult as Result,
     };
 
-    use bytes::Bytes;
+    use bytes::{BufMut, Bytes};
     use serde::Serialize;
     use std::{collections::HashMap, sync::Arc};
     use uuid::Uuid;
 
     /// Sent by the server when a vehicle or other non-living entity is created.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Entity
+    /// <https://wiki.vg/Protocol#Spawn_Entity>
     #[derive(Clone, Debug)]
     pub struct C00SpawnEntity {
         pub entity_id: VarInt,
@@ -195,24 +206,24 @@ mod play {
             0x00
         }
 
-        fn encode(&self, packet_encoder: &mut PacketEncoder) {
-            packet_encoder.write_varint(self.entity_id);
-            packet_encoder.write_uuid(&self.object_uuid);
-            packet_encoder.write_f64(self.x);
-            packet_encoder.write_f64(self.y);
-            packet_encoder.write_f64(self.z);
-            packet_encoder.write_angle(self.pitch);
-            packet_encoder.write_angle(self.yaw);
-            packet_encoder.write_i32(self.data);
-            packet_encoder.write_i16(self.velocity_x);
-            packet_encoder.write_i16(self.velocity_y);
-            packet_encoder.write_i16(self.velocity_z);
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
+            encoder.write_varint(self.entity_id);
+            encoder.write_uuid(&self.object_uuid);
+            encoder.write_f64(self.x);
+            encoder.write_f64(self.y);
+            encoder.write_f64(self.z);
+            encoder.write_angle(self.pitch);
+            encoder.write_angle(self.yaw);
+            encoder.write_i32(self.data);
+            encoder.write_i16(self.velocity_x);
+            encoder.write_i16(self.velocity_y);
+            encoder.write_i16(self.velocity_z);
         }
     }
 
     /// Spawns one or more experience orbs.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Experience_Orb
+    /// <https://wiki.vg/Protocol#Spawn_Experience_Orb>
     #[derive(Clone, Debug)]
     pub struct C01SpawnExperienceOrb {
         pub entity_id: VarInt,
@@ -226,7 +237,7 @@ mod play {
             0x01
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
@@ -237,7 +248,7 @@ mod play {
 
     /// Sent by the server when a living entity is spawned.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Living_Entity
+    /// <https://wiki.vg/Protocol#Spawn_Living_Entity>
     #[derive(Clone, Debug)]
     pub struct C02SpawnLivingEntity {
         pub entity_id: VarInt,
@@ -258,7 +269,7 @@ mod play {
             0x02
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.entity_uuid);
             encoder.write_varint(self.kind);
@@ -276,7 +287,7 @@ mod play {
 
     /// This packet shows location, name, and type of painting.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Painting
+    /// <https://wiki.vg/Protocol#Spawn_Painting>
     #[derive(Clone, Debug)]
     pub struct C03SpawnPainting {
         pub entity_id: VarInt,
@@ -290,7 +301,7 @@ mod play {
             0x03
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.entity_uuid);
             encoder.write_varint(self.motive);
@@ -301,7 +312,7 @@ mod play {
 
     /// This packet is sent by the server when a player comes into visible range.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Player
+    /// <https://wiki.vg/Protocol#Spawn_Player>
     #[derive(Clone, Debug)]
     pub struct C04SpawnPlayer {
         pub entity_id: VarInt,
@@ -317,7 +328,7 @@ mod play {
             0x04
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_uuid(&self.uuid);
             encoder.write_f64(self.x);
@@ -330,7 +341,7 @@ mod play {
 
     /// Sent whenever an entity should change animation.
     ///
-    /// https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Entity_Animation_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C05EntityAnimation {
         pub entity_id: VarInt,
@@ -341,13 +352,13 @@ mod play {
             0x05
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_u8(self.animation);
         }
     }
 
-    /// https://wiki.vg/Protocol#Acknowledge_Player_Digging
+    /// <https://wiki.vg/Protocol#Acknowledge_Player_Digging>
     #[derive(Clone, Debug)]
     pub struct C07AcknowledgePlayerDigging {
         /// Position where the digging was happening
@@ -363,7 +374,7 @@ mod play {
             0x07
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.position.encode());
             encoder.write_varint(self.block);
             encoder.write_varint(self.status as VarInt);
@@ -375,7 +386,7 @@ mod play {
     /// it helps respect the user's chat visibility options.
     /// See processing chat for more info about these positions.
     ///
-    /// https://wiki.vg/Protocol#Chat_Message_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Chat_Message_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C0EChatMessage {
         /// Limited to 32767 bytes
@@ -390,7 +401,7 @@ mod play {
             0x0E
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.json_data.to_string());
             encoder.write_u8(self.position);
             match self.sender.as_ref() {
@@ -405,7 +416,7 @@ mod play {
 
     /// Fired whenever a block is changed within the render distance.
     ///
-    /// https://wiki.vg/Protocol#Block_Change
+    /// <https://wiki.vg/Protocol#Block_Change>
     #[derive(Clone, Debug)]
     pub struct C0BBlockChange {
         pub position: Position,
@@ -416,7 +427,7 @@ mod play {
             0x0B
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.position.encode());
             encoder.write_varint(self.block_id);
         }
@@ -426,7 +437,7 @@ mod play {
     /// This is a directed graph, with one root node.
     /// Each redirect or child node must refer only to nodes that have already been declared.
     ///
-    /// https://wiki.vg/Protocol#Declare_Commands
+    /// <https://wiki.vg/Protocol#Declare_Commands>
     #[derive(Clone)]
     pub struct C10DeclareCommands {
         pub root_node: Arc<command_data::RootNode>,
@@ -436,7 +447,7 @@ mod play {
             0x10
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             let mut graph_encoder = command_data::GraphEncoder::new();
             let root_node = self.root_node.clone() as Arc<dyn command_data::Node>;
             let root_index = graph_encoder.add_node(&root_node);
@@ -453,7 +464,7 @@ mod play {
     /// Sent by the server when items in multiple slots (in a window) are added/removed.
     /// This includes the main inventory, equipped armour and crafting slots.
     ///
-    /// https://wiki.vg/Protocol#Window_Items
+    /// <https://wiki.vg/Protocol#Window_Items>
     #[derive(Clone, Debug)]
     pub struct C13WindowItems {
         pub window_id: u8,
@@ -464,7 +475,7 @@ mod play {
             0x13
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.window_id);
             encoder.write_i16(self.slots.len() as i16);
             for slot in self.slots.iter() {
@@ -475,7 +486,7 @@ mod play {
 
     /// Sent by the server when an item in a slot (in a window) is added/removed.
     ///
-    /// https://wiki.vg/Protocol#Set_Slot
+    /// <https://wiki.vg/Protocol#Set_Slot>
     #[derive(Clone, Debug)]
     pub struct C15SetSlot {
         /// The window which is being updated. 0 for player inventory. Note that all known window types include the player inventory.
@@ -492,7 +503,7 @@ mod play {
             0x15
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i8(self.window_id);
             encoder.write_i16(self.slot_id);
             encoder.write_bytes(&self.slot_data.encode());
@@ -507,14 +518,14 @@ mod play {
         pub fn new(channel: Identifier) -> Self {
             Self {
                 channel,
-                encoder: PacketEncoder::new(),
+                encoder: PacketEncoder::default(),
             }
         }
 
         pub fn build(self) -> C17PluginMessage {
             C17PluginMessage {
                 channel: self.channel,
-                data: self.encoder.consume(),
+                data: self.encoder.into_inner().freeze(),
             }
         }
     }
@@ -522,7 +533,7 @@ mod play {
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///
-    /// https://wiki.vg/Protocol#Unload_Chunk
+    /// <https://wiki.vg/Protocol#Unload_Chunk>
     #[derive(Clone, Debug)]
     pub struct C17PluginMessage {
         pub channel: Identifier,
@@ -533,7 +544,7 @@ mod play {
             0x17
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.channel);
             encoder.write_bytes(&self.data);
         }
@@ -548,7 +559,7 @@ mod play {
             0x19
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.reason.to_string());
         }
     }
@@ -556,7 +567,7 @@ mod play {
     /// Tells the client to unload a chunk column.
     /// It is legal to send this packet even if the given chunk is not currently loaded.
     ///
-    /// https://wiki.vg/Protocol#Unload_Chunk
+    /// <https://wiki.vg/Protocol#Unload_Chunk>
     #[derive(Clone, Debug)]
     pub struct C1CUnloadChunk {
         pub chunk_x: i32,
@@ -567,7 +578,7 @@ mod play {
             0x1C
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.chunk_x);
             encoder.write_i32(self.chunk_z);
         }
@@ -575,7 +586,7 @@ mod play {
 
     /// Used for a wide variety of game state things, from whether to bed use to gamemode to demo messages.
     ///
-    /// https://wiki.vg/Protocol#Change_Game_State
+    /// <https://wiki.vg/Protocol#Change_Game_State>
     #[derive(Clone, Debug)]
     pub struct C1DChangeGameState {
         pub reason: u8,
@@ -586,7 +597,7 @@ mod play {
             0x1D
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.reason);
             encoder.write_f32(self.value);
         }
@@ -598,7 +609,7 @@ mod play {
     /// Vice versa, if the server does not send any keep-alives for 20 seconds,
     /// the client will disconnect and yields a "Timed out" exception.
     ///
-    /// https://wiki.vg/Protocol#Keep_Alive_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Keep_Alive_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C1FKeepAlive {
         pub id: i64,
@@ -608,7 +619,7 @@ mod play {
             0x1F
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i64(self.id);
         }
     }
@@ -621,7 +632,7 @@ mod play {
         pub data_array: Vec<i64>,
     }
 
-    /// https://wiki.vg/Protocol#Chunk_Data
+    /// <https://wiki.vg/Protocol#Chunk_Data>
     #[derive(Clone, Debug)]
     pub struct C20ChunkData {
         /// Chunk coordinate (block coordinate divided by 16, rounded down)
@@ -651,7 +662,7 @@ mod play {
             0x20
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.chunk_x);
             encoder.write_i32(self.chunk_z);
             encoder.write_bool(self.full_chunk && self.biomes.is_some());
@@ -664,7 +675,7 @@ mod play {
                     encoder.write_varint(*biome);
                 }
             }
-            let mut data_encoder = PacketEncoder::new();
+            let mut data_encoder = PacketEncoder::default();
             for chunk_section in self.chunk_sections.iter() {
                 data_encoder.write_i16(chunk_section.block_count);
                 data_encoder.write_u8(chunk_section.bits_per_block);
@@ -679,7 +690,7 @@ mod play {
                     data_encoder.write_i64(*long);
                 }
             }
-            let data = data_encoder.consume();
+            let data = data_encoder.into_inner();
             encoder.write_varint(data.len() as i32);
             encoder.write_bytes(&data);
             encoder.write_varint(self.block_entities.len() as i32);
@@ -769,7 +780,7 @@ mod play {
 
     /// Send information about the game
     ///
-    /// https://wiki.vg/Protocol#Join_Game
+    /// <https://wiki.vg/Protocol#Join_Game>
     #[derive(Clone, Debug)]
     pub struct C24JoinGame {
         pub entity_id: i32,
@@ -793,7 +804,7 @@ mod play {
             0x24
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.entity_id);
             encoder.write_bool(self.is_hardcore);
             encoder.write_u8(self.gamemode);
@@ -818,7 +829,7 @@ mod play {
     /// This packet is sent by the server when an entity moves less then 8 blocks;
     /// if an entity moves more than 8 blocks C57EntityTeleport should be sent instead.
     ///
-    /// https://wiki.vg/Protocol#Entity_Position
+    /// <https://wiki.vg/Protocol#Entity_Position>
     #[derive(Clone, Debug)]
     pub struct C27EntityPosition {
         pub entity_id: VarInt,
@@ -835,7 +846,7 @@ mod play {
             0x27
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_i16(self.delta_x);
             encoder.write_i16(self.delta_y);
@@ -847,7 +858,7 @@ mod play {
     /// This packet is sent by the server when an entity moves less then 8 blocks;
     /// if an entity moves more than 8 blocks C56EntityTeleport should be sent instead.
     ///
-    /// https://wiki.vg/Protocol#Entity_Position_and_Rotation
+    /// <https://wiki.vg/Protocol#Entity_Position_and_Rotation>
     #[derive(Clone, Debug)]
     pub struct C28EntityPositionAndRotation {
         pub entity_id: VarInt,
@@ -868,7 +879,7 @@ mod play {
             0x28
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_i16(self.delta_x);
             encoder.write_i16(self.delta_y);
@@ -881,7 +892,7 @@ mod play {
 
     /// This packet is sent by the server when an entity rotates.
     ///
-    /// https://wiki.vg/Protocol#Entity_Rotation
+    /// <https://wiki.vg/Protocol#Entity_Rotation>
     #[derive(Clone, Debug)]
     pub struct C29EntityRotation {
         pub entity_id: VarInt,
@@ -896,7 +907,7 @@ mod play {
             0x29
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_angle(self.yaw);
             encoder.write_angle(self.pitch);
@@ -906,7 +917,7 @@ mod play {
 
     /// This packet is sent by the server when an entity doesn't move
     ///
-    /// https://wiki.vg/Protocol#Entity_Movement
+    /// <https://wiki.vg/Protocol#Entity_Movement>
     #[derive(Clone, Debug)]
     pub struct C2AEntityMovement {
         pub entity_id: VarInt,
@@ -916,24 +927,43 @@ mod play {
             0x2A
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
         }
     }
 
-    /// https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Player_Abilities_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C30PlayerAbilities {
         pub flags: u8,
         pub flying_speed: f32,
         pub fov_modifier: f32,
     }
+    impl C30PlayerAbilities {
+        pub fn new(
+            invulnerable: bool,
+            flying: bool,
+            allow_flying: bool,
+            creative_mode: bool,
+            flying_speed: f32,
+            fov_modifier: f32,
+        ) -> Self {
+            C30PlayerAbilities {
+                flags: ((invulnerable as u8) * 0x01)
+                    | ((flying as u8) * 0x02)
+                    | ((allow_flying as u8) * 0x04)
+                    | ((creative_mode as u8) * 0x08),
+                flying_speed,
+                fov_modifier,
+            }
+        }
+    }
     impl ClientBoundPacket for C30PlayerAbilities {
         fn packet_id() -> i32 {
             0x30
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u8(self.flags);
             encoder.write_f32(self.flying_speed);
             encoder.write_f32(self.fov_modifier);
@@ -976,7 +1006,7 @@ mod play {
 
     /// Sent by the server to update the user list (<tab> in the client).
     ///
-    /// https://wiki.vg/Protocol#Player_Info
+    /// <https://wiki.vg/Protocol#Player_Info>
     #[derive(Clone, Debug)]
     pub struct C32PlayerInfo {
         /// List of players, must all be of the same type
@@ -987,7 +1017,7 @@ mod play {
             0x32
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             let action = match self.players.first() {
                 Some(C32PlayerInfoPlayerUpdate::AddPlayer { .. }) => 0,
                 Some(C32PlayerInfoPlayerUpdate::UpdateGamemode { .. }) => 1,
@@ -1065,7 +1095,7 @@ mod play {
 
     /// Updates the player's position on the server.
     ///
-    /// https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Player_Position_And_Look_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C34PlayerPositionAndLook {
         pub x: f64,
@@ -1081,7 +1111,7 @@ mod play {
             0x34
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
             encoder.write_f64(self.z);
@@ -1094,7 +1124,7 @@ mod play {
 
     /// Sent by the server when a list of entities is to be destroyed on the client.
     ///
-    /// https://wiki.vg/Protocol#Destroy_Entities
+    /// <https://wiki.vg/Protocol#Destroy_Entities>
     #[derive(Clone, Debug)]
     pub struct C36DestroyEntities {
         pub entities: Vec<VarInt>,
@@ -1104,7 +1134,7 @@ mod play {
             0x36
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entities.len() as i32);
             for eid in self.entities.iter() {
                 encoder.write_varint(*eid);
@@ -1116,7 +1146,7 @@ mod play {
     /// While sending the Entity Look packet changes the vertical rotation of the head,
     /// sending this packet appears to be necessary to rotate the head horizontally.
     ///
-    /// https://wiki.vg/Protocol#Entity_Head_Look
+    /// <https://wiki.vg/Protocol#Entity_Head_Look>
     #[derive(Clone, Debug)]
     pub struct C3AEntityHeadLook {
         pub entity_id: VarInt,
@@ -1128,7 +1158,7 @@ mod play {
             0x3A
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_angle(self.head_yaw);
         }
@@ -1144,7 +1174,7 @@ mod play {
 
     /// Fired whenever 2 or more blocks are changed within the same chunk on the same tick.
     ///
-    /// https://wiki.vg/Prrotocol#Multi_Block_Change
+    /// <https://wiki.vg/Prrotocol#Multi_Block_Change>
     #[derive(Clone, Debug)]
     pub struct C3BMultiBlockChange {
         pub section_x: i32,
@@ -1158,7 +1188,7 @@ mod play {
             0x3B
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(
                 (((self.section_x as u64) & 0x3FFFFF) << 42)
                     | ((self.section_y as u64) & 0xFFFFF)
@@ -1179,7 +1209,7 @@ mod play {
 
     /// Sent to change the player's slot selection.
     ///
-    /// https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29
+    /// <https://wiki.vg/Protocol#Held_Item_Change_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C3FHoldItemChange {
         /// The slot which the player has selected (0–8)
@@ -1190,7 +1220,7 @@ mod play {
             0x3F
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i8(self.slot);
         }
     }
@@ -1199,7 +1229,7 @@ mod play {
     /// This is used to determine what chunks should remain loaded and if a chunk load should be ignored;
     /// chunks outside of the view distance may be unloaded.
     ///
-    /// https://wiki.vg/Protocol#Update_View_Position
+    /// <https://wiki.vg/Protocol#Update_View_Position>
     #[derive(Clone, Debug)]
     pub struct C40UpdateViewPosition {
         pub chunk_x: i32,
@@ -1210,7 +1240,7 @@ mod play {
             0x40
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.chunk_x);
             encoder.write_varint(self.chunk_z);
         }
@@ -1220,7 +1250,7 @@ mod play {
     /// (the point at which players spawn at, and which the compass points to).
     /// It can be sent at any time to update the point compasses point at.
     ///
-    /// https://wiki.vg/Protocol#Spawn_Position
+    /// <https://wiki.vg/Protocol#Spawn_Position>
     #[derive(Clone, Debug)]
     pub struct C42SpawnPosition {
         pub location: Position,
@@ -1230,7 +1260,7 @@ mod play {
             0x42
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_u64(self.location.encode());
         }
     }
@@ -1238,7 +1268,7 @@ mod play {
     /// Updates one or more metadata properties for an existing entity.
     /// Any properties not included in the Metadata field are left unchanged.
     ///
-    /// https://wiki.vg/Protocol#Entity_Metadata
+    /// <https://wiki.vg/Protocol#Entity_Metadata>
     #[derive(Clone, Debug)]
     pub struct C44EntityMetadata {
         pub entity_id: i32,
@@ -1249,7 +1279,7 @@ mod play {
             0x44
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             for (key, value) in self.metadata.iter() {
                 encoder.write_u8(*key);
@@ -1272,7 +1302,7 @@ mod play {
 
     /// Change one or more slots in an entity equipment
     ///
-    /// https://wiki.vg/Protocol#Entity_Equipment
+    /// <https://wiki.vg/Protocol#Entity_Equipment>
     #[derive(Clone, Debug)]
     pub struct C47EntityEquipment {
         pub entity_id: VarInt,
@@ -1283,7 +1313,7 @@ mod play {
             0x47
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             for (i, (slot_pos, slot)) in self.equipment.iter().enumerate() {
                 encoder.write_u8(
@@ -1303,7 +1333,7 @@ mod play {
     /// This packet may be used by custom servers to display additional information above/below the player list.
     /// It is never sent by the Notchian server.
     ///
-    /// https://wiki.vg/Protocol#Player_List_Header_And_Footer
+    /// <https://wiki.vg/Protocol#Player_List_Header_And_Footer>
     #[derive(Clone, Debug)]
     pub struct C53PlayerListHeaderAndFooter {
         /// To remove the header, send a empty text component: {"text":""}
@@ -1316,7 +1346,7 @@ mod play {
             0x53
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.header.to_string());
             encoder.write_string(&self.footer.to_string());
         }
@@ -1324,7 +1354,7 @@ mod play {
 
     /// This packet is sent by the server when an entity moves more than 8 blocks.
     ///
-    /// https://wiki.vg/Protocol#Entity_Teleport
+    /// <https://wiki.vg/Protocol#Entity_Teleport>
     #[derive(Clone, Debug)]
     pub struct C56EntityTeleport {
         pub entity_id: VarInt,
@@ -1340,7 +1370,7 @@ mod play {
             0x56
         }
 
-        fn encode(&self, encoder: &mut PacketEncoder) {
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);
             encoder.write_f64(self.x);
             encoder.write_f64(self.y);
