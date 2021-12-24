@@ -1,7 +1,7 @@
 # Mc Server
 
 This is an implementation of a minecraft server in Rust.
-You *can* use it's libs to create your own server, but i do not provide any documentation *yet*, but i do not recommend so because it is still in very early stage of development.\
+You *can* use it's libs to create your own server, but i do not provide any documentation *yet*. It is still in very early stage of development.\
 I will use it to create a server when it will be mature enough.
 
 ## Inspirations
