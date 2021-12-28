@@ -110,8 +110,7 @@ impl CommandExecutor for GamemodeCommand {
             player_ref.update_gamemode().await;
             player_ref.update_abilities().await;
             Ok(true)
-        }
-        else {
+        } else {
             Ok(false)
         }
     }

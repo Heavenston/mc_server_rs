@@ -42,14 +42,12 @@ impl Slot {
                 item_count,
                 nbt: if remaining[0] == 0 {
                     nbt::Blob::new()
-                }
-                else {
+                } else {
                     nbt::Blob::from_reader(&mut Cursor::new(remaining))
                         .map_err(std::io::Error::from)?
                 },
             })
-        }
-        else {
+        } else {
             Ok(Slot::NotPresent)
         }
     }

@@ -34,8 +34,7 @@ impl TickProfiler {
     pub fn duration_per_tick(&self) -> Option<Duration> {
         if self.ticks_since_last_check == 0 {
             None
-        }
-        else {
+        } else {
             Some(
                 self.tick_duration_sum
                     .div_f64(self.ticks_since_last_check as f64),

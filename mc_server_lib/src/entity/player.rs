@@ -6,6 +6,7 @@ use mc_networking::{
 };
 use mc_utils::Location;
 
+use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Borrow,
@@ -15,7 +16,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use maplit::hashmap;
 
 #[derive(Clone)]
 pub struct PlayerRef {
@@ -238,8 +238,7 @@ impl Entity for PlayerEntity {
             ),
             6 => MetadataValue::Pose(if self.is_sneaking && !self.is_flying {
                 Pose::Sneaking
-            }
-            else {
+            } else {
                 Pose::Standing
             }),
             _ => return None,

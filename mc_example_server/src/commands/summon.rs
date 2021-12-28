@@ -90,8 +90,7 @@ impl CommandExecutor for SummonCommand {
                             return Ok(false);
                         }
                         parsed.unwrap()
-                    }
-                    else {
+                    } else {
                         1
                     };
                     let player_location = player_ref.entity.read().await.location().clone();
@@ -115,13 +114,11 @@ impl CommandExecutor for SummonCommand {
                 "living" => {
                     if args.len() != 2 && args.len() != 3 {
                         Ok(false)
-                    }
-                    else {
+                    } else {
                         let entity_type_name = &args[1];
                         let entity_type_name = if entity_type_name.contains(':') {
                             entity_type_name.clone()
-                        }
-                        else {
+                        } else {
                             "minecraft:".to_string() + entity_type_name
                         };
                         match self
@@ -136,8 +133,7 @@ impl CommandExecutor for SummonCommand {
                                         return Ok(false);
                                     }
                                     parsed.unwrap()
-                                }
-                                else {
+                                } else {
                                     1
                                 };
                                 let player_location =
@@ -172,8 +168,7 @@ impl CommandExecutor for SummonCommand {
                 }
                 _ => Ok(false),
             }
-        }
-        else {
+        } else {
             Ok(false)
         }
     }

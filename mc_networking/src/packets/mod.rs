@@ -66,14 +66,12 @@ impl<D: Deref<Target = [u8]>> RawPacket<D> {
                 compressor.write_all(packet_id_varint_buffer).unwrap();
                 compressor.write_all(&self.data).unwrap();
                 compressor.flush_finish().unwrap();
-            }
-            else {
+            } else {
                 dst.put_u8(0); // 0 VarInt, no compression
                 dst.extend_from_slice(packet_id_varint_buffer);
                 dst.extend_from_slice(&self.data);
             }
-        }
-        else {
+        } else {
             dst.extend_from_slice(packet_id_varint_buffer);
             dst.extend_from_slice(&self.data);
         }
@@ -98,7 +96,10 @@ impl RawPacket<Bytes> {
         })
     }
 
-    pub fn decode(bytes: &mut BytesMut, compression: PacketCompression) -> DecodingResult<RawPacket<Bytes>> {
+    pub fn decode(
+        bytes: &mut BytesMut,
+        compression: PacketCompression,
+    ) -> DecodingResult<RawPacket<Bytes>> {
         let mut taker = bytes.take(varint::MAX_BYTE_SIZE);
         let packet_length = varint::decode_buf(&mut taker)?;
         taker.get_mut().reserve(packet_length as usize);
@@ -112,8 +113,7 @@ impl RawPacket<Bytes> {
             if content_length == 0 {
                 let content_length = taker.remaining();
                 Self::decode_content(taker.into_inner(), content_length)
-            }
-            else {
+            } else {
                 let mut uncompressed = BytesMut::with_capacity(content_length as usize);
                 let mut decoder = flate2::write::ZlibDecoder::new((&mut uncompressed).writer());
                 std::io::copy(&mut (&mut taker).reader(), &mut decoder)?;
@@ -127,8 +127,7 @@ impl RawPacket<Bytes> {
                 let content_length = uncompressed.len();
                 Self::decode_content(&mut uncompressed, content_length)
             }
-        }
-        else {
+        } else {
             let content_length = taker.remaining();
             Self::decode_content(taker.into_inner(), content_length)
         }

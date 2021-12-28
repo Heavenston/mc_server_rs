@@ -2,6 +2,7 @@ use super::utils::*;
 
 use anyhow::{Error, Result};
 use fxhash::FxHashMap;
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::{iter::FromIterator, process::Stdio};
 use tokio::{
@@ -37,27 +38,53 @@ pub struct MinecraftDataGenerator {
     pub registries: FxHashMap<String, Registry>,
 }
 impl MinecraftDataGenerator {
-    pub async fn download(server_url: String) -> Result<Self> {
+    pub async fn download(minecraft_version: &str, server_url: &str) -> Result<Self> {
         let temp_folder = std::env::temp_dir().join("mc_server_minecraft_data_generator");
         fs::create_dir_all(&temp_folder).await?;
+        debug!("Downloading server.jar into {:?}", temp_folder);
         let mut server_jar_file = File::create(temp_folder.join("server.jar")).await?;
         download_file_to_writer(&mut server_jar_file, &server_url).await?;
 
-        let child = Command::new("java")
-            .args(&[
-                "-cp",
-                "server.jar",
-                "net.minecraft.data.Main",
-                "--reports",
-                "--server",
-            ])
-            .current_dir(&temp_folder)
-            .stdout(Stdio::null())
-            .spawn()?
-            .wait()
-            .await?;
-        if !child.success() {
-            return Err(Error::msg(child.to_string()));
+        let is_after_18 = minecraft_version
+            .split(".")
+            .nth(1)
+            .map(|a| a.parse::<u16>().ok())
+            .flatten()
+            .unwrap_or(10)
+            >= 18;
+
+        let exit_status = if is_after_18 {
+            Command::new("java")
+                .current_dir(&temp_folder)
+                .args(&[
+                    "-DbundlerMainClass=net.minecraft.data.Main",
+                    "-jar",
+                    "server.jar",
+                    "--reports",
+                    "--server",
+                ])
+                .stdout(Stdio::null())
+                .spawn()?
+                .wait()
+                .await?
+        } else {
+            Command::new("java")
+                .current_dir(&temp_folder)
+                .args(&[
+                    "-cp",
+                    "server.jar",
+                    "net.minecraft.data.Main",
+                    "--reports",
+                    "--server",
+                ])
+                .stdout(Stdio::null())
+                .spawn()?
+                .wait()
+                .await?
+        };
+
+        if !exit_status.success() {
+            return Err(Error::msg(exit_status.to_string()));
         }
 
         let blocks: serde_json::Value = serde_json::from_str(
@@ -79,8 +106,7 @@ impl MinecraftDataGenerator {
                     properties.insert(prop_name.clone(), prop_values);
                 }
                 Some(properties)
-            }
-            else {
+            } else {
                 None
             };
 
@@ -105,8 +131,7 @@ impl MinecraftDataGenerator {
                                 .iter()
                                 .map(|(k, v)| (k.clone(), v.as_str().unwrap().to_owned())),
                         ))
-                    }
-                    else {
+                    } else {
                         None
                     },
                     id: state["id"].as_i64().unwrap() as i32,

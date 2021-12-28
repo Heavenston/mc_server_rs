@@ -108,20 +108,17 @@ impl BoxedEntity {
                         .map_err(|_| Error::msg(""))
                         .unwrap(),
                 )
-            }
-            else if entity.is::<LivingEntity>() {
+            } else if entity.is::<LivingEntity>() {
                 BoxedEntity::LivingEntity(
                     entity
                         .downcast::<LivingEntity>()
                         .map_err(|_| Error::msg(""))
                         .unwrap(),
                 )
-            }
-            else {
+            } else {
                 BoxedEntity::Unknown(entity)
             }
-        }
-        else {
+        } else {
             self
         }
     }

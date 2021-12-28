@@ -44,8 +44,7 @@ pub(super) async fn listen_outgoing_packets(
                 let packet_id = packet.packet_id;
                 if packet.will_compress(compression) {
                     block_in_place(|| packet.encode(compression, &mut packet_buffer))
-                }
-                else {
+                } else {
                     packet.encode(compression, &mut packet_buffer)
                 };
                 if let Some((cipher, crypter)) = &mut encryption {

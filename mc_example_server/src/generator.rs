@@ -109,8 +109,7 @@ impl ChunkProvider for Generator {
                     }
                     std::thread::sleep(std::time::Duration::from_millis(i));
                 }
-            }
-            else {
+            } else {
                 None
             }
         })

@@ -14,7 +14,10 @@ pub trait ClientBoundPacket {
         assert!(bytes.is_empty());
         let mut packet_encoder = PacketEncoder::new(bytes);
         self.encode(&mut packet_encoder);
-        RawPacket::new(Self::packet_id(), packet_encoder.into_inner().split().freeze())
+        RawPacket::new(
+            Self::packet_id(),
+            packet_encoder.into_inner().split().freeze(),
+        )
     }
 }
 
@@ -174,7 +177,7 @@ mod play {
             VarInt,
         },
         nbt_map::NBTMap,
-        packets::server_bound::S1BPlayerDiggingStatus,
+        packets::server_bound::S1APlayerDiggingStatus,
         DecodingResult as Result,
     };
 
@@ -365,7 +368,7 @@ mod play {
         pub position: Position,
         /// Block state ID of the block that should be at that position now.
         pub block: VarInt,
-        pub status: S1BPlayerDiggingStatus,
+        pub status: S1APlayerDiggingStatus,
         /// True if the digging succeeded; false if the client should undo any changes it made locally.
         pub successful: bool,
     }
@@ -1320,8 +1323,7 @@ mod play {
                     *slot_pos as u8
                         | if i == self.equipment.len() - 1 {
                             0
-                        }
-                        else {
+                        } else {
                             !(!0 >> 1)
                         },
                 );

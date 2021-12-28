@@ -1,4 +1,4 @@
-use super::{utils::*, MINECRAFT_VERSION};
+use super::utils::*;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -20,6 +20,9 @@ async fn download_minecraft_data_file(file: impl Into<PathBuf>) -> Result<serde_
     Ok(download_file_to_json(&url.to_string()).await?)
 }
 
+/**
+ * Holds data providedby PrismarineJS
+ */
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub struct PrimarineMinecraftData {
     pub minecraft_version: String,
@@ -27,10 +30,10 @@ pub struct PrimarineMinecraftData {
     pub major_version: String,
 }
 impl PrimarineMinecraftData {
-    pub async fn download() -> Result<Self> {
+    pub async fn download(minecraft_version: &str) -> Result<Self> {
         let data_paths = download_minecraft_data_file("data/dataPaths.json").await?;
 
-        let version_data_paths = data_paths["pc"].as_object().unwrap()[MINECRAFT_VERSION]
+        let version_data_paths = data_paths["pc"].as_object().unwrap()[minecraft_version]
             .as_object()
             .unwrap();
 

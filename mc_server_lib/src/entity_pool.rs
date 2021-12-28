@@ -25,7 +25,7 @@ type EntityVisibilityFunction =
 
 pub struct EntityPool {
     pub view_distance: u16,
-    /// Entities must only be on one entity pool at the same time
+    /// Entities must only be on one entity pool at a time
     pub entities: RwLock<BoxedEntityManager>,
     /// Players can be in multiple entity pools at the same time
     pub players: RwLock<PlayerManager>,
@@ -147,8 +147,7 @@ impl EntityPool {
                             &players,
                         )
                         .await;
-                    }
-                    else if has_position_changed && has_rotation_changed {
+                    } else if has_position_changed && has_rotation_changed {
                         EntityManager::broadcast_to(
                             &C28EntityPositionAndRotation {
                                 entity_id: eid,
@@ -165,8 +164,7 @@ impl EntityPool {
                             &players,
                         )
                         .await;
-                    }
-                    else if has_position_changed {
+                    } else if has_position_changed {
                         EntityManager::broadcast_to(
                             &C27EntityPosition {
                                 entity_id: eid,
@@ -181,8 +179,7 @@ impl EntityPool {
                             &players,
                         )
                         .await;
-                    }
-                    else if has_rotation_changed {
+                    } else if has_rotation_changed {
                         EntityManager::broadcast_to(
                             &C29EntityRotation {
                                 entity_id: eid,
@@ -193,8 +190,7 @@ impl EntityPool {
                             &players,
                         )
                         .await;
-                    }
-                    else {
+                    } else {
                         EntityManager::broadcast_to(
                             &C2AEntityMovement { entity_id: eid },
                             &players,
@@ -257,8 +253,7 @@ impl EntityPool {
                         }
                         *synced_equipment = equipment.to_owned();
                         Some(packet)
-                    }
-                    else {
+                    } else {
                         None
                     }
                 };
@@ -340,8 +335,7 @@ impl EntityPool {
                                 player_ref.send_packet_async(&packet).await;
                             }
                         }
-                    }
-                    else if is_loaded && !should_be_loaded {
+                    } else if is_loaded && !should_be_loaded {
                         drop(player_entity);
                         let mut player_entity = player_ref.entity.write().await;
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet

@@ -43,8 +43,7 @@ impl<'a> From<&'a str> for Identifier<String> {
                 text: text.to_string(),
                 name_pos,
             }
-        }
-        else {
+        } else {
             Self {
                 text: String::from("minecraft:") + text,
                 name_pos: 10,

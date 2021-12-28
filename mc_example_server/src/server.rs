@@ -5,7 +5,7 @@ use mc_networking::{
     map,
     packets::{
         client_bound::*,
-        server_bound::{S1BPlayerDiggingFace, S1BPlayerDiggingStatus},
+        server_bound::{S1APlayerDiggingFace, S1APlayerDiggingStatus},
     },
 };
 use mc_server_lib::{
@@ -17,7 +17,7 @@ use mc_server_lib::{
     },
     entity_manager::{EntityManager, PlayerManager},
     entity_pool::EntityPool,
-    resource_manager::ResourceManager,
+    resource_manager::{ResourceManager, ResourceManagerConfig},
 };
 use mc_utils::Location;
 
@@ -64,8 +64,11 @@ impl Server {
         let world_folder = std::env::current_dir().unwrap().join("world");
 
         info!("Loading minecraft resources...");
-        let resource_manager = Arc::new(ResourceManager::new());
-        resource_manager.load().await.unwrap();
+        let resource_manager = Arc::new(
+            ResourceManager::load(&ResourceManagerConfig::default().with_minecraft_version("1.18"))
+                .await
+                .unwrap(),
+        );
         info!("Loaded minecraft resources successfully");
 
         let view_distance = 10u16;
@@ -172,8 +175,8 @@ impl Server {
                     response
                         .send(json!({
                             "version": {
-                                "name": resource_manager.get_minecraft_version().await,
-                                "protocol": resource_manager.get_protocol_version().await
+                                "name": resource_manager.get_minecraft_version(),
+                                "protocol": resource_manager.get_protocol_version()
                             },
                             "players": {
                                 "max": server.max_players,
@@ -191,8 +194,7 @@ impl Server {
                                 reason: "The server is full :(".to_string(),
                             })
                             .unwrap();
-                    }
-                    else {
+                    } else {
                         player_eid = ENTITY_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
                         let uuid = Uuid::new_v3(
                             &Uuid::new_v4(),
@@ -616,25 +618,24 @@ impl Server {
                     status,
                     face: _,
                 } => {
-                    if status == S1BPlayerDiggingStatus::StartedDigging
-                        || status == S1BPlayerDiggingStatus::FinishedDigging
-                        || status == S1BPlayerDiggingStatus::CancelledDigging
+                    if status == S1APlayerDiggingStatus::StartedDigging
+                        || status == S1APlayerDiggingStatus::FinishedDigging
+                        || status == S1APlayerDiggingStatus::CancelledDigging
                     {
                         let mut successful = true;
 
                         let player_ref = player_ref.as_ref().unwrap();
-                        if status == S1BPlayerDiggingStatus::StartedDigging {
+                        if status == S1APlayerDiggingStatus::StartedDigging {
                             if player_ref.entity.read().await.as_player().gamemode == 1 {
                                 chunk_holder
                                     .set_block(position.x, position.y as u8, position.z, 0)
                                     .await;
-                            }
-                            else {
+                            } else {
                                 successful = false;
                             }
                         }
 
-                        if status == S1BPlayerDiggingStatus::FinishedDigging {
+                        if status == S1APlayerDiggingStatus::FinishedDigging {
                             successful = false;
                         }
                         let block = chunk_holder
@@ -644,7 +645,7 @@ impl Server {
                             .send_packet_async(&C07AcknowledgePlayerDigging {
                                 position: position.clone(),
                                 block: block as i32,
-                                status: S1BPlayerDiggingStatus::CancelledDigging,
+                                status: S1APlayerDiggingStatus::CancelledDigging,
                                 successful,
                             })
                             .await;
@@ -680,22 +681,22 @@ impl Server {
                         if let Ok(block_id) = block_id {
                             let mut new_block_pos = position.clone();
                             match face {
-                                S1BPlayerDiggingFace::Top => {
+                                S1APlayerDiggingFace::Top => {
                                     new_block_pos.y += 1;
                                 }
-                                S1BPlayerDiggingFace::Bottom => {
+                                S1APlayerDiggingFace::Bottom => {
                                     new_block_pos.y -= 1;
                                 }
-                                S1BPlayerDiggingFace::North => {
+                                S1APlayerDiggingFace::North => {
                                     new_block_pos.z -= 1;
                                 }
-                                S1BPlayerDiggingFace::East => {
+                                S1APlayerDiggingFace::East => {
                                     new_block_pos.x += 1;
                                 }
-                                S1BPlayerDiggingFace::South => {
+                                S1APlayerDiggingFace::South => {
                                     new_block_pos.z += 1;
                                 }
-                                S1BPlayerDiggingFace::West => {
+                                S1APlayerDiggingFace::West => {
                                     new_block_pos.x -= 1;
                                 }
                             }

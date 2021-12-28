@@ -44,8 +44,7 @@ impl AbortContract {
             *lock = true;
             self.condvar.notify_all();
             Some(false)
-        }
-        else {
+        } else {
             None
         }
     }

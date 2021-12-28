@@ -1,4 +1,8 @@
-use crate::{DecodingResult, data_types::{Angle, VarInt, VarLong}, packets::RawPacket};
+use crate::{
+    data_types::{Angle, VarInt, VarLong},
+    packets::RawPacket,
+    DecodingResult,
+};
 
 use byteorder::{ReadBytesExt, BE};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
@@ -10,9 +14,7 @@ pub struct PacketEncoder<D: BufMut = BytesMut> {
 }
 impl<D: BufMut> PacketEncoder<D> {
     pub fn new(data: D) -> Self {
-        Self {
-            data
-        }
+        Self { data }
     }
     pub fn into_inner(self) -> D {
         self.data

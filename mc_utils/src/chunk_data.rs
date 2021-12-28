@@ -31,8 +31,7 @@ impl ChunkDataSection {
             .find(|(_, b)| **b == block as i32)
         {
             self.blocks[x + (z * 16) + (y * 256)] = pb as u16;
-        }
-        else {
+        } else {
             self.blocks[x + (z * 16) + (y * 256)] = self.palette.len() as u16;
             self.palette.push(block as i32);
         }
@@ -150,8 +149,7 @@ impl ChunkData {
             full_chunk: full,
             biomes: if full {
                 Some(self.biomes.to_vec())
-            }
-            else {
+            } else {
                 None
             },
             primary_bit_mask,

@@ -44,8 +44,7 @@ impl CommandExecutor for RefreshCommand {
                 }
             });
             Ok(true)
-        }
-        else {
+        } else {
             Ok(false)
         }
     }

@@ -70,8 +70,7 @@ impl CommandExecutor for FlyCommand {
                 "enable" => {
                     if args.len() != 1 {
                         Ok(false)
-                    }
-                    else {
+                    } else {
                         if player_ref.entity.read().await.as_player().can_fly {
                             player_ref
                                 .send_chat_message(json!({
@@ -80,8 +79,7 @@ impl CommandExecutor for FlyCommand {
                                     "bold": "true"
                                 }))
                                 .await;
-                        }
-                        else {
+                        } else {
                             player_ref.entity.write().await.as_player_mut().can_fly = true;
                             player_ref.update_abilities().await;
                             player_ref
@@ -98,8 +96,7 @@ impl CommandExecutor for FlyCommand {
                 "disable" => {
                     if args.len() != 1 {
                         Ok(false)
-                    }
-                    else {
+                    } else {
                         if !player_ref.entity.read().await.as_player().can_fly {
                             player_ref
                                 .send_chat_message(json!({
@@ -108,8 +105,7 @@ impl CommandExecutor for FlyCommand {
                                     "bold": "true"
                                 }))
                                 .await;
-                        }
-                        else {
+                        } else {
                             player_ref.entity.write().await.as_player_mut().can_fly = false;
                             player_ref.entity.write().await.as_player_mut().is_flying = false;
                             player_ref.update_abilities().await;
@@ -127,8 +123,7 @@ impl CommandExecutor for FlyCommand {
                 "speed" => {
                     if args.len() != 2 {
                         Ok(false)
-                    }
-                    else {
+                    } else {
                         let speed = args[1].parse::<f32>();
                         if speed.is_err() {
                             return Ok(false);
@@ -148,8 +143,7 @@ impl CommandExecutor for FlyCommand {
                 }
                 _ => Ok(false),
             }
-        }
-        else {
+        } else {
             Ok(false)
         }
     }

@@ -124,8 +124,7 @@ impl ChatManager {
                 )
                 .await;
             }
-        }
-        else {
+        } else {
             let username = sender.entity.read().await.as_player().username.clone();
             self.players
                 .read()

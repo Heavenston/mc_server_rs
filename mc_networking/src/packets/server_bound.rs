@@ -174,8 +174,7 @@ mod login {
             let successful = decoder.read_bool()?;
             let data = if successful {
                 Some(decoder.read_to_end()?)
-            }
-            else {
+            } else {
                 None
             };
             Ok(Self {
@@ -293,7 +292,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Click_Window>
     #[derive(Clone, Debug)]
-    pub struct S09ClickWindow {
+    pub struct S08ClickWindow {
         /// The ID of the window which was clicked. 0 for player inventory.
         pub window_id: u8,
         /// The clicked slot number, see wiki.vg
@@ -308,9 +307,9 @@ mod play {
         /// The clicked slot. Has to be empty (item ID = -1) for drop mode.
         pub clicked_item: Slot,
     }
-    impl ServerBoundPacket for S09ClickWindow {
+    impl ServerBoundPacket for S08ClickWindow {
         fn packet_id() -> i32 {
-            0x09
+            0x08
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -329,13 +328,13 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Plugin_Message_.28serverbound.29>
     #[derive(Clone, Debug)]
-    pub struct S0BPluginMessage {
+    pub struct S0APluginMessage {
         pub channel: String,
         pub data: Vec<u8>,
     }
-    impl ServerBoundPacket for S0BPluginMessage {
+    impl ServerBoundPacket for S0APluginMessage {
         fn packet_id() -> i32 {
-            0x0B
+            0x0A
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -350,12 +349,12 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Keep_Alive_.28serverbound.29>
     #[derive(Clone, Debug)]
-    pub struct S10KeepAlive {
+    pub struct S0FKeepAlive {
         pub id: i64,
     }
-    impl ServerBoundPacket for S10KeepAlive {
+    impl ServerBoundPacket for S0FKeepAlive {
         fn packet_id() -> i32 {
-            0x10
+            0x0F
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -369,7 +368,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Position>
     #[derive(Clone, Debug)]
-    pub struct S12PlayerPosition {
+    pub struct S11PlayerPosition {
         /// Absolute position
         pub x: f64,
         /// Absolute feet position, normally Head Y - 1.62
@@ -379,9 +378,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S12PlayerPosition {
+    impl ServerBoundPacket for S11PlayerPosition {
         fn packet_id() -> i32 {
-            0x12
+            0x11
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -398,7 +397,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Position_And_Rotation_.28serverbound.29>
     #[derive(Clone, Debug)]
-    pub struct S13PlayerPositionAndRotation {
+    pub struct S12PlayerPositionAndRotation {
         /// Absolute position
         pub x: f64,
         /// Absolute feet position, normally Head Y - 1.62
@@ -412,9 +411,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S13PlayerPositionAndRotation {
+    impl ServerBoundPacket for S12PlayerPositionAndRotation {
         fn packet_id() -> i32 {
-            0x13
+            0x12
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -433,7 +432,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Rotation>
     #[derive(Clone, Debug)]
-    pub struct S14PlayerRotation {
+    pub struct S13PlayerRotation {
         /// Absolute rotation on the X Axis, in degrees
         pub yaw: f32,
         /// Absolute rotation on the Y Axis, in degrees
@@ -441,9 +440,9 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S14PlayerRotation {
+    impl ServerBoundPacket for S13PlayerRotation {
         fn packet_id() -> i32 {
-            0x14
+            0x13
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -459,12 +458,12 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Movement>
     #[derive(Clone, Debug)]
-    pub struct S15PlayerMovement {
+    pub struct S14PlayerMovement {
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S15PlayerMovement {
+    impl ServerBoundPacket for S14PlayerMovement {
         fn packet_id() -> i32 {
-            0x15
+            0x14
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -479,13 +478,13 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Abilities_.28serverbound.29>
     #[derive(Clone, Debug)]
-    pub struct S1APlayerAbilities {
+    pub struct S19PlayerAbilities {
         /// 0x02: is flying
         pub flags: u8,
     }
-    impl ServerBoundPacket for S1APlayerAbilities {
+    impl ServerBoundPacket for S19PlayerAbilities {
         fn packet_id() -> i32 {
-            0x1A
+            0x19
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -497,7 +496,7 @@ mod play {
 
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     #[repr(u8)]
-    pub enum S1BPlayerDiggingStatus {
+    pub enum S1APlayerDiggingStatus {
         StartedDigging = 0,
         /// Sent when the player lets go of the Mine Block key (default: left click)
         CancelledDigging = 1,
@@ -521,7 +520,7 @@ mod play {
 
     #[derive(Clone, Debug, PartialEq, Eq)]
     #[repr(u8)]
-    pub enum S1BPlayerDiggingFace {
+    pub enum S1APlayerDiggingFace {
         /// -Y
         Bottom,
         /// +Y
@@ -540,28 +539,28 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Player_Digging>
     #[derive(Clone, Debug)]
-    pub struct S1BPlayerDigging {
+    pub struct S1APlayerDigging {
         /// The action the player is taking against the block
-        pub status: S1BPlayerDiggingStatus,
+        pub status: S1APlayerDiggingStatus,
         /// Block position
         pub position: Position,
         /// The face being hit
-        pub face: S1BPlayerDiggingFace,
+        pub face: S1APlayerDiggingFace,
     }
-    impl ServerBoundPacket for S1BPlayerDigging {
+    impl ServerBoundPacket for S1APlayerDigging {
         fn packet_id() -> i32 {
-            0x1B
+            0x1A
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let status = match decoder.read_varint()? {
-                0 => S1BPlayerDiggingStatus::StartedDigging,
-                1 => S1BPlayerDiggingStatus::CancelledDigging,
-                2 => S1BPlayerDiggingStatus::FinishedDigging,
-                3 => S1BPlayerDiggingStatus::DropItemStack,
-                4 => S1BPlayerDiggingStatus::DropItem,
-                5 => S1BPlayerDiggingStatus::ShootArrowOrFinishEating,
-                6 => S1BPlayerDiggingStatus::SwapItemInHand,
+                0 => S1APlayerDiggingStatus::StartedDigging,
+                1 => S1APlayerDiggingStatus::CancelledDigging,
+                2 => S1APlayerDiggingStatus::FinishedDigging,
+                3 => S1APlayerDiggingStatus::DropItemStack,
+                4 => S1APlayerDiggingStatus::DropItem,
+                5 => S1APlayerDiggingStatus::ShootArrowOrFinishEating,
+                6 => S1APlayerDiggingStatus::SwapItemInHand,
                 _ => {
                     return Err(Error::parse_error(
                         "packet 0x1B",
@@ -571,12 +570,12 @@ mod play {
             };
             let position = Position::decode(decoder.read_i64()?);
             let face = match decoder.read_u8()? {
-                0 => S1BPlayerDiggingFace::Bottom,
-                1 => S1BPlayerDiggingFace::Top,
-                2 => S1BPlayerDiggingFace::North,
-                3 => S1BPlayerDiggingFace::South,
-                4 => S1BPlayerDiggingFace::West,
-                5 => S1BPlayerDiggingFace::East,
+                0 => S1APlayerDiggingFace::Bottom,
+                1 => S1APlayerDiggingFace::Top,
+                2 => S1APlayerDiggingFace::North,
+                3 => S1APlayerDiggingFace::South,
+                4 => S1APlayerDiggingFace::West,
+                5 => S1APlayerDiggingFace::East,
                 _ => {
                     return Err(Error::parse_error(
                         "packet 0x1B",
@@ -599,7 +598,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Entity_Action>
     #[derive(Clone, Debug)]
-    pub struct S1CEntityAction {
+    pub struct S1BEntityAction {
         /// Player ID
         pub entity_id: VarInt,
         /// The ID of the action, see wiki.vg
@@ -607,9 +606,9 @@ mod play {
         /// Only used by the “start jump with horse” action, in which case it ranges from 0 to 100. In all other cases it is 0.
         pub jump_boost: VarInt,
     }
-    impl ServerBoundPacket for S1CEntityAction {
+    impl ServerBoundPacket for S1BEntityAction {
         fn packet_id() -> i32 {
-            0x1C
+            0x1B
         }
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
@@ -617,6 +616,26 @@ mod play {
                 entity_id: decoder.read_varint()?,
                 action_id: decoder.read_varint()?,
                 jump_boost: decoder.read_varint()?,
+            })
+        }
+    }
+
+    /// Sent when the player changes the slot selection
+    ///
+    /// <https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29>
+    #[derive(Clone, Debug)]
+    pub struct S25HeldItemChange {
+        /// The slot which the player has selected (0–8)
+        pub slot: i16,
+    }
+    impl ServerBoundPacket for S25HeldItemChange {
+        fn packet_id() -> i32 {
+            0x25
+        }
+
+        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
+            Ok(Self {
+                slot: decoder.read_i16()?,
             })
         }
     }
@@ -640,26 +659,6 @@ mod play {
             Ok(Self {
                 slot_id: decoder.read_i16()?,
                 slot: Slot::decode_sync(decoder)?,
-            })
-        }
-    }
-
-    /// Sent when the player changes the slot selection
-    ///
-    /// <https://wiki.vg/Protocol#Held_Item_Change_.28serverbound.29>
-    #[derive(Clone, Debug)]
-    pub struct S25HeldItemChange {
-        /// The slot which the player has selected (0–8)
-        pub slot: i16,
-    }
-    impl ServerBoundPacket for S25HeldItemChange {
-        fn packet_id() -> i32 {
-            0x25
-        }
-
-        fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
-            Ok(Self {
-                slot: decoder.read_i16()?,
             })
         }
     }
@@ -694,7 +693,7 @@ mod play {
         /// Block position
         pub position: Position,
         /// The face on which the block is placed
-        pub face: S1BPlayerDiggingFace,
+        pub face: S1APlayerDiggingFace,
         /// The position of the crosshair on the block, from 0 to 1 increasing from west to east
         pub cursor_position_x: f32,
         /// The position of the crosshair on the block, from 0 to 1 increasing from bottom to top
@@ -714,12 +713,12 @@ mod play {
                 hand: decoder.read_varint()?,
                 position: Position::decode(decoder.read_i64()?),
                 face: match decoder.read_u8()? {
-                    0 => S1BPlayerDiggingFace::Bottom,
-                    1 => S1BPlayerDiggingFace::Top,
-                    2 => S1BPlayerDiggingFace::North,
-                    3 => S1BPlayerDiggingFace::South,
-                    4 => S1BPlayerDiggingFace::West,
-                    5 => S1BPlayerDiggingFace::East,
+                    0 => S1APlayerDiggingFace::Bottom,
+                    1 => S1APlayerDiggingFace::Top,
+                    2 => S1APlayerDiggingFace::North,
+                    3 => S1APlayerDiggingFace::South,
+                    4 => S1APlayerDiggingFace::West,
+                    5 => S1APlayerDiggingFace::East,
                     _ => {
                         return Err(Error::parse_error(
                             "packet 0x2E",

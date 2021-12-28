@@ -51,8 +51,7 @@ pub(super) async fn handle_keep_alive(
                     debug!("Keep alive timeout, closing");
                     // TODO: Send disconnect packet
                     *state.write().await = ClientState::Disconnected;
-                }
-                else {
+                } else {
                     debug!("Keep alive miss, sending it again");
                     packet_sender
                         .send_async(OutgoingPacketEvent::Packet(
@@ -64,8 +63,7 @@ pub(super) async fn handle_keep_alive(
                         .await
                         .unwrap();
                 }
-            }
-            else {
+            } else {
                 break;
             }
         }

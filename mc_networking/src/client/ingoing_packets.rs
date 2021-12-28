@@ -94,8 +94,7 @@ pub(super) async fn listen_ingoing_packets(
                         .unwrap();
 
                     &decrypted_new_bytes[0..encrypted]
-                }
-                else {
+                } else {
                     &new_bytes[0..received]
                 };
                 read_bytes.extend_from_slice(&decrypted_output[0..received]);
@@ -148,8 +147,7 @@ pub(super) async fn listen_ingoing_packets(
                             .to_rawpacket(),
                         ))
                         .await?;
-                }
-                else if raw_packet.packet_id == S01Ping::packet_id() {
+                } else if raw_packet.packet_id == S01Ping::packet_id() {
                     let packet: S01Ping = S01Ping::decode(raw_packet)?;
                     packet_sender
                         .send_async(OutgoingPacketEvent::Packet(
@@ -162,8 +160,7 @@ pub(super) async fn listen_ingoing_packets(
                     *(state.write().await) = ClientState::Disconnected;
                     event_sender.send_async(ClientEvent::Logout).await.unwrap();
                     break;
-                }
-                else {
+                } else {
                     return Err(ClientListenError::InvalidPacket {
                         packet_id: raw_packet.packet_id,
                         state: current_state,
@@ -235,8 +232,7 @@ pub(super) async fn listen_ingoing_packets(
                                         .to_rawpacket(),
                                     ))
                                     .await?;
-                            }
-                            else {
+                            } else {
                                 enable_compression!();
 
                                 packet_sender
@@ -274,8 +270,7 @@ pub(super) async fn listen_ingoing_packets(
                             break;
                         }
                     };
-                }
-                else if raw_packet.packet_id == S01EncryptionResponse::packet_id() {
+                } else if raw_packet.packet_id == S01EncryptionResponse::packet_id() {
                     debug!("encryption response");
                     let uuid = login_uuid.unwrap();
                     let username = login_username.clone().unwrap();
@@ -355,12 +350,10 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap()
-                }
-                else if raw_packet.packet_id == S04ClientStatus::packet_id() {
+                } else if raw_packet.packet_id == S04ClientStatus::packet_id() {
                     unimplemented!()
-                }
-                else if raw_packet.packet_id == S09ClickWindow::packet_id() {
-                    let click_window = S09ClickWindow::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S08ClickWindow::packet_id() {
+                    let click_window = S08ClickWindow::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::ClickWindow {
                             window_id: click_window.window_id,
@@ -372,9 +365,8 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S0BPluginMessage::packet_id() {
-                    let plugin_message = S0BPluginMessage::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S0APluginMessage::packet_id() {
+                    let plugin_message = S0APluginMessage::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PluginMessage {
                             channel: plugin_message.channel,
@@ -382,11 +374,10 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S10KeepAlive::packet_id() {
+                } else if raw_packet.packet_id == S0FKeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let mut data = keep_alive_data.write().await;
-                    let keep_alive = S10KeepAlive::decode(raw_packet)?;
+                    let keep_alive = S0FKeepAlive::decode(raw_packet)?;
 
                     if keep_alive.id == data.last_id {
                         data.has_responded = true;
@@ -397,9 +388,8 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
-                    let player_position = S12PlayerPosition::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S11PlayerPosition::packet_id() {
+                    let player_position = S11PlayerPosition::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerPosition {
                             x: player_position.x,
@@ -409,9 +399,8 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
-                    let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S12PlayerPositionAndRotation::packet_id() {
+                    let packet = S12PlayerPositionAndRotation::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerPositionAndRotation {
                             x: packet.x,
@@ -423,9 +412,8 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
-                    let player_rotation = S14PlayerRotation::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S13PlayerRotation::packet_id() {
+                    let player_rotation = S13PlayerRotation::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerRotation {
                             yaw: player_rotation.yaw,
@@ -434,9 +422,8 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S1CEntityAction::packet_id() {
-                    let entity_action = S1CEntityAction::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S1BEntityAction::packet_id() {
+                    let entity_action = S1BEntityAction::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::EntityAction {
                             entity_id: entity_action.entity_id,
@@ -445,18 +432,16 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
-                    let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S19PlayerAbilities::packet_id() {
+                    let player_abilities = S19PlayerAbilities::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerAbilities {
                             is_flying: player_abilities.flags & 0x02 == 0x02,
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S1BPlayerDigging::packet_id() {
-                    let player_digging = S1BPlayerDigging::decode(raw_packet)?;
+                } else if raw_packet.packet_id == S1APlayerDigging::packet_id() {
+                    let player_digging = S1APlayerDigging::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerDigging {
                             status: player_digging.status,
@@ -465,8 +450,7 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S25HeldItemChange::packet_id() {
+                } else if raw_packet.packet_id == S25HeldItemChange::packet_id() {
                     let held_item_change = S25HeldItemChange::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::HeldItemChange {
@@ -474,8 +458,7 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
+                } else if raw_packet.packet_id == S28CreativeInventoryAction::packet_id() {
                     let creative_inventory_action = S28CreativeInventoryAction::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::CreativeInventoryAction {
@@ -484,8 +467,7 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S2CAnimation::packet_id() {
+                } else if raw_packet.packet_id == S2CAnimation::packet_id() {
                     let animation = S2CAnimation::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::Animation {
@@ -493,8 +475,7 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else if raw_packet.packet_id == S2EPlayerBlockPlacement::packet_id() {
+                } else if raw_packet.packet_id == S2EPlayerBlockPlacement::packet_id() {
                     let player_block_placement = S2EPlayerBlockPlacement::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerBlockPlacement {
@@ -508,8 +489,7 @@ pub(super) async fn listen_ingoing_packets(
                         })
                         .await
                         .unwrap();
-                }
-                else {
+                } else {
                     debug!("Unknown packet id received {:02x}", raw_packet.packet_id);
                 }
             }

@@ -58,12 +58,14 @@ impl Client {
         let (packet_sender, packet_receiver) = flume::bounded(packet_buffer);
         let compression = Arc::default();
 
+        // Packet sending task
         spawn({
             let packet_sender = packet_sender.clone();
             let state = Arc::clone(&state);
             let listener_sender = event_sender.clone();
             let compression = Arc::clone(&compression);
             let peer_addr = peer_addr;
+
             async move {
                 if let Err(e) = listen_ingoing_packets(
                     compression,
@@ -81,7 +83,10 @@ impl Client {
                                 || e.kind() == std::io::ErrorKind::Interrupted
                                 || e.kind() == std::io::ErrorKind::ConnectionReset
                                 || e.kind() == std::io::ErrorKind::ConnectionAborted)
-                                && *state.read().await == ClientState::Play => (),
+                                && *state.read().await == ClientState::Play =>
+                        {
+                            ()
+                        }
 
                         e => {
                             *state.write().await = ClientState::Disconnected;
@@ -105,6 +110,7 @@ impl Client {
             }
         });
 
+        // Packet from client receiving task
         spawn({
             let state = state.clone();
             async move {
