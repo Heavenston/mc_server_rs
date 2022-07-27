@@ -142,7 +142,7 @@ pub(super) async fn listen_ingoing_packets(
                     };
                     packet_sender
                         .send_async(OutgoingPacketEvent::Packet(
-                            C00Response {
+                            C00StatusResponse {
                                 json_response: event_response,
                             }
                             .to_rawpacket(),

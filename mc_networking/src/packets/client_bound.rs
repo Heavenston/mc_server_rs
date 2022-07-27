@@ -25,14 +25,15 @@ mod status {
     use super::ClientBoundPacket;
     use crate::data_types::encoder::PacketEncoder;
 
-    /// Response to S00Request with server ping infos
+    /// Response to S00StatusRequest with server ping infos
     ///
-    /// <https://wiki.vg/Protocol#Response>
+    /// <https://wiki.vg/Protocol#Status_Response>
     #[derive(Clone, Debug)]
-    pub struct C00Response {
+    pub struct C00StatusResponse {
+        /// See [Server List Ping](https://wiki.vg/Server_List_Ping#Response);
         pub json_response: serde_json::Value,
     }
-    impl ClientBoundPacket for C00Response {
+    impl ClientBoundPacket for C00StatusResponse {
         fn packet_id() -> i32 {
             0x00
         }
@@ -44,9 +45,10 @@ mod status {
 
     /// Response to S01Ping with provided payload
     ///
-    /// <https://wiki.vg/Protocol#Pong>
+    /// <https://wiki.vg/Protocol#Ping_Response>
     #[derive(Clone, Debug)]
-    pub struct C01Pong {
+    pub struct C01Pong { // Sticking with Pong even if wiki.vg is using Ping Response...
+        /// Should be the same as sent by the client.
         pub payload: i64,
     }
     impl ClientBoundPacket for C01Pong {
@@ -73,6 +75,7 @@ mod login {
     /// <https://wiki.vg/Protocol#Disconnect_.28login.29>
     #[derive(Clone, Debug)]
     pub struct C00LoginDisconnect {
+        /// The reason why the player was disconnected.
         pub reason: serde_json::Value,
     }
     impl ClientBoundPacket for C00LoginDisconnect {
@@ -108,7 +111,7 @@ mod login {
         }
     }
 
-    /// Finishes Login stage
+    /// Finishes the Login stage
     ///
     /// <https://wiki.vg/Protocol#Login_Success>
     #[derive(Clone, Debug)]
@@ -124,15 +127,24 @@ mod login {
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_uuid(&self.uuid);
             encoder.write_string(&self.username);
+
+            encoder.write_varint(0); // No properties
+                                     // TODO: Know what they are for and implement them
         }
     }
 
-    /// Set packet compression
+    /// Enables compression. If compression is enabled,
+    /// all following packets are encoded in the compressed packet format.
+    /// Negative or zero values will disable compression,
+    /// meaning the packet format should remain in the uncompressed packet format.
+    /// However, this packet is entirely optional, and if not sent,
+    /// compression will also not be enabled 
+    /// (the notchian server does not send the packet when compression is disabled).
     ///
     /// <https://wiki.vg/Protocol#Set_Compression>
     #[derive(Clone, Debug)]
     pub struct C03SetCompression {
-        pub threshold: i32,
+        pub threshold: VarInt,
     }
     impl ClientBoundPacket for C03SetCompression {
         fn packet_id() -> i32 {
@@ -145,11 +157,14 @@ mod login {
     }
 
     /// Used to implement a custom handshaking flow together with S02LoginPluginResponse.
+    /// Unlike plugin messages in "play" mode, these messages follow a lock-step request/response scheme,
+    /// where the client is expected to respond to a request indicating whether it understood.
+    /// The notchian client always responds that it hasn't understood, and sends an empty payload.
     ///
     /// <https://wiki.vg/Protocol#Login_Plugin_Request>
     #[derive(Clone, Debug)]
     pub struct C04LoginPluginRequest {
-        pub message_id: i32,
+        pub message_id: VarInt,
         pub channel: Identifier,
         pub data: Vec<u8>,
     }
@@ -1042,13 +1057,10 @@ mod play {
             encoder.write_u8(self.gamemode);
             encoder.write_varint(self.dimension_names.len() as _);
             for name in &self.dimension_names {
-                encoder.write_varint(name.len() as _);
                 encoder.write_string(&name);
             }
             self.registry_codec.encode(encoder).expect("Unexpected encode error");
-            encoder.write_varint(self.dimension_type.len() as _);
             encoder.write_string(&self.dimension_type);
-            encoder.write_varint(self.dimension_name.len() as _);
             encoder.write_string(&self.dimension_name);
             encoder.write_u64(self.hashed_seed);
             encoder.write_varint(self.max_players);
@@ -1061,7 +1073,6 @@ mod play {
 
             encoder.write_bool(self.death_location.is_some());
             if let Some((dimension, location)) = &self.death_location {
-                encoder.write_varint(dimension.len() as _);
                 encoder.write_string(&dimension);
                 encoder.write_u64(location.encode());
             }
@@ -1297,16 +1308,12 @@ mod play {
     impl C34AddPlayer {
         pub fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_uuid(&self.uuid);
-            encoder.write_varint(self.name.len() as _);
             encoder.write_string(&self.name);
             for prop in &self.properties {
-                encoder.write_varint(prop.name.len() as _);
                 encoder.write_string(&prop.name);
-                encoder.write_varint(prop.value.len() as _);
                 encoder.write_string(&prop.value);
                 encoder.write_bool(prop.signature.is_some());
                 if let Some(sig) = &prop.signature {
-                    encoder.write_varint(sig.len() as _);
                     encoder.write_string(sig);
                 }
             }
@@ -1314,7 +1321,6 @@ mod play {
             encoder.write_varint(self.ping);
             encoder.write_bool(self.display_name.is_some());
             if let Some(dm) = &self.display_name {
-                encoder.write_varint(dm.len() as _);
                 encoder.write_string(dm);
             }
             encoder.write_bool(false); // No sig data
@@ -1353,7 +1359,6 @@ mod play {
             encoder.write_uuid(&self.uuid);
             encoder.write_bool(self.display_name.is_some());
             if let Some(dm) = &self.display_name {
-                encoder.write_varint(dm.len() as _);
                 encoder.write_string(dm);
             }
         }
