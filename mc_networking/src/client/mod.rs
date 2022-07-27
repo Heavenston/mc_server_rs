@@ -87,7 +87,7 @@ impl Client {
                             *state.write().await = ClientState::Disconnected;
                             packet_sender
                                 .send_async(OutgoingPacketEvent::Packet(
-                                    C19PlayDisconnect {
+                                    C17Disconnect {
                                         reason: json!({
                                             "text": "Unexpected error"
                                         }),

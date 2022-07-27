@@ -232,15 +232,15 @@ impl Server {
                             let player_entity = player_ref.entity.read().await;
                             let player_entity = player_entity.as_player();
 
-                            C24JoinGame {
+                            C23Login {
                                 entity_id: player_entity.entity_id,
                                 is_hardcore: false,
                                 gamemode: player_entity.gamemode,
                                 previous_gamemode: player_entity.gamemode,
-                                world_names: vec!["heav:world".into()],
-                                dimension_codec: C24JoinGameDimensionCodec {
-                                    dimensions: map! {
-                                        "heav:world".into() => C24JoinGameDimensionElement {
+                                dimension_names: vec!["heav:world".into()],
+                                registry_codec: C23RegistryCodec {
+                                    dimension_type: map! {
+                                        "heav:world".into() => C23DimensionElement {
                                             natural: 1,
                                             ambient_light: 1.0,
                                             has_ceiling: 0,
@@ -258,14 +258,14 @@ impl Server {
                                         }
                                     },
                                     biomes: map! {
-                                        "minecraft:plains".into() => C24JoinGameBiomeElement {
+                                        "minecraft:plains".into() => C23BiomeElement {
                                             precipitation: "none".to_owned(),
-                                            effects: C24JoinGameBiomeEffects {
+                                            effects: C23BiomeEffects {
                                                 sky_color: 7907327,
                                                 water_fog_color: 329011,
                                                 fog_color: 12638463,
                                                 water_color: 4159204,
-                                                mood_sound: C24JoinGameBiomeEffectsMoodSound {
+                                                mood_sound: C23BiomeMoodSound {
                                                     tick_delay: 6000,
                                                     offset: 2.0,
                                                     sound: "minecraft:ambient.cave".to_owned(),
@@ -278,14 +278,14 @@ impl Server {
                                             downfall: 0.4,
                                             category: "none".to_owned(),
                                         },
-                                        "heav:plot".into() => C24JoinGameBiomeElement {
+                                        "heav:plot".into() => C23BiomeElement {
                                             precipitation: "none".to_owned(),
-                                            effects: C24JoinGameBiomeEffects {
+                                            effects: C23BiomeEffects {
                                                 sky_color: 0x7BA4FF,
                                                 water_fog_color: 0x050533,
                                                 fog_color: 0xC0D8FF,
                                                 water_color: 0x3F76E4,
-                                                mood_sound: C24JoinGameBiomeEffectsMoodSound {
+                                                mood_sound: C23BiomeMoodSound {
                                                     tick_delay: 6000,
                                                     offset: 2.0,
                                                     sound: "minecraft:ambient.cave".to_owned(),
@@ -300,7 +300,7 @@ impl Server {
                                         }
                                     },
                                 },
-                                dimension: C24JoinGameDimensionElement {
+                                dimension: C23DimensionElement {
                                     natural: 1,
                                     ambient_light: 1.0,
                                     has_ceiling: 0,
@@ -354,14 +354,14 @@ impl Server {
                             }
                             players
                         };
-                        client.send_packet_async(&C32PlayerInfo { players }).await;
+                        client.send_packet_async(&C34PlayerInfo { players }).await;
                     }
                     // Send to all his player info
                     server
                         .players
                         .read()
                         .await
-                        .broadcast(&C32PlayerInfo {
+                        .broadcast(&C34PlayerInfo {
                             players: vec![my_player_info],
                         })
                         .await;
@@ -416,7 +416,7 @@ impl Server {
                             .await
                             .send_to_player(player_eid, &{
                                 let mut builder =
-                                    C17PluginMessageBuilder::new("minecraft:brand".into());
+                                    C15PluginMessageBuilder::new("minecraft:brand".into());
                                 builder.encoder.write_string(&server.brand);
                                 builder.build()
                             })
@@ -445,7 +445,7 @@ impl Server {
                         slots
                     };
                     player_ref
-                        .send_packet_async(&C13WindowItems {
+                        .send_packet_async(&C11SetContainerContent {
                             window_id: 0,
                             slots: player_inventory_slots,
                         })
@@ -478,7 +478,7 @@ impl Server {
                         .players
                         .read()
                         .await
-                        .broadcast(&C32PlayerInfo {
+                        .broadcast(&C34PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::RemovePlayer { uuid }],
                         })
                         .await;
@@ -494,7 +494,7 @@ impl Server {
                         .players
                         .read()
                         .await
-                        .broadcast(&C32PlayerInfo {
+                        .broadcast(&C34PlayerInfo {
                             players: vec![C32PlayerInfoPlayerUpdate::UpdateLatency {
                                 uuid,
                                 ping: delay as i32,
@@ -603,7 +603,7 @@ impl Server {
                         .get_players_except(player_eid)
                         .await;
                     EntityManager::broadcast_to(
-                        &C05EntityAnimation {
+                        &C03EntityAnimation {
                             entity_id: player_eid,
                             animation: if hand == 0 { 0 } else { 3 },
                         },
@@ -641,7 +641,7 @@ impl Server {
                             .get_block(position.x, position.y as u8, position.z)
                             .await;
                         player_ref
-                            .send_packet_async(&C07AcknowledgePlayerDigging {
+                            .send_packet_async(&C06SetBlockDestroyStage {
                                 position: position.clone(),
                                 block: block as i32,
                                 status: S1BPlayerDiggingStatus::CancelledDigging,
@@ -842,7 +842,7 @@ impl Server {
         self.players
             .write()
             .await
-            .broadcast(&C53PlayerListHeaderAndFooter {
+            .broadcast(&C60SetTabListHeaderAndFooter {
                 header: json!({
                     "text": "\nHeavenstone\n",
                     "color": "blue"

@@ -4,7 +4,7 @@ use crate::{
 };
 use mc_networking::{
     data_types::command_data::{Node, RootNode},
-    packets::client_bound::{C0EChatMessage, C10DeclareCommands},
+    packets::client_bound::{C30PlayerChatMessage, C0FCommands},
 };
 
 use anyhow::Result;
@@ -44,8 +44,8 @@ impl ChatManager {
         }
     }
 
-    async fn get_declare_commands(&self) -> C10DeclareCommands {
-        C10DeclareCommands {
+    async fn get_declare_commands(&self) -> C0FCommands {
+        C0FCommands {
             root_node: Arc::new(RootNode {
                 is_executable: false,
                 children_nodes: self
@@ -130,7 +130,7 @@ impl ChatManager {
             self.players
                 .read()
                 .await
-                .broadcast(&C0EChatMessage {
+                .broadcast(&C30PlayerChatMessage {
                     json_data: json!({ "text": format!("<{}> {}", username, message) }),
                     position: 0, // Chat box
                     sender: Some(*sender.entity.read().await.uuid()),
@@ -144,7 +144,7 @@ impl ChatManager {
         self.players
             .read()
             .await
-            .broadcast(&C0EChatMessage {
+            .broadcast(&C30PlayerChatMessage {
                 json_data: message,
                 position: 1, // System message
                 sender: None,
@@ -158,7 +158,7 @@ impl ChatManager {
             .await
             .get_entity(target)
             .unwrap()
-            .send_packet_async(&C0EChatMessage {
+            .send_packet_async(&C30PlayerChatMessage {
                 json_data: message,
                 position: 1, // System message
                 sender: None,

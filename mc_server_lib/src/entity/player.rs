@@ -34,7 +34,7 @@ impl PlayerRef {
     /// Sends the C1DChangeGameState packet
     /// Note that the abilities should be send
     pub async fn update_gamemode(&self) {
-        self.send_packet_async(&C1DChangeGameState {
+        self.send_packet_async(&C1BGameEvent {
             reason: 3, // Change Gamemode
             value: self.entity.read().await.as_player().gamemode as f32,
         })
@@ -47,7 +47,7 @@ impl PlayerRef {
         let player = player.as_player();
         player
             .client
-            .send_packet_async(&C30PlayerAbilities::new(
+            .send_packet_async(&C2FPlayerAbilities::new(
                 player.invulnerable,
                 player.is_flying,
                 player.can_fly,
@@ -58,7 +58,7 @@ impl PlayerRef {
             .await;
     }
     pub async fn send_chat_message(&self, json_data: serde_json::Value) {
-        self.send_packet_async(&C0EChatMessage {
+        self.send_packet_async(&C30PlayerChatMessage {
             json_data,
             position: 1,
             sender: None,
@@ -178,7 +178,7 @@ impl Entity for PlayerEntity {
     }
 
     fn get_spawn_packet(&self) -> RawPacket {
-        C04SpawnPlayer {
+        C02SpawnPlayer {
             entity_id: self.entity_id(),
             uuid: self.uuid,
             x: self.location.x,

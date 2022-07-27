@@ -242,7 +242,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .unwrap()
             .clone();
         player_ref
-            .send_packet_async(&C40UpdateViewPosition { chunk_x, chunk_z })
+            .send_packet_async(&C48SetCenterChunk { chunk_x, chunk_z })
             .await;
         let loaded_chunks = player_ref
             .entity
@@ -264,7 +264,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                             let start = Instant::now();
                             self.reduce_chunk_load_count(&chunk_loadings, chunk.0, chunk.1);
                             player_ref
-                                .send_packet_async(&C1CUnloadChunk {
+                                .send_packet_async(&C1AUnloadChunk {
                                     chunk_x: chunk.0,
                                     chunk_z: chunk.1,
                                 })
@@ -369,7 +369,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
             .clone();
         for (chunk_x, chunk_z) in loaded_chunks {
             entity_ref
-                .send_packet_async(&C1CUnloadChunk { chunk_x, chunk_z })
+                .send_packet_async(&C1AUnloadChunk { chunk_x, chunk_z })
                 .await;
         }
         entity_ref
@@ -386,15 +386,15 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
     }
 
     pub async fn tick(this: Arc<Self>) {
-        let mut block_changes: Vec<C0BBlockChange> = vec![];
-        let mut multi_block_changes: Vec<C3BMultiBlockChange> = vec![];
+        let mut block_changes: Vec<C09BlockChange> = vec![];
+        let mut multi_block_changes: Vec<C3DUpdateSectionBlocks> = vec![];
 
         for (section_pos, changes) in this.block_changes.read().await.iter() {
             match changes.len() {
                 0 => (),
                 1 => {
                     let change = &changes[0];
-                    block_changes.push(C0BBlockChange {
+                    block_changes.push(C09BlockChange {
                         position: mc_networking::data_types::Position {
                             x: section_pos.0 * 16 + change.x as i32,
                             y: section_pos.1 * 16 + change.y as i32,
@@ -404,7 +404,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                     })
                 }
                 _ => {
-                    let mut multi_block_change = C3BMultiBlockChange {
+                    let mut multi_block_change = C3DUpdateSectionBlocks {
                         section_x: section_pos.0,
                         section_y: section_pos.1,
                         section_z: section_pos.2,
@@ -414,7 +414,7 @@ impl<T: 'static + ChunkProvider + Send + Sync> ChunkHolder<T> {
                     for change in changes {
                         multi_block_change
                             .blocks
-                            .push(C3BMultiBlockChangeBlockChange {
+                            .push(C3DBlockChange {
                                 x: change.x,
                                 y: change.y,
                                 z: change.z,

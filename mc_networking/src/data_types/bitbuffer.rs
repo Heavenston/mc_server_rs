@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BitBuffer {
     entry_bit_size: u64,
     entries_per_long: u64,

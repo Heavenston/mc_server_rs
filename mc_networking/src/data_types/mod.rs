@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use uuid::Uuid;
 
 pub mod bitbuffer;
+pub mod bitset;
 pub mod command_data;
 pub mod encoder;
 mod identifier;

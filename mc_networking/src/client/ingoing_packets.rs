@@ -197,7 +197,7 @@ pub(super) async fn listen_ingoing_packets(
                                 .await?;
                         }
                     };
-                };
+                }
 
                 if raw_packet.packet_id == S00LoginStart::packet_id() {
                     debug!("login start");

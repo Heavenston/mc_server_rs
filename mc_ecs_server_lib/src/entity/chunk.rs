@@ -67,7 +67,7 @@ pub(crate) fn chunk_observer_chunk_loadings(
         return;
     }
 
-    client.0.send_packet_sync(&C40UpdateViewPosition {
+    client.0.send_packet_sync(&C48SetCenterChunk {
         chunk_x: chunk_loc.x,
         chunk_z: chunk_loc.z,
     });

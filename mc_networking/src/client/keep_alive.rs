@@ -32,7 +32,7 @@ pub(super) async fn handle_keep_alive(
             data.write().await.sent_at = Instant::now();
             packet_sender
                 .send_async(OutgoingPacketEvent::Packet(
-                    C1FKeepAlive { id }.to_rawpacket(),
+                    C1EKeepAlive { id }.to_rawpacket(),
                 ))
                 .await
                 .unwrap();
@@ -56,7 +56,7 @@ pub(super) async fn handle_keep_alive(
                     debug!("Keep alive miss, sending it again");
                     packet_sender
                         .send_async(OutgoingPacketEvent::Packet(
-                            C1FKeepAlive {
+                            C1EKeepAlive {
                                 id: data.read().await.last_id,
                             }
                             .to_rawpacket(),

@@ -1,5 +1,5 @@
 use mc_ecs_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
-use mc_networking::packets::client_bound::{C1CUnloadChunk, ClientBoundPacket};
+use mc_networking::packets::client_bound::{C1AUnloadChunk, ClientBoundPacket};
 use mc_utils::ChunkData;
 
 use dashmap::DashMap;
@@ -84,7 +84,7 @@ pub fn stone_chunk_provider(
         .iter()
         .par_bridge()
         .for_each(|unloading_chunk| {
-            let unload_packet = C1CUnloadChunk {
+            let unload_packet = C1AUnloadChunk {
                 chunk_x: unloading_chunk.key().0,
                 chunk_z: unloading_chunk.key().1,
             }

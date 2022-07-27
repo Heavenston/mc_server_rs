@@ -120,7 +120,7 @@ impl EntityPool {
 
                     if has_rotation_changed {
                         EntityManager::broadcast_to(
-                            &C3AEntityHeadLook {
+                            &C3CSetHeadRotation {
                                 entity_id: eid,
                                 head_yaw: new_location.yaw_angle(),
                             },
@@ -150,7 +150,7 @@ impl EntityPool {
                     }
                     else if has_position_changed && has_rotation_changed {
                         EntityManager::broadcast_to(
-                            &C28EntityPositionAndRotation {
+                            &C27UpdateEntityPositionAndRotation {
                                 entity_id: eid,
                                 delta_x: ((new_location.x - previous_location.x) * 4096f64).round()
                                     as i16,
@@ -168,7 +168,7 @@ impl EntityPool {
                     }
                     else if has_position_changed {
                         EntityManager::broadcast_to(
-                            &C27EntityPosition {
+                            &C26UpdateEntityPosition {
                                 entity_id: eid,
                                 delta_x: ((new_location.x - previous_location.x) * 4096f64).round()
                                     as i16,
@@ -184,7 +184,7 @@ impl EntityPool {
                     }
                     else if has_rotation_changed {
                         EntityManager::broadcast_to(
-                            &C29EntityRotation {
+                            &C28UpdateEntityRotation {
                                 entity_id: eid,
                                 yaw: new_location.yaw_angle(),
                                 pitch: new_location.pitch_angle(),
@@ -219,7 +219,7 @@ impl EntityPool {
 
                     let equipment = entity.get_equipment();
                     if synced_equipment_ref != equipment {
-                        let mut packet = C47EntityEquipment {
+                        let mut packet = C50EntityEquipment {
                             entity_id: eid,
                             equipment: vec![],
                         };
@@ -294,7 +294,7 @@ impl EntityPool {
                         player_entity.as_player_mut().loaded_entities.insert(eid);
                         // Send head look
                         player_ref
-                            .send_packet_async(&C3AEntityHeadLook {
+                            .send_packet_async(&C3CSetHeadRotation {
                                 entity_id: eid,
                                 head_yaw: entity.location().yaw_angle(),
                             })
@@ -302,7 +302,7 @@ impl EntityPool {
                         // Send entity equipment
                         {
                             let equipment = entity.get_equipment().to_owned();
-                            let mut packet = C47EntityEquipment {
+                            let mut packet = C50EntityEquipment {
                                 entity_id: eid,
                                 equipment: vec![],
                             };
@@ -346,7 +346,7 @@ impl EntityPool {
                         let mut player_entity = player_ref.entity.write().await;
                         // TODO: Cache all entities that should be destroyed in that tick and send them all in one packet
                         player_ref
-                            .send_packet_async(&C36DestroyEntities {
+                            .send_packet_async(&C38RemoveEntities {
                                 entities: vec![eid],
                             })
                             .await;
@@ -386,7 +386,7 @@ impl EntityPool {
                     .await
                     .send_to_player(
                         player_eid,
-                        &C36DestroyEntities {
+                        &C38RemoveEntities {
                             entities: to_destroy,
                         },
                     )
@@ -414,7 +414,7 @@ impl EntityPool {
         if let Some(player) = entity.try_as_player() {
             player
                 .client
-                .send_packet_async(&C34PlayerPositionAndLook {
+                .send_packet_async(&C37SynchronizePlayerPosition {
                     x: location.x,
                     y: location.y,
                     z: location.z,
@@ -428,7 +428,7 @@ impl EntityPool {
     }
     pub async fn sync_entity_metadata(&self, entity: &BoxedEntity) -> Result<()> {
         EntityManager::broadcast_to(
-            &C44EntityMetadata {
+            &C4DSetEntityMetadata {
                 entity_id: entity.entity_id(),
                 metadata: entity.metadata(),
             },
