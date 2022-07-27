@@ -1,6 +1,6 @@
 use crate::{
     data_types::{Position, Slot},
-    packets::server_bound::{S1BPlayerDiggingFace, S1BPlayerDiggingStatus},
+    packets::server_bound::{S1CDiggingFace, S1CStatus},
 };
 
 use tokio::sync::oneshot;
@@ -115,9 +115,9 @@ pub enum ClientEvent {
     /// <https://wiki.vg/Protocol#Player_Digging>
     /// Correspond to the packet S1BPlayerDigging
     PlayerDigging {
-        status: S1BPlayerDiggingStatus,
+        status: S1CStatus,
         position: Position,
-        face: S1BPlayerDiggingFace,
+        face: S1CDiggingFace,
     },
     /// Sent when the player changes the slot selection
     ///
@@ -154,7 +154,7 @@ pub enum ClientEvent {
         /// Block position
         position: Position,
         /// The face on which the block is placed
-        face: S1BPlayerDiggingFace,
+        face: S1CDiggingFace,
         /// The position of the crosshair on the block, from 0 to 1 increasing from west to east
         cursor_position_x: f32,
         /// The position of the crosshair on the block, from 0 to 1 increasing from bottom to top

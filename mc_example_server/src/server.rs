@@ -5,7 +5,7 @@ use mc_networking::{
     map,
     packets::{
         client_bound::*,
-        server_bound::{S1BPlayerDiggingFace, S1BPlayerDiggingStatus},
+        server_bound::{S1CDiggingFace, S1CStatus},
     },
 };
 use mc_server_lib::{
@@ -616,14 +616,14 @@ impl Server {
                     status,
                     face: _,
                 } => {
-                    if status == S1BPlayerDiggingStatus::StartedDigging
-                        || status == S1BPlayerDiggingStatus::FinishedDigging
-                        || status == S1BPlayerDiggingStatus::CancelledDigging
+                    if status == S1CStatus::StartedDigging
+                        || status == S1CStatus::FinishedDigging
+                        || status == S1CStatus::CancelledDigging
                     {
                         let mut successful = true;
 
                         let player_ref = player_ref.as_ref().unwrap();
-                        if status == S1BPlayerDiggingStatus::StartedDigging {
+                        if status == S1CStatus::StartedDigging {
                             if player_ref.entity.read().await.as_player().gamemode == 1 {
                                 chunk_holder
                                     .set_block(position.x, position.y as u8, position.z, 0)
@@ -634,7 +634,7 @@ impl Server {
                             }
                         }
 
-                        if status == S1BPlayerDiggingStatus::FinishedDigging {
+                        if status == S1CStatus::FinishedDigging {
                             successful = false;
                         }
                         let block = chunk_holder
@@ -644,7 +644,7 @@ impl Server {
                             .send_packet_async(&C06SetBlockDestroyStage {
                                 position: position.clone(),
                                 block: block as i32,
-                                status: S1BPlayerDiggingStatus::CancelledDigging,
+                                status: S1CStatus::CancelledDigging,
                                 successful,
                             })
                             .await;
@@ -680,22 +680,22 @@ impl Server {
                         if let Ok(block_id) = block_id {
                             let mut new_block_pos = position.clone();
                             match face {
-                                S1BPlayerDiggingFace::Top => {
+                                S1CDiggingFace::Top => {
                                     new_block_pos.y += 1;
                                 }
-                                S1BPlayerDiggingFace::Bottom => {
+                                S1CDiggingFace::Bottom => {
                                     new_block_pos.y -= 1;
                                 }
-                                S1BPlayerDiggingFace::North => {
+                                S1CDiggingFace::North => {
                                     new_block_pos.z -= 1;
                                 }
-                                S1BPlayerDiggingFace::East => {
+                                S1CDiggingFace::East => {
                                     new_block_pos.x += 1;
                                 }
-                                S1BPlayerDiggingFace::South => {
+                                S1CDiggingFace::South => {
                                     new_block_pos.z += 1;
                                 }
-                                S1BPlayerDiggingFace::West => {
+                                S1CDiggingFace::West => {
                                     new_block_pos.x -= 1;
                                 }
                             }

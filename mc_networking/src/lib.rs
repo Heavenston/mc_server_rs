@@ -16,7 +16,7 @@ pub enum DecodingError {
     ParseError { data_type: String, message: String },
 }
 impl DecodingError {
-    pub fn parse_error(data_type: &str, message: &str) -> Self {
+    pub fn parse_error(data_type: impl ToString, message: impl ToString) -> Self {
         Self::ParseError {
             data_type: data_type.to_string(),
             message: message.to_string(),

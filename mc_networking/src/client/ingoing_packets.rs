@@ -347,8 +347,8 @@ pub(super) async fn listen_ingoing_packets(
             }
 
             ClientState::Play => {
-                if raw_packet.packet_id == S03ChatMessage::packet_id() {
-                    let chat_message = S03ChatMessage::decode(raw_packet)?;
+                if raw_packet.packet_id == S04ChatMessage::packet_id() {
+                    let chat_message = S04ChatMessage::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::ChatMessage {
                             message: chat_message.message,
@@ -356,11 +356,11 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap()
                 }
-                else if raw_packet.packet_id == S04ClientStatus::packet_id() {
+                else if raw_packet.packet_id == S06ClientCommand::packet_id() {
                     unimplemented!()
                 }
-                else if raw_packet.packet_id == S09ClickWindow::packet_id() {
-                    let click_window = S09ClickWindow::decode(raw_packet)?;
+                else if raw_packet.packet_id == S0AClickContainer::packet_id() {
+                    let click_window = S0AClickContainer::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::ClickWindow {
                             window_id: click_window.window_id,
@@ -373,8 +373,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S0BPluginMessage::packet_id() {
-                    let plugin_message = S0BPluginMessage::decode(raw_packet)?;
+                else if raw_packet.packet_id == S0CPluginMessage::packet_id() {
+                    let plugin_message = S0CPluginMessage::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PluginMessage {
                             channel: plugin_message.channel,
@@ -383,10 +383,10 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S10KeepAlive::packet_id() {
+                else if raw_packet.packet_id == S11KeepAlive::packet_id() {
                     debug!("Received keep alive");
                     let mut data = keep_alive_data.write().await;
-                    let keep_alive = S10KeepAlive::decode(raw_packet)?;
+                    let keep_alive = S11KeepAlive::decode(raw_packet)?;
 
                     if keep_alive.id == data.last_id {
                         data.has_responded = true;
@@ -398,8 +398,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S12PlayerPosition::packet_id() {
-                    let player_position = S12PlayerPosition::decode(raw_packet)?;
+                else if raw_packet.packet_id == S13SetPlayerPosition::packet_id() {
+                    let player_position = S13SetPlayerPosition::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerPosition {
                             x: player_position.x,
@@ -410,8 +410,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S13PlayerPositionAndRotation::packet_id() {
-                    let packet = S13PlayerPositionAndRotation::decode(raw_packet)?;
+                else if raw_packet.packet_id == S13SetPlayerPositionAndRotation::packet_id() {
+                    let packet = S13SetPlayerPositionAndRotation::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerPositionAndRotation {
                             x: packet.x,
@@ -424,8 +424,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S14PlayerRotation::packet_id() {
-                    let player_rotation = S14PlayerRotation::decode(raw_packet)?;
+                else if raw_packet.packet_id == S15SetPlayerRotation::packet_id() {
+                    let player_rotation = S15SetPlayerRotation::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerRotation {
                             yaw: player_rotation.yaw,
@@ -435,8 +435,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S1CEntityAction::packet_id() {
-                    let entity_action = S1CEntityAction::decode(raw_packet)?;
+                else if raw_packet.packet_id == S1DPlayerCommand::packet_id() {
+                    let entity_action = S1DPlayerCommand::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::EntityAction {
                             entity_id: entity_action.entity_id,
@@ -446,8 +446,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S1APlayerAbilities::packet_id() {
-                    let player_abilities = S1APlayerAbilities::decode(raw_packet)?;
+                else if raw_packet.packet_id == S1BPlayerAbilities::packet_id() {
+                    let player_abilities = S1BPlayerAbilities::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerAbilities {
                             is_flying: player_abilities.flags & 0x02 == 0x02,
@@ -455,8 +455,8 @@ pub(super) async fn listen_ingoing_packets(
                         .await
                         .unwrap();
                 }
-                else if raw_packet.packet_id == S1BPlayerDigging::packet_id() {
-                    let player_digging = S1BPlayerDigging::decode(raw_packet)?;
+                else if raw_packet.packet_id == S1CPlayerAction::packet_id() {
+                    let player_digging = S1CPlayerAction::decode(raw_packet)?;
                     event_sender
                         .send_async(ClientEvent::PlayerDigging {
                             status: player_digging.status,

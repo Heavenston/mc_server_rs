@@ -190,7 +190,7 @@ mod play {
             VarInt, bitbuffer::BitBuffer, bitset::BitSet
         },
         nbt_map::NBTMap,
-        packets::server_bound::S1BPlayerDiggingStatus,
+        packets::server_bound::S1CStatus,
         DecodingResult as Result,
     };
 
@@ -317,7 +317,8 @@ mod play {
     /// <https://wiki.vg/Protocol#Acknowledge_Block_Change>
     #[derive(Clone, Debug)]
     pub struct C05AcknowledgeBlockChange {
-        /// Represents the sequence to acknowledge, this is used for properly syncing block changes to the client after interactions.
+        /// Represents the sequence to acknowledge,
+        /// this is used for properly syncing block changes to the client after interactions.
         pub seq_id: VarInt,
     }
     impl ClientBoundPacket for C05AcknowledgeBlockChange {

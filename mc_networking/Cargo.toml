@@ -21,3 +21,5 @@ openssl = { version = "0.10", features = ["vendored"] }
 lazy_static = "1.4.0"
 rand = "0.8"
 flume = "0.10"
+num-traits = "0.2"
+num-derive = "0.3"
