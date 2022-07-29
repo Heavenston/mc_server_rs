@@ -3,13 +3,13 @@ use crate::{
 };
 
 pub trait ServerBoundPacket: Sized {
-    fn packet_id() -> i32;
+    const PACKET_ID: i32;
     fn run_decoder(decoder: &mut PacketDecoder) -> DecodingResult<Self>;
 
     fn decode(raw_packet: RawPacket) -> DecodingResult<Self> {
-        if raw_packet.packet_id != Self::packet_id() {
+        if raw_packet.packet_id != Self::PACKET_ID {
             return Err(DecodingError::parse_error(
-                &format!("packet 0x{:x}", Self::packet_id()),
+                &format!("packet 0x{:x}", Self::PACKET_ID),
                 "invalid packet id",
             ));
         }
@@ -17,7 +17,7 @@ pub trait ServerBoundPacket: Sized {
         let result = Self::run_decoder(&mut packet_decoder);
         if packet_decoder.remaining() > 0 {
             return Err(DecodingError::parse_error(
-                &format!("packet 0x{:x}", Self::packet_id()),
+                &format!("packet 0x{:x}", Self::PACKET_ID),
                 &format!(
                     "not all bytes have been read after decoding ({} remaining)",
                     packet_decoder.remaining()
@@ -54,9 +54,7 @@ mod handshake {
         pub next_state: VarInt,
     }
     impl ServerBoundPacket for S00Handshake {
-        fn packet_id() -> i32 {
-            0x00
-        }
+        const PACKET_ID: i32 = 0x00;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> DecodingResult<Self> {
             Ok(Self {
@@ -80,9 +78,7 @@ mod status {
     #[derive(Clone, Debug)]
     pub struct S00Request;
     impl ServerBoundPacket for S00Request {
-        fn packet_id() -> i32 {
-            0x00
-        }
+        const PACKET_ID: i32 = 0x00;
 
         fn run_decoder(_decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(S00Request)
@@ -99,9 +95,7 @@ mod status {
         pub payload: i64,
     }
     impl ServerBoundPacket for S01Ping {
-        fn packet_id() -> i32 {
-            0x01
-        }
+        const PACKET_ID: i32 = 0x01;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -140,9 +134,7 @@ mod login {
         pub sig_data: Option<S00SigData>,
     }
     impl ServerBoundPacket for S00LoginStart {
-        fn packet_id() -> i32 {
-            0x00
-        }
+        const PACKET_ID: i32 = 0x00;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let name = decoder.read_string()?;
@@ -181,9 +173,7 @@ mod login {
         pub verify_token: S01VerifyToken,
     }
     impl ServerBoundPacket for S01EncryptionResponse {
-        fn packet_id() -> i32 {
-            0x01
-        }
+        const PACKET_ID: i32 = 0x01;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let shared_secret = decoder.read_varint().and_then(|l|
@@ -228,9 +218,7 @@ mod login {
         pub data: Option<Vec<u8>>,
     }
     impl ServerBoundPacket for S02LoginPluginResponse {
-        fn packet_id() -> i32 {
-            0x02
-        }
+        const PACKET_ID: i32 = 0x02;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let message_id = decoder.read_varint()?;
@@ -270,9 +258,7 @@ mod play {
         pub teleport_id: VarInt,
     }
     impl ServerBoundPacket for S00ConfirmTeleportation {
-        fn packet_id() -> i32 {
-            0x00
-        }
+        const PACKET_ID: i32 = 0x00;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -303,9 +289,7 @@ mod play {
         pub signed_preview: bool,
     }
     impl ServerBoundPacket for S04ChatMessage {
-        fn packet_id() -> i32 {
-            0x04
-        }
+        const PACKET_ID: i32 = 0x04;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -339,9 +323,7 @@ mod play {
         pub action_id: S06ActionId,
     }
     impl ServerBoundPacket for S06ClientCommand {
-        fn packet_id() -> i32 {
-            0x06
-        }
+        const PACKET_ID: i32 = 0x06;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let ai = decoder.read_varint()?;
@@ -379,9 +361,7 @@ mod play {
         pub allow_server_listings: bool,
     }
     impl ServerBoundPacket for S07ClientInformation {
-        fn packet_id() -> i32 {
-            0x07
-        }
+        const PACKET_ID: i32 = 0x07;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -419,9 +399,7 @@ mod play {
         pub carried_item: Slot,
     }
     impl ServerBoundPacket for S0AClickContainer {
-        fn packet_id() -> i32 {
-            0x0A
-        }
+        const PACKET_ID: i32 = 0x0A;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let window_id = decoder.read_u8()?;
@@ -458,9 +436,7 @@ mod play {
         pub data: Vec<u8>,
     }
     impl ServerBoundPacket for S0CPluginMessage {
-        fn packet_id() -> i32 {
-            0x0C
-        }
+        const PACKET_ID: i32 = 0x0C;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -522,9 +498,7 @@ mod play {
         pub sneaking: bool,
     }
     impl ServerBoundPacket for S0FInteract {
-        fn packet_id() -> i32 {
-            0x0F
-        }
+        const PACKET_ID: i32 = 0x0F;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let entity_id = decoder.read_varint()?;
@@ -562,9 +536,7 @@ mod play {
         pub id: i64,
     }
     impl ServerBoundPacket for S11KeepAlive {
-        fn packet_id() -> i32 {
-            0x11
-        }
+        const PACKET_ID: i32 = 0x11;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -588,9 +560,7 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S13SetPlayerPosition {
-        fn packet_id() -> i32 {
-            0x13
-        }
+        const PACKET_ID: i32 = 0x13;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -621,9 +591,7 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S13SetPlayerPositionAndRotation {
-        fn packet_id() -> i32 {
-            0x13
-        }
+        const PACKET_ID: i32 = 0x13;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -650,9 +618,7 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S15SetPlayerRotation {
-        fn packet_id() -> i32 {
-            0x15
-        }
+        const PACKET_ID: i32 = 0x15;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -672,9 +638,7 @@ mod play {
         pub on_ground: bool,
     }
     impl ServerBoundPacket for S16SetPlayerOnGround {
-        fn packet_id() -> i32 {
-            0x15
-        }
+        const PACKET_ID: i32 = 0x15;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -693,9 +657,7 @@ mod play {
         pub flags: u8,
     }
     impl ServerBoundPacket for S1BPlayerAbilities {
-        fn packet_id() -> i32 {
-            0x1B
-        }
+        const PACKET_ID: i32 = 0x1B;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -759,9 +721,7 @@ mod play {
         pub sequence: VarInt,
     }
     impl ServerBoundPacket for S1CPlayerAction {
-        fn packet_id() -> i32 {
-            0x1C
-        }
+        const PACKET_ID: i32 = 0x1C;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let sid = decoder.read_varint()?;
@@ -823,9 +783,7 @@ mod play {
         pub jump_boost: VarInt,
     }
     impl ServerBoundPacket for S1DPlayerCommand {
-        fn packet_id() -> i32 {
-            0x1D
-        }
+        const PACKET_ID: i32 = 0x1D;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let entity_id = decoder.read_varint()?;
@@ -853,9 +811,7 @@ mod play {
         pub slot: i16,
     }
     impl ServerBoundPacket for S27SetHeldItem {
-        fn packet_id() -> i32 {
-            0x27
-        }
+        const PACKET_ID: i32 = 0x27;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -876,9 +832,7 @@ mod play {
         pub slot: Slot,
     }
     impl ServerBoundPacket for S2ASetCreativeModeSlot {
-        fn packet_id() -> i32 {
-            0x2A
-        }
+        const PACKET_ID: i32 = 0x2A;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -897,9 +851,7 @@ mod play {
         pub hand: VarInt,
     }
     impl ServerBoundPacket for S2ESwingArm {
-        fn packet_id() -> i32 {
-            0x2E
-        }
+        const PACKET_ID: i32 = 0x2E;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
@@ -930,9 +882,7 @@ mod play {
         pub sequence: VarInt,
     }
     impl ServerBoundPacket for S30UseItemOn {
-        fn packet_id() -> i32 {
-            0x2E
-        }
+        const PACKET_ID: i32 = 0x2E;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
