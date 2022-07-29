@@ -648,9 +648,9 @@ mod play {
         pub heightmaps: nbt::Blob,
         /// The number of elements in the array is calculated based on the world's height.
         /// Sections are sent bottom-to-top.
-        pub chunk_sections: Vec<C1FPalettedContainer>,
+        pub chunk_sections: Vec<C1FSection>,
         /// TODO: Implement
-        pub block_entities: (),
+        pub block_entities: Vec<()>,
         /// If edges should be trusted for light updates.
         pub trust_edges: bool,
         /// BitSet containing bits for each section in the world + 2.
