@@ -882,7 +882,7 @@ mod play {
         pub sequence: VarInt,
     }
     impl ServerBoundPacket for S30UseItemOn {
-        const PACKET_ID: i32 = 0x2E;
+        const PACKET_ID: i32 = 0x30;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {
