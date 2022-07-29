@@ -595,7 +595,7 @@ impl Server {
                         .await
                         .unwrap();
                 }
-                ClientEvent::Animation { hand } => {
+                ClientEvent::SwingArm { hand } => {
                     let servers = server
                         .players
                         .read()
@@ -611,7 +611,7 @@ impl Server {
                     )
                     .await;
                 }
-                ClientEvent::PlayerDigging {
+                ClientEvent::PlayerAction {
                     position,
                     status,
                     face: _,
@@ -650,7 +650,7 @@ impl Server {
                             .await;
                     }
                 }
-                ClientEvent::PlayerBlockPlacement {
+                ClientEvent::UseItemOn {
                     hand,
                     position,
                     face,
@@ -710,7 +710,7 @@ impl Server {
                         }
                     }
                 }
-                ClientEvent::CreativeInventoryAction { slot_id, slot } => {
+                ClientEvent::SetCreativeModeSlot { slot_id, slot } => {
                     let player_ref = player_ref.as_ref().unwrap();
                     if player_ref.entity.read().await.as_player().gamemode != 1 {
                         continue;
@@ -731,11 +731,11 @@ impl Server {
                         _ => (),
                     }
                 }
-                ClientEvent::HeldItemChange { slot } => {
+                ClientEvent::SetHeldItem { slot } => {
                     let player_ref = player_ref.as_ref().unwrap();
                     player_ref.entity.write().await.as_player_mut().held_item = slot as u8;
                 }
-                ClientEvent::ClickWindow {
+                ClientEvent::ClickContainer {
                     window_id: _,
                     slot_id: _,
                     button: _,
