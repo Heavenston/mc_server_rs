@@ -634,7 +634,6 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Chunk_Data_and_Update_Light>
     #[derive(Clone, Debug)]
-    #[non_exhaustive]
     pub struct C1FChunkDataAndUpdateLight {
         /// Chunk coordinate (block coordinate divided by 16, rounded down)
         pub chunk_x: i32,
