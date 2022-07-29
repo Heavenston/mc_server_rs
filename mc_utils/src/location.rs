@@ -1,4 +1,4 @@
-use mc_networking::data_types::{Angle, Position};
+use mc_networking::data_types::{ Angle, Position};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Location {

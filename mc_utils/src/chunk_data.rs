@@ -1,96 +1,181 @@
-use mc_networking::{
-    data_types::bitbuffer::BitBuffer,
-    packets::client_bound::{C20ChunkData, C20ChunkDataSection},
+use mc_networking:: data_types::{
+    bitbuffer::BitBuffer,
+    bitset::BitSet,
+};
+use mc_networking::packets::client_bound::{
+    C1FChunkDataAndUpdateLight,
+    C1FSection, C1FPalettedContainer
 };
 
-use serde::{Deserialize, Serialize};
-use serde_big_array::*;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
-big_array! { BigArray; }
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
+
+/// Because neither serde nor big array can just use a boxed slice of 4096 u16.
+/// So this type is a (de)serializable array of 4096 u16.
+#[derive(Clone, Deserialize, Serialize)]
+pub struct ChunkArray {
+    #[serde(with = "BigArray")] 
+    pub array: [u16; 4096],
+}
+
+impl From<[u16; 4096]> for ChunkArray {
+    fn from(array: [u16; 4096]) -> Self {
+        Self { array }
+    }
+}
+
+impl Into<[u16; 4096]> for ChunkArray {
+    fn into(self) -> [u16; 4096] {
+        self.array
+    }
+}
+
+impl Deref for ChunkArray {
+    type Target = [u16; 4096];
+    fn deref(&self) -> &[u16; 4096] {
+        &self.array
+    }
+}
+impl DerefMut for ChunkArray {
+    fn deref_mut(&mut self) -> &mut [u16; 4096] {
+        &mut self.array
+    }
+}
 
 #[derive(Clone, Deserialize, Serialize)]
-pub struct ChunkDataSection {
-    #[serde(with = "BigArray")]
-    blocks: [u16; 4096],
-    palette: Vec<i32>,
+pub enum ChunkDataSection {
+    Paletted {
+        blocks: Box<ChunkArray>,
+        palette: Vec<i32>,
+    },
+    Filled(u16),
 }
 impl ChunkDataSection {
     pub fn new() -> Self {
-        Self {
-            blocks: [0; 4096],
-            palette: vec![0],
-        }
+        Self::Filled(0)
+    }
+
+    pub fn to_paletted(&mut self) {
+        let fill_with = if let Self::Filled(x) = self {
+            *x
+        } else { return };
+
+        let mut palette = vec![0];
+        let fill_with_index = if fill_with == 0 { 0 } else {
+            palette.push(fill_with as i32);
+            1
+        };
+
+        *self = Self::Paletted {
+            blocks: Box::new([fill_with_index; 4096].into()),
+            palette,
+        };
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
-        let (x, y, z) = (x as usize, y as usize, z as usize);
-        if let Some((pb, _)) = self
-            .palette
-            .iter()
-            .enumerate()
-            .find(|(_, b)| **b == block as i32)
-        {
-            self.blocks[x + (z * 16) + (y * 256)] = pb as u16;
+        match self {
+            // If the chunk is filled with the correct block there is nothing to do
+            Self::Filled(filled_with) if *filled_with == block
+                => return,
+
+            Self::Filled(..) => {
+                self.to_paletted();
+            }
+
+            Self::Paletted { .. } => (),
         }
-        else {
-            self.blocks[x + (z * 16) + (y * 256)] = self.palette.len() as u16;
-            self.palette.push(block as i32);
+
+        match self {
+            Self::Paletted { blocks, palette } => {
+                let (x, y, z) = (x as usize, y as usize, z as usize);
+                if let Some((pb, _)) = palette.iter()
+                    .enumerate().find(|(_, b)| **b == block as i32)
+                {
+                    blocks[x + (z * 16) + (y * 256)] = pb as u16;
+                }
+                else {
+                    blocks[x + (z * 16) + (y * 256)] = palette.len() as u16;
+                    palette.push(block as i32);
+                }
+            },
+
+            _ => unreachable!(),
         }
     }
 
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
-        let (x, y, z) = (x as usize, y as usize, z as usize);
-        self.palette[self.blocks[x + (z * 16) + (y * 256)] as usize] as u16
+        match self {
+            Self::Filled(x) => *x,
+            Self::Paletted { blocks, palette } => {
+                let (x, y, z) = (x as usize, y as usize, z as usize);
+                palette[blocks[x + (z * 16) + (y * 256)] as usize] as u16
+            }
+        }
     }
 
-    fn encode(&self) -> C20ChunkDataSection {
-        let mut block_count = 0;
+    fn encode(&self) -> C1FSection {
+        match self {
+            Self::Paletted { blocks: s_blocks, palette: s_palette } => {
+                let mut block_count = 0;
 
-        let bits_per_block = ((self.palette.len() as f64).log2().ceil() as u8).max(4);
-        let mut blocks = BitBuffer::create(bits_per_block, 4096);
-        for (i, pb) in self.blocks.iter().enumerate() {
-            block_count += (*pb != 0) as i16;
-            blocks.set_entry(i, *pb as u32);
-        }
+                let bits_per_block = ((s_palette.len() as f64).log2().ceil() as u8).max(4);
+                let mut blocks = BitBuffer::create(bits_per_block, 4096);
 
-        C20ChunkDataSection {
-            block_count,
-            bits_per_block,
-            palette: Some(self.palette.clone()),
-            data_array: blocks.into_buffer(),
+                debug_assert!(s_palette[0] == 0, "The way block_count is calculated must be changed");
+                for (i, pb) in s_blocks.iter().enumerate() {
+                    block_count += (*pb != 0) as i16; 
+                    blocks.set_entry(i, *pb as u32);
+                }
+
+                C1FSection {
+                    block_count,
+                    block_states: C1FPalettedContainer::Indirect {
+                        bits_per_entry: bits_per_block,
+                        palette: s_palette.clone(),
+                        data_array: blocks.into_buffer()
+                    },
+                    biomes: C1FPalettedContainer::Single(0),
+                }
+            }
+
+            Self::Filled(x) => {
+                C1FSection {
+                    block_count: if *x == 0 { 4096 } else { 0 },
+                    block_states: C1FPalettedContainer::Single(*x as _),
+                    biomes: C1FPalettedContainer::Single(0),
+                }
+            }
         }
     }
 }
+impl Default for ChunkDataSection {
+    fn default() -> Self {
+        Self::Filled(0)
+    }
+}
 
-#[derive(Clone, Deserialize, Serialize)]
+
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ChunkData {
-    sections: [Option<Box<ChunkDataSection>>; 17],
-    // TODO: Make biomes mutable
-    #[serde(with = "BigArray")]
-    biomes: [i32; 1024],
+    sections: [ChunkDataSection; 17],
 }
 impl ChunkData {
     pub fn new() -> Self {
         Self {
             sections: Default::default(),
-            biomes: [1; 1024],
         }
     }
 
-    /// Get a reference to a section, returns None id it doesn't exist
-    pub fn get_section(&self, y: u8) -> Option<&ChunkDataSection> {
-        self.sections[y as usize].as_ref().map(|ds| ds.as_ref())
+    /// Get a reference to a section
+    pub fn get_section(&self, y: u8) -> &ChunkDataSection {
+        &self.sections[y as usize]
     }
-    /// Get a mutable reference to a section, create the section if it doesn't exist
+    /// Get a mutable reference to a section
     pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
-        if self.sections[y as usize].is_none() {
-            self.sections[y as usize] = Some(Box::new(ChunkDataSection::new()));
-        }
-
-        self.sections[y as usize]
-            .as_mut()
-            .map(|s| s.as_mut())
-            .unwrap()
+        &mut self.sections[y as usize]
     }
 
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
@@ -99,26 +184,12 @@ impl ChunkData {
     }
     pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
         self.get_section(y / 16)
-            .map(|s| s.get_block(x, y.rem_euclid(16), z))
-            .unwrap_or(0)
+            .get_block(x, y.rem_euclid(16), z)
     }
 
     pub fn encode_full(
-        &self,
-        chunk_x: i32,
-        chunk_z: i32,
-        full: bool,
-        sections: u16,
-    ) -> C20ChunkData {
-        let primary_bit_mask = {
-            let mut primary_bit_mask = 0;
-            for section in 0..16 {
-                if ((1 << section) & sections) != 0 && self.sections[section as usize].is_some() {
-                    primary_bit_mask |= 1 << section;
-                }
-            }
-            primary_bit_mask
-        };
+        &self, chunk_x: i32, chunk_z: i32
+    ) -> C1FChunkDataAndUpdateLight {
         let motion_blocking_heightmap = {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
             for x in 0..16 {
@@ -133,28 +204,11 @@ impl ChunkData {
             }
             motion_blocking_heightmap
         };
-        let chunk_sections = {
-            let mut chunk_sections = vec![];
-            for section_y in 0..=16 {
-                if self.sections[section_y as usize].is_some() {
-                    chunk_sections
-                        .push(self.sections[section_y as usize].as_ref().unwrap().encode());
-                }
-            }
-            chunk_sections
-        };
+        let chunk_sections = self.sections.iter().map(|s| s.encode()).collect();
 
-        C20ChunkData {
+        C1FChunkDataAndUpdateLight {
             chunk_x,
             chunk_z,
-            full_chunk: full,
-            biomes: if full {
-                Some(self.biomes.to_vec())
-            }
-            else {
-                None
-            },
-            primary_bit_mask,
             heightmaps: {
                 let mut heightmaps = nbt::Blob::new();
                 heightmaps
@@ -164,6 +218,13 @@ impl ChunkData {
             },
             chunk_sections,
             block_entities: vec![],
+            trust_edges: true,
+            sky_light_mask: BitSet::new(),
+            block_light_mask: BitSet::new(),
+            empty_sky_light_mask: BitSet::new(),
+            empty_block_light_mask: BitSet::new(),
+            sky_light_array: vec![],
+            block_light_array: vec![],
         }
     }
 }
