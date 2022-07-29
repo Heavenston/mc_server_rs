@@ -435,7 +435,7 @@ pub(super) async fn listen_ingoing_packets(
                     S2ESwingArm => SwingArm,
                     S30UseItemOn => UseItemOn,
                     _ {
-                        debug!("Unknown packet id received (play state) {:02x}", raw_packet.packet_id);
+                        debug!("Unknown packet id received (play state) 0x{:02x}", raw_packet.packet_id);
                     }
                 };
             }

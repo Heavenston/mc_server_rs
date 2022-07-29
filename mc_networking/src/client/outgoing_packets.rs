@@ -64,18 +64,19 @@ pub(super) async fn listen_outgoing_packets(
                 notify.notify_one();
                 packet_buffer.clear();
             }
-            (OutgoingPacketEvent::SetCompression(nc), ..) => compression = nc,
-            (OutgoingPacketEvent::SetEncryption(e), ..) => match e {
-                Some(shared_key) => {
+
+            (OutgoingPacketEvent::SetCompression(nc), ..) => 
+                compression = nc,
+
+            (OutgoingPacketEvent::SetEncryption(e), ..) =>
+                encryption = e.map(|shared_key| {
                     let cipher = Cipher::aes_128_cfb8();
-                    encryption = Some((
+                    (
                         cipher,
                         Crypter::new(cipher, Mode::Encrypt, &shared_key, Some(&shared_key))
-                            .unwrap(),
-                    ));
-                }
-                None => encryption = None,
-            },
+                        .unwrap(),
+                    )
+                }),
         }
     }
 }

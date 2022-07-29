@@ -334,7 +334,7 @@ impl MetadataValue {
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         let kind = encoder::varint::decode_async(stream).await?;
 
-        #[allow(overlapping_patterns)]
+        #[allow(overlapping_range_endpoints)]
         match kind {
             0 => Ok(Self::Byte(stream.read_u8().await?)),
             1 => Ok(Self::VarInt(encoder::varint::decode_async(stream).await?)),

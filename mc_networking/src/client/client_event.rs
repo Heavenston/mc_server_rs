@@ -1,8 +1,4 @@
-use crate::{
-    data_types::{Position, Slot},
-    packets::server_bound::*,
-    packets::client_bound::*,
-};
+use crate::packets::server_bound::*;
 
 use tokio::sync::oneshot;
 use uuid::Uuid;

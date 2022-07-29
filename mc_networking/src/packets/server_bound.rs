@@ -238,15 +238,13 @@ mod login {
 pub use login::*;
 
 mod play {
-    use std::convert::TryFrom;
-
     use super::ServerBoundPacket;
     use crate::{
         data_types::{encoder::PacketDecoder, Position, Slot, VarInt, Identifier},
         DecodingError as Error, DecodingResult as Result,
     };
 
-    use num_traits::{ ToPrimitive, FromPrimitive };
+    use num_traits::FromPrimitive;
     use num_derive::{ ToPrimitive, FromPrimitive };
 
     /// Sent by client as confirmation of C37SynchronizePlayerPosition

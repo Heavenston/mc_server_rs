@@ -2,7 +2,6 @@
 pub struct BitBuffer {
     entry_bit_size: u64,
     entries_per_long: u64,
-    size: usize,
     mask: u64,
     longs: Vec<i64>,
 }
@@ -16,18 +15,16 @@ impl BitBuffer {
         BitBuffer {
             entry_bit_size: entry_bit_size as u64,
             longs,
-            size,
             entries_per_long,
             mask: (1 << entry_bit_size) - 1,
         }
     }
 
-    pub fn load(entries: usize, bits_per_entry: u8, longs: Vec<i64>) -> BitBuffer {
+    pub fn load(bits_per_entry: u8, longs: Vec<i64>) -> BitBuffer {
         let entries_per_long = 64 / bits_per_entry as u64;
         BitBuffer {
             entry_bit_size: bits_per_entry as u64,
             longs,
-            size: entries,
             entries_per_long,
             mask: (1 << bits_per_entry) - 1,
         }

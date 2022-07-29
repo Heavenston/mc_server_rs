@@ -173,10 +173,9 @@ mod play {
     use crate::{
         data_types::{
             command_data, encoder::PacketEncoder, Angle, Identifier, MetadataValue, Position, Slot,
-            VarInt, bitbuffer::BitBuffer, bitset::BitSet
+            VarInt, bitset::BitSet
         },
         nbt_map::NBTMap,
-        packets::server_bound::S1CStatus,
         DecodingResult as Result,
     };
 
