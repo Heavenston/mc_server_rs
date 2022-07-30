@@ -8,6 +8,7 @@ use mc_utils::Location;
 
 const NETWORK_ID_COUNTER: AtomicI32 = AtomicI32::new(0);
 
+#[derive(Clone, Copy, Debug)]
 #[readonly::make]
 pub struct NetworkIdComponent(pub i32);
 impl NetworkIdComponent {
