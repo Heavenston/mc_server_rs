@@ -14,7 +14,7 @@ fn chunks_schedule() -> Schedule {
         .build()
 }
 
-/// Schedules all required systems from the lib
+/// Wrapper arroun the legion's schedule that adds required systems from the lib
 /// To add custom systems use [McSchedule::set_custom_schedule]
 pub struct McSchedule<E: GlobalEventHandler + 'static> {
     pub resources: Resources,

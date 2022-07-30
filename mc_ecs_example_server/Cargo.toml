@@ -11,7 +11,7 @@ mc_networking = { path = "../mc_networking" }
 mc_utils = { path = "../mc_utils" }
 mc_ecs_server_lib = { path = "../mc_ecs_server_lib" }
 tokio = { version = "1.0", features = ["full"] }
-legion = "0.3"
+legion = "0.4"
 rayon = "1.5"
 dashmap = "4.0"
 flume = "0.10"

@@ -63,6 +63,7 @@ pub(crate) fn chunk_observer_chunk_loadings(
     chunk_loc: &ChunkLocationComponent,
     client: &ClientComponent,
 ) {
+    // This system only really runs for observers that just changed chunk
     if !chunk_loc.changed {
         return;
     }
@@ -86,9 +87,9 @@ pub(crate) fn chunk_observer_chunk_loadings(
             });
     }
 
-    // Load close enough chunks
-    for square_dist in 0..chunk_observer.radius {
-        for chunk_dx in -square_dist..square_dist {
+    // Load close enough chunks from the closests to the farthests
+    for square_dist in 0..chunk_observer.radius { // Iterate over chunk distance
+        for chunk_dx in -square_dist..square_dist { // Load chunks of that distance
             for chunk_dz in -square_dist..square_dist {
                 for (chunk_dx, chunk_dz) in [(chunk_dx, chunk_dz), (-chunk_dx, -chunk_dz)].to_vec()
                 {

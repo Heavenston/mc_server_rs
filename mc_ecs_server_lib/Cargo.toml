@@ -10,7 +10,7 @@ edition = "2018"
 mc_networking = { path = "../mc_networking" }
 mc_utils = { path = "../mc_utils" }
 tokio = { version = "1.0", features = ["full"] }
-legion = "0.3"
+legion = "0.4"
 rayon = "1.5"
 readonly = "0.2"
 uuid = { version = "0.8", features = ["v4", "v3"] }

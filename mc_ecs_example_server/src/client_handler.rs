@@ -14,7 +14,6 @@ pub struct ClientComponent {
 #[system]
 #[write_component(ClientComponent)]
 pub fn handle_clients(world: &mut SubWorld, cmd: &mut CommandBuffer) {
-    // TODO: Find a way to avoid allocation
     let to_remove = <(Entity, &mut ClientComponent)>::query()
         .par_iter_mut(world)
         .filter_map(|(entity, client_component,)| {
@@ -32,7 +31,7 @@ pub fn handle_clients(world: &mut SubWorld, cmd: &mut CommandBuffer) {
     }
 }
 
-fn handle_client_event(client_component: &mut ClientComponent, event: ClientEvent) -> bool {
+fn handle_client_event(_client_component: &mut ClientComponent, event: ClientEvent) -> bool {
     let mut should_delete = false;
     match event {
         ClientEvent::ServerListPing { response } => {

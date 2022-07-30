@@ -1,6 +1,6 @@
 use legion::Entity;
 
-/// Trait to represent a chunk provider which manages chunk loading
+/// A chunk provider is use to generate chunks and send them to players
 pub trait ChunkProvider: Send + Sync {
     /// Called when a chunk gets in range of a player
     /// You may send the ChunkData packet at any time after this
