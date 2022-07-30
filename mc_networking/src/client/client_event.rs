@@ -21,11 +21,20 @@ pub enum ClientEvent {
     ServerListPing {
         response: oneshot::Sender<serde_json::Value>,
     },
+    /// Sent after a client has been entered the "login" phase
+    /// A respone in the respone channel will be awaited, after which
+    /// the client will either be disconnected
+    /// Or compression and encryption will be setup
+    /// Before sending any play packets, wait for the LoggedIn client event
     LoginStart {
         username: String,
         response: oneshot::Sender<LoginStartResult>,
     },
+    /// Sent when the client is ready for receiving play packets
+    /// Usually, following this event, you'll want to send a C23Login packet.
+    /// As well as the tab player list (using C32PlayerInfoPlayerUpdate), the player's inventory
     LoggedIn,
+    /// Sent anytime the client has been disconnected
     Logout,
 
     Ping {

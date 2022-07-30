@@ -246,7 +246,7 @@ pub(super) async fn listen_ingoing_packets(
 
                                     packet_sender
                                         .send_async(OutgoingPacketEvent::Packet(
-                                                C02LoginSuccess { uuid, username }.to_rawpacket(),
+                                            C02LoginSuccess { uuid, username }.to_rawpacket(),
                                         ))
                                         .await?;
                                     *(state.write().await) = ClientState::Play;
