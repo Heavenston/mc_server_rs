@@ -42,6 +42,7 @@ lazy_static::lazy_static! {
                 piglin_safe: 0,
                 ambient_light: 0.,
                 has_skylight: 1,
+                has_ceiling: 1,
                 effects: "minecraft:overworld".into(),
                 has_raids: 1,
                 monster_spawn_block_light_limit: 0,

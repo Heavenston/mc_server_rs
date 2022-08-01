@@ -758,6 +758,10 @@ mod play {
         ///
         /// 1: true, 0: false.
         pub has_skylight: i8,
+        /// Whether the dimension has a ceiling (like the nether) or not
+        ///
+        /// 1: true, 0: false.
+        pub has_ceiling: i8,
         /// Whether players can use a bed to sleep.	
         ///
         /// 1: true, 0: false.
@@ -919,18 +923,15 @@ mod play {
 
     #[derive(Clone, Debug, Serialize)]
     struct C24RegistryCodecInner {
-        /*
         #[serde(rename = "minecraft:dimension_type")]
         pub dimensions: NBTMap<C23DimensionElement>,
         #[serde(rename = "minecraft:worldgen/biome")]
         pub biomes: NBTMap<C23BiomeElement>,
         #[serde(rename = "minecraft:chat_type")]
         pub chat_types: NBTMap<C23BiomeElement>,
-        */
     }
     impl C23RegistryCodec {
         fn encode<T: std::io::Write>(&self, buf: &mut T) -> Result<()> {
-            /*
             let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
             for (name, element) in self.dimension_types.iter() {
                 dimension_map.push_element(name.to_string(), element.clone());
@@ -948,8 +949,6 @@ mod play {
                 biomes: biome_map,
                 chat_types: chat_map,
             };
-            */
-            let codec = C24RegistryCodecInner {};
             nbt::ser::to_writer(buf, &codec, None)?;
             Ok(())
         }
