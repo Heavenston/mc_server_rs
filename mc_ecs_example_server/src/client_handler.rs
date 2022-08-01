@@ -4,7 +4,7 @@ use mc_networking::client::{
     Client,
 };
 use mc_networking::packets::client_bound::*;
-use mc_networking::data_types::Slot;
+use mc_networking::data_types::{ Slot, Position, command_data::RootNode };
 use mc_ecs_server_lib::entity::{
     NetworkIdComponent, LocationComponent, ObjectUuidComponent, UsernameComponent,
     chunk::{ ChunkObserverComponent, ChunkLocationComponent }
@@ -48,19 +48,23 @@ pub fn test_clients(
 
 #[system(for_each)]
 pub fn handle_clients(
-    client_component: &mut ClientComponent,
+    client_component: &mut ClientComponent, object_uuid: Option<&ObjectUuidComponent>,
+    username_component: Option<&UsernameComponent>,
     entity: &Entity, cmd: &mut CommandBuffer,
     #[resource] stone_chunk_provider: &Arc<StoneChunkProvider>,
 ) {
     let chunk_provider: Arc<dyn ChunkProvider> = Arc::clone(stone_chunk_provider) as _;
-    while let Ok(event) = client_component.event_receiver.try_recv() {
-        handle_client_event(entity, client_component, cmd, event, &chunk_provider);
+    if let Ok(event) = client_component.event_receiver.try_recv() {
+        handle_client_event(
+            entity, client_component, object_uuid, username_component,
+            cmd, event, &chunk_provider
+        );
     }
 }
 
 fn handle_client_event(
-    entity: &Entity,
-    client_component: &mut ClientComponent,
+    entity: &Entity, client_component: &mut ClientComponent,
+    object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
     cmd: &mut CommandBuffer,
     event: ClientEvent,
     chunk_provider: &Arc<dyn ChunkProvider>,
@@ -122,6 +126,34 @@ fn handle_client_event(
                 death_location: None,
             });
 
+            client_component.client.send_packet_sync(&C34PlayerInfo::AddPlayers {
+                players: vec![C34AddPlayer {
+                    uuid: object_uuid.unwrap().0.clone(),
+                    name: username_component.unwrap().0.clone(),
+                    properties: vec![],
+                    gamemode: 1,
+                    ping: 10000,
+                    display_name: None,
+                    sig_data: (),
+                }],
+            });
+
+            client_component.client.send_packet_sync(&C4ASetDefaultSpawnPosition {
+                location: Position {
+                    x: 0, y: 100, z: 0,
+                },
+                angle: 0.,
+            });
+            client_component.client.send_packet_sync(&C2FPlayerAbilities::new(
+                true, false, true, true, 1., 1.
+            ));
+            client_component.client.send_packet_sync(&C0FCommands {
+                root_node: Arc::new(RootNode {
+                    is_executable: false,
+                    children_nodes: vec![],
+                    redirect_node: None,
+                })
+            });
             client_component.client.send_packet_sync(&C63TeleportEntity {
                 entity_id: network_id.0,
                 x: 0., y: 100., z: 0., yaw: 0, pitch: 0,
@@ -137,7 +169,7 @@ fn handle_client_event(
             });
             client_component.client.send_packet_sync(&C11SetContainerContent {
                 window_id: 0, state_id: 0,
-                slots: vec![Slot::NotPresent; 45], carried_item: Slot::NotPresent,
+                slots: vec![Slot::NotPresent; 51], carried_item: Slot::NotPresent,
             });
         }
 

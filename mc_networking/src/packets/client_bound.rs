@@ -1231,7 +1231,7 @@ mod play {
 
 
     #[derive(Clone, Debug)]
-    pub struct C32PlayerInfoAddPlayerProperty {
+    pub struct C34PlayerInfoAddPlayerProperty {
         pub name: String,
         pub value: String,
         pub signature: Option<String>,
@@ -1240,7 +1240,7 @@ mod play {
     pub struct C34AddPlayer {
         pub uuid: Uuid,
         pub name: String,
-        pub properties: Vec<C32PlayerInfoAddPlayerProperty>,
+        pub properties: Vec<C34PlayerInfoAddPlayerProperty>,
         pub gamemode: VarInt,
         /// Measured in milliseconds.
         pub ping: VarInt,
@@ -1252,6 +1252,7 @@ mod play {
         pub fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_uuid(&self.uuid);
             encoder.write_string(&self.name);
+            encoder.write_varint(self.properties.len() as _);
             for prop in &self.properties {
                 encoder.write_string(&prop.name);
                 encoder.write_string(&prop.value);
