@@ -857,13 +857,16 @@ version = "0.1.0"
 dependencies = [
  "dashmap",
  "flume",
+ "lazy_static",
  "legion",
+ "maplit",
  "mc_ecs_server_lib",
  "mc_networking",
  "mc_utils",
  "rayon",
  "serde_json",
  "tokio 1.0.1",
+ "uuid",
 ]
 
 [[package]]

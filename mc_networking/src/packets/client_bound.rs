@@ -909,9 +909,9 @@ mod play {
     #[derive(Clone, Debug)]
     pub struct C23RegistryCodec {
         /// The dimension type registry
-        pub dimension_types: HashMap<Identifier, C23DimensionElement>,
+        pub dimension_types: Vec<(Identifier, C23DimensionElement)>,
         /// The biome registry
-        pub biomes: HashMap<Identifier, C23BiomeElement>,
+        pub biomes: Vec<(Identifier, C23BiomeElement)>,
         /// The chat type registry
         /// TODO: Implement (currenly lacks documentation)
         pub chat_types: (),

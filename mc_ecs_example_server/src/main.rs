@@ -1,6 +1,7 @@
 mod chunk_loader;
 mod client_handler;
 mod event_handler;
+mod registry_codec;
 
 use crate::chunk_loader::*;
 use chunk_loader::StoneChunkProvider;
@@ -43,6 +44,7 @@ fn main() {
 
             let mut world: World = World::default();
             let mut schedule = McSchedule::new(MyEventHandler);
+            schedule.resources.insert(Arc::clone(&chunk_provider));
 
             schedule.set_custom_schedule(
                 Schedule::builder()
@@ -68,9 +70,7 @@ fn main() {
     });
 
     let tokio_runtime = runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
+        .enable_all().build().unwrap();
     tokio_runtime.enter();
     tokio_runtime.block_on(start_network_server("0.0.0.0:25565", pending_clients));
 }

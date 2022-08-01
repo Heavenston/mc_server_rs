@@ -79,23 +79,19 @@ pub fn stone_chunk_provider(
     world: &mut SubWorld,
     #[state] chunk_provider: &Arc<StoneChunkProvider>,
 ) {
-    chunk_provider
-        .unloading_chunks
-        .iter()
-        .par_bridge()
+    chunk_provider.unloading_chunks
+        .iter().par_bridge()
         .for_each(|unloading_chunk| {
             let unload_packet = C1AUnloadChunk {
                 chunk_x: unloading_chunk.key().0,
                 chunk_z: unloading_chunk.key().1,
-            }
-            .to_rawpacket();
+            }.to_rawpacket();
 
             (&*unloading_chunk).par_iter().for_each(|player| {
                 if let Ok(entry) = world.entry_ref(player.clone()) {
                     entry
                         .get_component::<ClientComponent>()
-                        .unwrap()
-                        .0
+                        .unwrap().0
                         .send_raw_packet_sync(unload_packet.clone());
                 }
             });
