@@ -48,7 +48,7 @@ fn main() {
 
             schedule.set_custom_schedule(
                 Schedule::builder()
-                    .add_system(test_clients_system())
+                    //.add_system(test_clients_system())
                     .add_system(stone_chunk_provider_system(Arc::clone(&chunk_provider)))
                     .add_system(client_pusher_system(pending_clients))
                     .add_system(handle_clients_system())

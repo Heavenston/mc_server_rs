@@ -29,7 +29,6 @@ impl StoneChunkProvider {
 }
 impl ChunkProvider for StoneChunkProvider {
     fn load_chunk(&self, player: &Entity, x: i32, z: i32) {
-        println!("LOAD {x} {z}");
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());
@@ -88,14 +87,32 @@ pub fn stone_chunk_provider(
                 chunk_z: unloading_chunk.key().1,
             }.to_rawpacket();
 
-            (&*unloading_chunk).par_iter().for_each(|player| {
+            (&*unloading_chunk).iter().for_each(|player| {
                 if let Ok(entry) = world.entry_ref(player.clone()) {
-                    entry
-                        .get_component::<ClientComponent>()
-                        .unwrap().0
-                        .send_raw_packet_sync(unload_packet.clone());
+                    entry.get_component::<ClientComponent>().unwrap()
+                        .0.send_raw_packet_sync(unload_packet.clone());
                 }
             });
         });
     chunk_provider.unloading_chunks.clear();
+
+    chunk_provider.loading_chunks
+        .retain(|k, v| {
+            // We keep chunks that aren't yet loaded
+            if v.read().unwrap().data.is_none()
+            { return true }
+
+            let mut final_data = v.write().unwrap();
+            let data = final_data.data.take().unwrap();
+            let packet = data.encode_full(k.0, k.1).to_rawpacket();
+
+            for waiter in &final_data.waiters {
+                if let Ok(entry) = world.entry_ref(*waiter) {
+                    entry.get_component::<ClientComponent>().unwrap()
+                        .0.send_raw_packet_sync(packet.clone());
+                }
+            }
+
+            false
+        });
 }

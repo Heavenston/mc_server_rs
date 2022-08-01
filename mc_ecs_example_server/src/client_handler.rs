@@ -131,6 +131,10 @@ fn handle_client_event(
                 x: 0., y: 0., z: 0., yaw: 0., pitch: 0.,
                 flags: 0, teleport_id: 0, dismount_vehicle: false,
             });
+            client_component.client.send_packet_sync(&C48SetCenterChunk {
+                chunk_x: 0,
+                chunk_z: 0,
+            });
             client_component.client.send_packet_sync(&C11SetContainerContent {
                 window_id: 0, state_id: 0,
                 slots: vec![Slot::NotPresent; 45], carried_item: Slot::NotPresent,
