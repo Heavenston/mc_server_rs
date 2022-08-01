@@ -919,15 +919,18 @@ mod play {
 
     #[derive(Clone, Debug, Serialize)]
     struct C24RegistryCodecInner {
+        /*
         #[serde(rename = "minecraft:dimension_type")]
         pub dimensions: NBTMap<C23DimensionElement>,
         #[serde(rename = "minecraft:worldgen/biome")]
         pub biomes: NBTMap<C23BiomeElement>,
         #[serde(rename = "minecraft:chat_type")]
         pub chat_types: NBTMap<C23BiomeElement>,
+        */
     }
     impl C23RegistryCodec {
         fn encode<T: std::io::Write>(&self, buf: &mut T) -> Result<()> {
+            /*
             let mut dimension_map = NBTMap::new("minecraft:dimension_type".into());
             for (name, element) in self.dimension_types.iter() {
                 dimension_map.push_element(name.to_string(), element.clone());
@@ -945,6 +948,8 @@ mod play {
                 biomes: biome_map,
                 chat_types: chat_map,
             };
+            */
+            let codec = C24RegistryCodecInner {};
             nbt::ser::to_writer(buf, &codec, None)?;
             Ok(())
         }
@@ -961,7 +966,7 @@ mod play {
         pub is_hardcore: bool,
         /// 0: Survival, 1: Creative,
         /// 2: Adventure, 3: Spectator.
-        pub gamemode: u8,
+        pub gamemode: i8,
         /// 0: survival, 1: creative, 2: adventure, 3: spectator.
         /// The hardcore flag is not included. The previous gamemode.
         /// Defaults to -1 if there is no previous gamemode. (More information needed)
@@ -1003,11 +1008,11 @@ mod play {
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_i32(self.entity_id);
             encoder.write_bool(self.is_hardcore);
-            encoder.write_u8(self.gamemode);
+            encoder.write_i8(self.gamemode);
+            encoder.write_i8(self.previous_gamemode);
             encoder.write_varint(self.dimension_names.len() as _);
-            for name in &self.dimension_names {
-                encoder.write_string(&name);
-            }
+            for name in &self.dimension_names
+            { encoder.write_string(&name); }
             self.registry_codec.encode(encoder).expect("Unexpected encode error");
             encoder.write_string(&self.dimension_type);
             encoder.write_string(&self.dimension_name);
