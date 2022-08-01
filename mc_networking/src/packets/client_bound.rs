@@ -1518,7 +1518,7 @@ mod play {
         pub chunk_z: i32,
     }
     impl ClientBoundPacket for C48SetCenterChunk {
-        const PACKET_ID: i32 = 0x40;
+        const PACKET_ID: i32 = 0x48;
 
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.chunk_x);
