@@ -48,6 +48,7 @@ fn main() {
 
             schedule.set_custom_schedule(
                 Schedule::builder()
+                    .add_system(test_clients_system())
                     .add_system(stone_chunk_provider_system(Arc::clone(&chunk_provider)))
                     .add_system(client_pusher_system(pending_clients))
                     .add_system(handle_clients_system())
@@ -71,6 +72,6 @@ fn main() {
 
     let tokio_runtime = runtime::Builder::new_multi_thread()
         .enable_all().build().unwrap();
-    tokio_runtime.enter();
+    let _ = tokio_runtime.enter();
     tokio_runtime.block_on(start_network_server("0.0.0.0:25565", pending_clients));
 }

@@ -4,6 +4,7 @@ use mc_networking::client::{
     Client,
 };
 use mc_networking::packets::client_bound::*;
+use mc_networking::data_types::Slot;
 use mc_ecs_server_lib::entity::{
     NetworkIdComponent, LocationComponent, ObjectUuidComponent, UsernameComponent,
     chunk::{ ChunkObserverComponent, ChunkLocationComponent }
@@ -15,7 +16,7 @@ use std::sync::Arc;
 
 use uuid::Uuid;
 use legion::{
-    Entity, IntoQuery, system, systems::CommandBuffer, world::SubWorld
+    Entity, query::{ IntoQuery, Query }, system, systems::CommandBuffer, world::SubWorld
 };
 use rayon::prelude::*;
 
@@ -24,8 +25,28 @@ pub struct ClientComponent {
     pub event_receiver: flume::Receiver<ClientEvent>,
 }
 
+#[system]
+#[read_component(ClientComponent)]
+pub fn test_clients(
+    world: &mut SubWorld,
+    cmd: &mut CommandBuffer,
+) {
+    <(Entity, &ClientComponent)>::query()
+        .for_each(world, |(entity, _)| {
+            let ent = *entity;
+            println!("Client");
+            cmd.exec_mut(move |world, _| {
+                let entry = world.entry(ent).unwrap();
+                println!(
+                    "{:?} has {:?}",
+                    ent,
+                    entry.archetype().layout().component_types().into_iter().map(|a| format!("{a}")).collect::<Vec<_>>()
+                );
+            });
+        });
+}
+
 #[system(for_each)]
-#[write_component(ClientComponent)]
 pub fn handle_clients(
     client_component: &mut ClientComponent,
     entity: &Entity, cmd: &mut CommandBuffer,
@@ -76,7 +97,7 @@ fn handle_client_event(
                 loaded_chunks: Default::default(),
                 chunk_provider: Arc::clone(chunk_provider),
             });
-            cmd.add_component(*entity, ChunkLocationComponent::new(0, 0));
+            cmd.add_component(*entity, ChunkLocationComponent::new(i32::MAX, i32::MAX));
             cmd.add_component(*entity, LocationComponent(Location {
                 x: 0., y: 100., z: 0., yaw: 0., pitch: 0.,
             }));
@@ -99,6 +120,20 @@ fn handle_client_event(
                 is_debug: false,
                 is_flat: true,
                 death_location: None,
+            });
+
+            client_component.client.send_packet_sync(&C63TeleportEntity {
+                entity_id: network_id.0,
+                x: 0., y: 100., z: 0., yaw: 0, pitch: 0,
+                on_ground: false,
+            });
+            client_component.client.send_packet_sync(&C36SynchronizePlayerPosition {
+                x: 0., y: 0., z: 0., yaw: 0., pitch: 0.,
+                flags: 0, teleport_id: 0, dismount_vehicle: false,
+            });
+            client_component.client.send_packet_sync(&C11SetContainerContent {
+                window_id: 0, state_id: 0,
+                slots: vec![Slot::NotPresent; 45], carried_item: Slot::NotPresent,
             });
         }
 

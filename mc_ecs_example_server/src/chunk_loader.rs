@@ -29,6 +29,7 @@ impl StoneChunkProvider {
 }
 impl ChunkProvider for StoneChunkProvider {
     fn load_chunk(&self, player: &Entity, x: i32, z: i32) {
+        println!("LOAD {x} {z}");
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());

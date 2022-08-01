@@ -1374,7 +1374,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Synchronize_Player_Position>
     #[derive(Clone, Debug)]
-    pub struct C37SynchronizePlayerPosition {
+    pub struct C36SynchronizePlayerPosition {
         /// Absolute or relative position, depending on Flags.
         pub x: f64,
         /// Absolute or relative position, depending on Flags.
@@ -1394,8 +1394,8 @@ mod play {
         /// True if the player should dismount their vehicle.
         pub dismount_vehicle: bool,
     }
-    impl ClientBoundPacket for C37SynchronizePlayerPosition {
-        const PACKET_ID: i32 = 0x37;
+    impl ClientBoundPacket for C36SynchronizePlayerPosition {
+        const PACKET_ID: i32 = 0x36;
 
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_f64(self.x);
@@ -1658,7 +1658,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Teleport_Entity>
     #[derive(Clone, Debug)]
-    pub struct C63EntityTeleport {
+    pub struct C63TeleportEntity {
         pub entity_id: VarInt,
         /// X Axis position of the entity
         pub x: f64,
@@ -1673,8 +1673,8 @@ mod play {
         /// Wether the entity is touching the ground
         pub on_ground: bool,
     }
-    impl ClientBoundPacket for C63EntityTeleport {
-        const PACKET_ID: i32 = 0x56;
+    impl ClientBoundPacket for C63TeleportEntity {
+        const PACKET_ID: i32 = 0x63;
 
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_varint(self.entity_id);

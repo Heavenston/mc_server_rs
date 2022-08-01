@@ -414,7 +414,7 @@ impl EntityPool {
         if let Some(player) = entity.try_as_player() {
             player
                 .client
-                .send_packet_async(&C37SynchronizePlayerPosition {
+                .send_packet_async(&C36SynchronizePlayerPosition {
                     x: location.x,
                     y: location.y,
                     z: location.z,

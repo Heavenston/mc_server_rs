@@ -18,9 +18,8 @@ pub struct ChunkObserverComponent {
 /// Represent the chunk location of an [Entity] with the [ChunkLoaderComponent]
 /// This will be automatically updated based on the [LocationComponent]
 #[readonly::make]
+#[derive(Debug, Clone, Copy)]
 pub struct ChunkLocationComponent {
-    pub last_x: i32,
-    pub last_z: i32,
     pub x: i32,
     pub z: i32,
     pub changed: bool,
@@ -28,8 +27,6 @@ pub struct ChunkLocationComponent {
 impl ChunkLocationComponent {
     pub fn new(x: i32, z: i32) -> Self {
         Self {
-            last_x: 0,
-            last_z: 0,
             x,
             z,
             changed: true,
@@ -48,9 +45,6 @@ pub(crate) fn chunk_locations_update(
     let chunk_z = location.0.chunk_z();
 
     chunk_loc.changed = chunk_loc.x != chunk_x || chunk_loc.z != chunk_z;
-
-    chunk_loc.last_x = chunk_loc.x;
-    chunk_loc.last_z = chunk_loc.z;
 
     chunk_loc.x = chunk_x;
     chunk_loc.z = chunk_z;

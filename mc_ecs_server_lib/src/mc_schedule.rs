@@ -27,8 +27,8 @@ impl<E: GlobalEventHandler + 'static> McSchedule<E> {
     fn create_schedule(other_schedules: &mut Vec<Schedule>) -> Schedule {
         let mut schedules = vec![chunks_schedule()];
         schedules.append(other_schedules);
-        let mut final_schedule_steps = vec![];
 
+        let mut final_schedule_steps = vec![];
         for schedule in schedules {
             final_schedule_steps.append(&mut schedule.into_vec());
             final_schedule_steps.push(Step::FlushCmdBuffers);
