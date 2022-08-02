@@ -25,27 +25,6 @@ pub struct ClientComponent {
     pub event_receiver: flume::Receiver<ClientEvent>,
 }
 
-#[system]
-#[read_component(ClientComponent)]
-pub fn test_clients(
-    world: &mut SubWorld,
-    cmd: &mut CommandBuffer,
-) {
-    <(Entity, &ClientComponent)>::query()
-        .for_each(world, |(entity, _)| {
-            let ent = *entity;
-            println!("Client");
-            cmd.exec_mut(move |world, _| {
-                let entry = world.entry(ent).unwrap();
-                println!(
-                    "{:?} has {:?}",
-                    ent,
-                    entry.archetype().layout().component_types().into_iter().map(|a| format!("{a}")).collect::<Vec<_>>()
-                );
-            });
-        });
-}
-
 #[system(for_each)]
 pub fn handle_clients(
     client_component: &mut ClientComponent, object_uuid: Option<&ObjectUuidComponent>,
@@ -97,7 +76,7 @@ fn handle_client_event(
             cmd.add_component(*entity, network_id);
 
             cmd.add_component(*entity, ChunkObserverComponent {
-                radius: 23,
+                radius: 4,
                 loaded_chunks: Default::default(),
                 chunk_provider: Arc::clone(chunk_provider),
             });
@@ -110,15 +89,15 @@ fn handle_client_event(
                 entity_id: network_id.0,
                 is_hardcore: false,
                 gamemode: 0,
-                previous_gamemode: -1,
+                previous_gamemode: 0,
                 dimension_type: "heav:voidy".into(),
                 dimension_name: "heav:voidy".into(),
                 dimension_names: vec!["heav:voidy".into()],
                 registry_codec: crate::registry_codec::REGISTRY_CODEC.clone(),
                 hashed_seed: 0,
-                max_players: 0,
-                view_distance: 23,
-                simulation_distance: 23,
+                max_players: 2,
+                view_distance: 4,
+                simulation_distance: 4,
                 reduced_debug_info: false,
                 enable_respawn_screen: true,
                 is_debug: false,

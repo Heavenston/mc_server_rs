@@ -1,5 +1,8 @@
 use mc_ecs_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
-use mc_networking::packets::client_bound::{C1AUnloadChunk, ClientBoundPacket};
+use mc_networking::packets::{
+    client_bound::{ C1AUnloadChunk, ClientBoundPacket, C1FChunkDataAndUpdateLight },
+    RawPacket
+};
 use mc_utils::ChunkData;
 
 use dashmap::DashMap;
@@ -9,7 +12,7 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Default)]
 struct ChunkLoadingData {
-    data: Option<Box<ChunkData>>,
+    data: Option<(ChunkData, RawPacket)>,
     waiters: Vec<Entity>,
 }
 
@@ -43,7 +46,7 @@ impl ChunkProvider for StoneChunkProvider {
             .insert((x, z), Arc::clone(&final_chunk_data));
 
         self.thread_pool.spawn(move || {
-            let mut chunk_data = Box::new(ChunkData::new());
+            let mut chunk_data = ChunkData::new();
 
             for x in 0..16 {
                 for z in 0..16 {
@@ -51,8 +54,11 @@ impl ChunkProvider for StoneChunkProvider {
                 }
             }
 
+            let packet = chunk_data.encode_full(x, z);
+            let packet = packet.to_rawpacket();
+
             let mut loading_data = final_chunk_data.write().unwrap();
-            loading_data.data = Some(chunk_data);
+            loading_data.data = Some((chunk_data, packet));
         });
     }
 
@@ -97,19 +103,19 @@ pub fn stone_chunk_provider(
     chunk_provider.unloading_chunks.clear();
 
     chunk_provider.loading_chunks
-        .retain(|k, v| {
+        .retain(|_, v| {
             // We keep chunks that aren't yet loaded
             if v.read().unwrap().data.is_none()
             { return true }
 
             let mut final_data = v.write().unwrap();
             let data = final_data.data.take().unwrap();
-            let packet = data.encode_full(k.0, k.1).to_rawpacket();
+            let (_, raw_packet) = data;
 
             for waiter in &final_data.waiters {
                 if let Ok(entry) = world.entry_ref(*waiter) {
                     entry.get_component::<ClientComponent>().unwrap()
-                        .0.send_raw_packet_sync(packet.clone());
+                        .0.send_raw_packet_sync(raw_packet.clone());
                 }
             }
 

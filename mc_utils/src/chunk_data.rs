@@ -126,7 +126,8 @@ impl ChunkDataSection {
 
                 debug_assert!(s_palette[0] == 0, "The way block_count is calculated must be changed");
                 for (i, pb) in s_blocks.iter().enumerate() {
-                    block_count += (*pb != 0) as i16; 
+                    if *pb != 0
+                    { block_count += 1 }
                     blocks.set_entry(i, *pb as u32);
                 }
 
@@ -143,7 +144,7 @@ impl ChunkDataSection {
 
             Self::Filled(x) => {
                 C1FSection {
-                    block_count: if *x == 0 { 4096 } else { 0 },
+                    block_count: if *x != 0 { 4096 } else { 0 },
                     block_states: C1FPalettedContainer::Single(*x as _),
                     biomes: C1FPalettedContainer::Single(0),
                 }

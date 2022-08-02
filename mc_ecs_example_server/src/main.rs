@@ -11,9 +11,10 @@ use mc_ecs_server_lib::mc_schedule::McSchedule;
 use mc_networking::client::Client;
 use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
 
-use legion::{Schedule, World, system, systems::CommandBuffer};
-use std::{sync::{Arc, RwLock}, time::Duration};
-use tokio::{net::*, runtime};
+use std::{ sync::{ Arc, RwLock }, time::Duration };
+
+use legion::{ Schedule, World, system, systems::CommandBuffer };
+use tokio::{ net::*, runtime };
 
 #[system]
 fn client_pusher(cmd: &mut CommandBuffer, #[state] clients: &Arc<RwLock<Vec<ClientComponent>>>) {
