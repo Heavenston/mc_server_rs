@@ -105,6 +105,7 @@ pub(super) async fn listen_ingoing_packets(
                 read_bytes.extend_from_slice(&decrypted_output[0..received]);
             }
         };
+        println!("0x{:02x} <-", raw_packet.packet_id);
         trace!(
             "Received packet 0x{:x} with data of length {}",
             raw_packet.packet_id,

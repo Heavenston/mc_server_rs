@@ -43,6 +43,7 @@ pub(super) async fn listen_outgoing_packets(
             (OutgoingPacketEvent::Packet(packet), notify)
             | (OutgoingPacketEvent::PacketNow(packet, notify), ..) => {
                 let packet_id = packet.packet_id;
+                println!("-> 0x{packet_id:02x}");
                 if packet.will_compress(compression) {
                     block_in_place(|| packet.encode(compression, &mut packet_buffer))
                 }

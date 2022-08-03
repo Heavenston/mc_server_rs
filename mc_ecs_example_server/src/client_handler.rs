@@ -3,7 +3,7 @@ use mc_networking::client::{
     client_event::{ ClientEvent, LoginStartResult },
     Client,
 };
-use mc_networking::packets::client_bound::*;
+use mc_networking::packets::{ client_bound::*, server_bound::* };
 use mc_networking::data_types::{ Slot, Position, command_data::RootNode };
 use mc_ecs_server_lib::entity::{
     NetworkIdComponent, LocationComponent, ObjectUuidComponent, UsernameComponent,
@@ -117,12 +117,6 @@ fn handle_client_event(
                 }],
             });
 
-            client_component.client.send_packet_sync(&C4ASetDefaultSpawnPosition {
-                location: Position {
-                    x: 0, y: 100, z: 0,
-                },
-                angle: 0.,
-            });
             client_component.client.send_packet_sync(&C2FPlayerAbilities::new(
                 true, false, true, true, 1., 1.
             ));
@@ -150,10 +144,22 @@ fn handle_client_event(
                 window_id: 0, state_id: 0,
                 slots: vec![Slot::NotPresent; 51], carried_item: Slot::NotPresent,
             });
+
+            client_component.client.send_packet_sync(&C4ASetDefaultSpawnPosition {
+                location: Position {
+                    x: 0, y: 100, z: 0,
+                },
+                angle: 0.,
+            });
         }
 
         ClientEvent::Logout => {
             cmd.remove(*entity);
+        }
+
+        ClientEvent::PluginMessage(S0CPluginMessage { channel, data }) => {
+            println!("Received channel: {channel:?}");
+
         }
 
         _ => (),
