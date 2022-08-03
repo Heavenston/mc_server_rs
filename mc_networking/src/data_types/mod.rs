@@ -98,11 +98,9 @@ pub struct Position {
 }
 impl Position {
     pub fn encode(&self) -> u64 {
-        let x = u32::from_ne_bytes(self.x.to_ne_bytes()) as u64;
-        let y = u32::from_ne_bytes(self.y.to_ne_bytes()) as u64;
-        let z = u32::from_ne_bytes(self.z.to_ne_bytes()) as u64;
-
-        ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
+        ((self.x as u64 & 0x3FFFFFF) << 38) |
+        ((self.z as u64 & 0x3FFFFFF) << 12) |
+         (self.y as u64 & 0xFFF)
     }
 
     pub fn decode(bytes: i64) -> Self {
