@@ -574,7 +574,7 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Set_Player_Position_and_Rotation>
     #[derive(Clone, Debug)]
-    pub struct S13SetPlayerPositionAndRotation {
+    pub struct S14SetPlayerPositionAndRotation {
         /// Absolute position
         pub x: f64,
         /// Absolute feet position, normally Head Y - 1.62
@@ -588,8 +588,8 @@ mod play {
         /// True if the client is on the ground, false otherwise
         pub on_ground: bool,
     }
-    impl ServerBoundPacket for S13SetPlayerPositionAndRotation {
-        const PACKET_ID: i32 = 0x13;
+    impl ServerBoundPacket for S14SetPlayerPositionAndRotation {
+        const PACKET_ID: i32 = 0x14;
 
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             Ok(Self {

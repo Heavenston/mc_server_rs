@@ -1,6 +1,6 @@
-use super::{keep_alive::*, *};
+use super::{ keep_alive::*, * };
 use crate::{
-    packets::{client_bound::*, server_bound::*, PacketCompression, RawPacket},
+    packets::{ client_bound::*, server_bound::*, PacketCompression, RawPacket },
     DecodingError,
 };
 
@@ -9,16 +9,16 @@ use bytes::BytesMut;
 use log::*;
 use openssl::{
     rsa::Padding,
-    symm::{Cipher, Crypter, Mode},
+    symm::{ Cipher, Crypter, Mode },
 };
 use rand::RngCore;
 use serde_json::json;
-use std::{convert::TryInto, sync::Arc};
+use std::{ convert::TryInto, sync::Arc };
 use thiserror::Error;
 use tokio::{
     io::AsyncReadExt,
     net::tcp::OwnedReadHalf,
-    sync::{oneshot, Notify, RwLock},
+    sync::{ oneshot, Notify, RwLock },
     time::Instant,
 };
 
@@ -426,7 +426,8 @@ pub(super) async fn listen_ingoing_packets(
                             .await
                             .unwrap();
                     },
-                    S13SetPlayerPositionAndRotation => SetPlayerPositionAndRotation,
+                    S13SetPlayerPosition => SetPlayerPosition,
+                    S14SetPlayerPositionAndRotation => SetPlayerPositionAndRotation,
                     S15SetPlayerRotation => SetPlayerRotation,
                     S1DPlayerCommand => PlayerCommand,
                     S1BPlayerAbilities => PlayerAbilities,

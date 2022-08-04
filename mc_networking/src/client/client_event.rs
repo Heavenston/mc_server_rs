@@ -45,7 +45,7 @@ pub enum ClientEvent {
     ClickContainer(S0AClickContainer),
     PluginMessage(S0CPluginMessage),
     SetPlayerPosition(S13SetPlayerPosition),
-    SetPlayerPositionAndRotation(S13SetPlayerPositionAndRotation),
+    SetPlayerPositionAndRotation(S14SetPlayerPositionAndRotation),
     SetPlayerRotation(S15SetPlayerRotation),
     PlayerCommand(S1DPlayerCommand),
     PlayerAbilities(S1BPlayerAbilities),
