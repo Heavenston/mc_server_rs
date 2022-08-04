@@ -82,7 +82,7 @@ fn handle_client_event(
             });
             cmd.add_component(*entity, ChunkLocationComponent::new(i32::MAX, i32::MAX));
             cmd.add_component(*entity, LocationComponent(Location {
-                x: 0., y: 100., z: 0., yaw: 0., pitch: 0.,
+                x: 0., y: 50., z: 0., yaw: 0., pitch: 0.,
             }));
 
             client_component.0.send_packet_sync(&C23Login {
@@ -120,17 +120,17 @@ fn handle_client_event(
 
             client_component.0.send_packet_sync(&C4ASetDefaultSpawnPosition {
                 location: Position {
-                    x: 0, y: 30, z: 0,
+                    x: 0, y: 50, z: 0,
                 },
                 angle: 0.,
             });
             client_component.0.send_packet_sync(&C63TeleportEntity {
                 entity_id: network_id.0,
-                x: 0.5, y: 30., z: 0.5, yaw: 0, pitch: 0,
+                x: 0.5, y: 50., z: 0.5, yaw: 0, pitch: 0,
                 on_ground: false,
             });
             client_component.0.send_packet_sync(&C36SynchronizePlayerPosition {
-                x: 0.5, y: 30., z: 0.5, yaw: 0., pitch: 0.,
+                x: 0.5, y: 50., z: 0.5, yaw: 0., pitch: 0.,
                 flags: 0, teleport_id: 0, dismount_vehicle: false,
             });
 

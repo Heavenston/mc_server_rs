@@ -75,6 +75,10 @@ impl ChunkDataSection {
         };
     }
 
+    pub fn fill_with(&mut self, block: u16) {
+        *self = Self::Filled(block);
+    }
+
     pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
         match self {
             // If the chunk is filled with the correct block there is nothing to do

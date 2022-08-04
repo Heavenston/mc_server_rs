@@ -51,11 +51,7 @@ impl ChunkProvider for StoneChunkProvider {
         self.thread_pool.spawn(move || {
             let mut chunk_data = ChunkData::new();
 
-            for x in 0..16 {
-                for z in 0..16 {
-                    chunk_data.set_block(x, 20, z, 1);
-                }
-            }
+            chunk_data.get_section_mut(1).fill_with(1);
 
             let packet = chunk_data.encode_full(chunk_x, chunk_z);
             let packet = packet.to_rawpacket();
