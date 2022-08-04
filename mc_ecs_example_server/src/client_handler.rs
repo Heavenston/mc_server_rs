@@ -43,7 +43,7 @@ pub fn handle_clients(
 
 fn handle_client_event(
     entity: &Entity, client_component: &mut ClientComponent,
-    object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
+    _object_uuid: Option<&ObjectUuidComponent>, _username_component: Option<&UsernameComponent>,
     cmd: &mut CommandBuffer,
     event: ClientEvent,
     chunk_provider: &Arc<dyn ChunkProvider>,
@@ -65,7 +65,7 @@ fn handle_client_event(
 
             response
                 .send(LoginStartResult::Accept {
-                    compress: true,
+                    compress: false,
                     encrypt: false,
                     username, uuid,
                 }).unwrap();
@@ -76,7 +76,7 @@ fn handle_client_event(
             cmd.add_component(*entity, network_id);
 
             cmd.add_component(*entity, ChunkObserverComponent {
-                radius: 4,
+                radius: 12,
                 loaded_chunks: Default::default(),
                 chunk_provider: Arc::clone(chunk_provider),
             });
@@ -96,8 +96,8 @@ fn handle_client_event(
                 registry_codec: crate::registry_codec::REGISTRY_CODEC.clone(),
                 hashed_seed: 0,
                 max_players: 2,
-                view_distance: 4,
-                simulation_distance: 4,
+                view_distance: 12,
+                simulation_distance: 12,
                 reduced_debug_info: false,
                 enable_respawn_screen: true,
                 is_debug: false,
@@ -105,6 +105,35 @@ fn handle_client_event(
                 death_location: None,
             });
 
+            client_component.client.send_packet_sync(&C2FPlayerAbilities::new(
+                true, false, true, true, 1., 1.
+            ));
+            client_component.client.send_packet_sync(&C47SetHeldItem {
+                slot: 3,
+            });
+
+            client_component.client.send_packet_sync(&C4ASetDefaultSpawnPosition {
+                location: Position {
+                    x: 0, y: 1000, z: 0,
+                },
+                angle: 0.,
+            });
+            client_component.client.send_packet_sync(&C63TeleportEntity {
+                entity_id: network_id.0,
+                x: 0.5, y: 1000., z: 0.5, yaw: 0, pitch: 0,
+                on_ground: false,
+            });
+            client_component.client.send_packet_sync(&C36SynchronizePlayerPosition {
+                x: 0.5, y: 1000., z: 0.5, yaw: 0., pitch: 0.,
+                flags: 0, teleport_id: 0, dismount_vehicle: false,
+            });
+
+            client_component.client.send_packet_sync(&C48SetCenterChunk {
+                chunk_x: 0,
+                chunk_z: 0,
+            });
+
+            /*
             client_component.client.send_packet_sync(&C34PlayerInfo::AddPlayers {
                 players: vec![C34AddPlayer {
                     uuid: object_uuid.unwrap().0.clone(),
@@ -116,10 +145,6 @@ fn handle_client_event(
                     sig_data: (),
                 }],
             });
-
-            client_component.client.send_packet_sync(&C2FPlayerAbilities::new(
-                true, false, true, true, 1., 1.
-            ));
             client_component.client.send_packet_sync(&C0FCommands {
                 root_node: Arc::new(RootNode {
                     is_executable: false,
@@ -131,10 +156,6 @@ fn handle_client_event(
                 entity_id: network_id.0,
                 x: 0., y: 100., z: 0., yaw: 0, pitch: 0,
                 on_ground: false,
-            });
-            client_component.client.send_packet_sync(&C36SynchronizePlayerPosition {
-                x: 0., y: 0., z: 0., yaw: 0., pitch: 0.,
-                flags: 0, teleport_id: 0, dismount_vehicle: false,
             });
             client_component.client.send_packet_sync(&C48SetCenterChunk {
                 chunk_x: 0,
@@ -151,6 +172,7 @@ fn handle_client_event(
                 },
                 angle: 0.,
             });
+            */
         }
 
         ClientEvent::Logout => {
@@ -158,8 +180,7 @@ fn handle_client_event(
         }
 
         ClientEvent::PluginMessage(S0CPluginMessage { channel, data }) => {
-            println!("Received channel: {channel:?}");
-
+            println!("Received {channel:?}: {}", String::from_utf8_lossy(&data));
         }
 
         _ => (),

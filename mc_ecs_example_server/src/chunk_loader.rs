@@ -31,19 +31,19 @@ impl StoneChunkProvider {
     }
 }
 impl ChunkProvider for StoneChunkProvider {
-    fn load_chunk(&self, player: &Entity, x: i32, z: i32) {
-        if let Some(entry) = self.loading_chunks.get(&(x, z)) {
+    fn load_chunk(&self, player: &Entity, chunk_x: i32, chunk_z: i32) {
+        if let Some(entry) = self.loading_chunks.get(&(chunk_x, chunk_z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());
             return;
         }
-        if self.loading_chunks.contains_key(&(x, z)) {
+        if self.loading_chunks.contains_key(&(chunk_x, chunk_z)) {
             return;
         }
 
         let final_chunk_data = Arc::default();
         self.loading_chunks
-            .insert((x, z), Arc::clone(&final_chunk_data));
+            .insert((chunk_x, chunk_z), Arc::clone(&final_chunk_data));
 
         self.thread_pool.spawn(move || {
             let mut chunk_data = ChunkData::new();
@@ -54,7 +54,7 @@ impl ChunkProvider for StoneChunkProvider {
                 }
             }
 
-            let packet = chunk_data.encode_full(x, z);
+            let packet = chunk_data.encode_full(chunk_x, chunk_z);
             let packet = packet.to_rawpacket();
 
             let mut loading_data = final_chunk_data.write().unwrap();
@@ -113,10 +113,9 @@ pub fn stone_chunk_provider(
             let (_, raw_packet) = data;
 
             for waiter in &final_data.waiters {
-                if let Ok(entry) = world.entry_ref(*waiter) {
-                    entry.get_component::<ClientComponent>().unwrap()
-                        .0.send_raw_packet_sync(raw_packet.clone());
-                }
+                world.entry_ref(*waiter).unwrap()
+                    .get_component::<ClientComponent>().unwrap()
+                    .0.send_raw_packet_sync(raw_packet.clone());
             }
 
             false

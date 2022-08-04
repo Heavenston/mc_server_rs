@@ -77,7 +77,7 @@ lazy_static::lazy_static! {
                 monster_spawn_block_light_limit: 0,
                 respawn_anchor_works: 0,
                 min_y: 0,
-                logical_height: 126,
+                logical_height: 256,
                 height: 256,
                 monster_spawn_light_level: 7,
                 natural: 1,

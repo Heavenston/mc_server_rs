@@ -1,6 +1,6 @@
 use crate::{
     chunk_manager::ChunkProvider,
-    entity::{ClientComponent, LocationComponent},
+    entity::{ ClientComponent, LocationComponent },
 };
 use mc_networking::packets::client_bound::*;
 
