@@ -3,6 +3,7 @@ use mc_networking::packets::client_bound::{
     C23BiomeElement,
     C23BiomeEffects,
     C23DimensionElement,
+    C23BiomeMoodSound,
 };
 
 lazy_static::lazy_static! {
@@ -31,7 +32,36 @@ lazy_static::lazy_static! {
                     grass_color_modifier: None,
                     particle: None,
                 },
-            })
+            }),
+            ("minecraft:plains".into(), C23BiomeElement {
+                precipitation: "rain".into(),
+                temperature: 0.8,
+                temperature_modifier: None,
+                downfall: 0.4,
+                category: "none".into(),
+                depth: 0.,
+                scale: 1.,
+                effects: C23BiomeEffects {
+                    water_color: 4159204,
+                    music: None,
+                    additions_sound: None,
+                    ambient_sound: None,
+                    mood_sound: Some(C23BiomeMoodSound {
+                        offset: 2.0,
+                        block_search_extent: 8,
+                        tick_delay: 6000,
+                        sound: "minecraft:ambient.cave".into(),
+                    }),
+                    water_fog_color: 329011,
+                    fog_color: 12638463,
+                    sky_color: 7907327,
+
+                    folliage_color: None,
+                    grass_color: None,
+                    grass_color_modifier: None,
+                    particle: None,
+                },
+            }),
         ],
         dimension_types: vec![
             ("heav:voidy".into(), C23DimensionElement {
