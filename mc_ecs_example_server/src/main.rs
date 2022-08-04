@@ -5,9 +5,10 @@ mod registry_codec;
 
 use crate::chunk_loader::*;
 use chunk_loader::StoneChunkProvider;
-use client_handler::*;
+use client_handler::{ ClientEventsComponent, handle_clients_system };
 use event_handler::MyEventHandler;
 use mc_ecs_server_lib::mc_schedule::McSchedule;
+use mc_ecs_server_lib::entity::ClientComponent;
 use mc_networking::client::Client;
 use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
 
@@ -17,20 +18,20 @@ use legion::{ Schedule, World, system, systems::CommandBuffer };
 use tokio::{ net::*, runtime };
 
 #[system]
-fn client_pusher(cmd: &mut CommandBuffer, #[state] clients: &Arc<RwLock<Vec<ClientComponent>>>) {
-    for c in clients.write().unwrap().drain(..) {
-        cmd.push((c,));
+fn client_pusher(cmd: &mut CommandBuffer, #[state] clients: &Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
+    for (a, b) in clients.write().unwrap().drain(..) {
+        cmd.push((a, b));
     }
 }
-async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<ClientComponent>>>) {
+async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
     let listener = TcpListener::bind(addr).await.unwrap();
 
     loop {
         let (socket, ..) = listener.accept().await.unwrap();
         let (client, event_receiver) = Client::new(socket, 100, 500);
-        clients.write().unwrap().push(ClientComponent {
-            client, event_receiver
-        });
+        clients.write().unwrap().push((
+            ClientComponent(client), ClientEventsComponent(event_receiver)
+        ));
     }
 }
 
@@ -61,6 +62,7 @@ fn main() {
                 .build()
                 .start(
                     move || {
+                        //world.pack(legion::storage::PackOptions::force());
                         schedule.tick(&mut world);
                     },
                     Some(|profiler: &TickProfiler| {

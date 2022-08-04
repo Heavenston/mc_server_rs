@@ -41,7 +41,10 @@ impl ChunkProvider for StoneChunkProvider {
             return;
         }
 
-        let final_chunk_data = Arc::default();
+        let final_chunk_data = Arc::new(RwLock::new(ChunkLoadingData {
+            data: None,
+            waiters: vec![*player],
+        }));
         self.loading_chunks
             .insert((chunk_x, chunk_z), Arc::clone(&final_chunk_data));
 
@@ -114,7 +117,7 @@ pub fn stone_chunk_provider(
 
             for waiter in &final_data.waiters {
                 world.entry_ref(*waiter).unwrap()
-                    .get_component::<ClientComponent>().unwrap()
+                    .into_component::<ClientComponent>().unwrap()
                     .0.send_raw_packet_sync(raw_packet.clone());
             }
 

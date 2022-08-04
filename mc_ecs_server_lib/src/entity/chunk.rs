@@ -55,19 +55,17 @@ pub(crate) fn chunk_observer_chunk_loadings(
     entity: &Entity,
     chunk_observer: &mut ChunkObserverComponent,
     chunk_loc: &ChunkLocationComponent,
-    //client: &ClientComponent,
+    client: &ClientComponent,
 ) {
     // This system only really runs for observers that just changed chunk
     if !chunk_loc.changed {
         return;
     }
 
-    /*
     client.0.send_packet_sync(&C48SetCenterChunk {
         chunk_x: chunk_loc.x,
         chunk_z: chunk_loc.z,
     });
-    */
 
     // Unload now too far chunks
     {
