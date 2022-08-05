@@ -165,7 +165,7 @@ impl Default for ChunkDataSection {
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ChunkData {
-    sections: [ChunkDataSection; 17],
+    sections: [ChunkDataSection; 16],
 }
 impl ChunkData {
     pub fn new() -> Self {
