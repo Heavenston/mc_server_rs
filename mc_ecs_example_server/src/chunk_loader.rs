@@ -10,6 +10,16 @@ use legion::{system, world::SubWorld, Entity, EntityStore};
 use rayon::{iter::*, ThreadPool, ThreadPoolBuilder};
 use std::sync::{Arc, RwLock};
 
+use minecraft_data_rs::{ Api as McApi, models::version::Version as McVer };
+
+lazy_static::lazy_static! {
+    static ref MC_API: McApi = McApi::new(McVer {
+        version: 759,
+        minecraft_version: "1.19".into(),
+        major_version: "1.19".into(),
+    });
+}
+
 #[derive(Default)]
 struct ChunkLoadingData {
     data: Option<(ChunkData, RawPacket)>,
@@ -20,6 +30,8 @@ pub struct StoneChunkProvider {
     loading_chunks: DashMap<(i32, i32), Arc<RwLock<ChunkLoadingData>>>,
     unloading_chunks: DashMap<(i32, i32), Vec<Entity>>,
     thread_pool: ThreadPool,
+
+    ground_block_state: u32,
 }
 impl StoneChunkProvider {
     pub fn new() -> Self {
@@ -27,6 +39,8 @@ impl StoneChunkProvider {
             loading_chunks: DashMap::default(),
             unloading_chunks: DashMap::default(),
             thread_pool: ThreadPoolBuilder::new().build().unwrap(),
+
+            ground_block_state: MC_API.blocks.blocks_by_name().unwrap()["stone"].id,
         }
     }
 }
@@ -48,13 +62,14 @@ impl ChunkProvider for StoneChunkProvider {
         self.loading_chunks
             .insert((chunk_x, chunk_z), Arc::clone(&final_chunk_data));
 
+        let ground_block_state = self.ground_block_state as u16;
         self.thread_pool.spawn(move || {
             let mut chunk_data = ChunkData::new();
 
-            //chunk_data.get_section_mut(1).fill_with(1);
+            //chunk_data.get_section_mut(1).fill_with(ground_block_state);
             for x in 0..16 {
                 for z in 0..16 {
-                    chunk_data.set_block(x, 20, z, 1);
+                    chunk_data.set_block(x, 20, z, ground_block_state);
                 }
             }
 

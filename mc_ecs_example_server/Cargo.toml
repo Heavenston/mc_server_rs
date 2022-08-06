@@ -19,3 +19,4 @@ serde_json = "1.0"
 uuid = { version = "0.8", features = ["v4", "v3"] }
 lazy_static = "1.4"
 maplit = "1.0"
+minecraft-data-rs = { version = "0.5", features = ["include-data"] }
