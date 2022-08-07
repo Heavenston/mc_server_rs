@@ -41,7 +41,7 @@ impl BitSet {
             return false;
         }
 
-        (self.longs[idx] & 1 << offset) == 0
+        (self.longs[idx] & 1 << offset) != 0
     }
 
     /// Removes any useless longs in the buffer
