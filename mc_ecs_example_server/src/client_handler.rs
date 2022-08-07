@@ -133,47 +133,6 @@ fn handle_client_event(
                 x: 0.5, y: 50., z: 0.5, yaw: 0., pitch: 0.,
                 flags: 0, teleport_id: 0, dismount_vehicle: false,
             });
-
-            /*
-            client_component.client.send_packet_sync(&C34PlayerInfo::AddPlayers {
-                players: vec![C34AddPlayer {
-                    uuid: object_uuid.unwrap().0.clone(),
-                    name: username_component.unwrap().0.clone(),
-                    properties: vec![],
-                    gamemode: 1,
-                    ping: 10000,
-                    display_name: None,
-                    sig_data: (),
-                }],
-            });
-            client_component.client.send_packet_sync(&C0FCommands {
-                root_node: Arc::new(RootNode {
-                    is_executable: false,
-                    children_nodes: vec![],
-                    redirect_node: None,
-                })
-            });
-            client_component.client.send_packet_sync(&C63TeleportEntity {
-                entity_id: network_id.0,
-                x: 0., y: 100., z: 0., yaw: 0, pitch: 0,
-                on_ground: false,
-            });
-            client_component.client.send_packet_sync(&C48SetCenterChunk {
-                chunk_x: 0,
-                chunk_z: 0,
-            });
-            client_component.client.send_packet_sync(&C11SetContainerContent {
-                window_id: 0, state_id: 0,
-                slots: vec![Slot::NotPresent; 51], carried_item: Slot::NotPresent,
-            });
-
-            client_component.client.send_packet_sync(&C4ASetDefaultSpawnPosition {
-                location: Position {
-                    x: 0, y: 100, z: 0,
-                },
-                angle: 0.,
-            });
-            */
         }
 
         ClientEvent::Logout => {

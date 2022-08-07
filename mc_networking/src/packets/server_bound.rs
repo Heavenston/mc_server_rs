@@ -786,11 +786,11 @@ mod play {
         fn run_decoder(decoder: &mut PacketDecoder) -> Result<Self> {
             let entity_id = decoder.read_varint()?;
             let ai = decoder.read_varint()?;
-            let action_id = S1DActionId::from_i32(decoder.read_varint()?).ok_or(Error::parse_error(
+            let action_id = S1DActionId::from_i32(ai).ok_or(Error::parse_error(
                 "packet 0x1D",
                 format!("invalid action id (expected 0 through 8, received {ai})"),
             ))?;
-            let jump_boost = decoder.read_i32()?;
+            let jump_boost = decoder.read_varint()?;
 
             Ok(Self {
                 entity_id,
