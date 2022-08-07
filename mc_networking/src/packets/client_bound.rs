@@ -699,7 +699,7 @@ mod play {
             encoder.write_bytes(&chunk_data);
             encoder.write_varint(0); // TODO: Real block entities
             encoder.write_bool(self.trust_edges);
-            // Note: For loop is just to avoid repeating the same code 4 times
+            // Note: For loop is here only to avoid repeating the same code 4 times
             for bitset in [
                 &self.sky_light_mask, &self.block_light_mask,
                 &self.empty_sky_light_mask, &self.empty_block_light_mask
