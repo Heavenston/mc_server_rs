@@ -13,34 +13,36 @@ use std::ops::DerefMut;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 
+pub type BlockState = u16;
+
 /// Because neither serde nor big array can just use a boxed slice of 4096 u16.
 /// So this type is a (de)serializable array of 4096 u16.
 #[derive(Clone, Deserialize, Serialize)]
 pub struct ChunkArray {
     #[serde(with = "BigArray")] 
-    pub array: [u16; 4096],
+    pub array: [BlockState; 4096],
 }
 
-impl From<[u16; 4096]> for ChunkArray {
-    fn from(array: [u16; 4096]) -> Self {
+impl From<[BlockState; 4096]> for ChunkArray {
+    fn from(array: [BlockState; 4096]) -> Self {
         Self { array }
     }
 }
 
-impl Into<[u16; 4096]> for ChunkArray {
-    fn into(self) -> [u16; 4096] {
+impl Into<[BlockState; 4096]> for ChunkArray {
+    fn into(self) -> [BlockState; 4096] {
         self.array
     }
 }
 
 impl Deref for ChunkArray {
-    type Target = [u16; 4096];
-    fn deref(&self) -> &[u16; 4096] {
+    type Target = [BlockState; 4096];
+    fn deref(&self) -> &[BlockState; 4096] {
         &self.array
     }
 }
 impl DerefMut for ChunkArray {
-    fn deref_mut(&mut self) -> &mut [u16; 4096] {
+    fn deref_mut(&mut self) -> &mut [BlockState; 4096] {
         &mut self.array
     }
 }
@@ -51,7 +53,7 @@ pub enum ChunkDataSection {
         blocks: Box<ChunkArray>,
         palette: Vec<i32>,
     },
-    Filled(u16),
+    Filled(BlockState),
 }
 impl ChunkDataSection {
     pub fn new() -> Self {
@@ -75,11 +77,11 @@ impl ChunkDataSection {
         };
     }
 
-    pub fn fill_with(&mut self, block: u16) {
+    pub fn fill_with(&mut self, block: BlockState) {
         *self = Self::Filled(block);
     }
 
-    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
+    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: BlockState) {
         match self {
             // If the chunk is filled with the correct block there is nothing to do
             Self::Filled(filled_with) if *filled_with == block
@@ -98,10 +100,10 @@ impl ChunkDataSection {
                 if let Some((pb, _)) = palette.iter()
                     .enumerate().find(|(_, b)| **b == block as i32)
                 {
-                    blocks[x + (z * 16) + (y * 256)] = pb as u16;
+                    blocks[x + (z * 16) + (y * 256)] = pb as BlockState;
                 }
                 else {
-                    blocks[x + (z * 16) + (y * 256)] = palette.len() as u16;
+                    blocks[x + (z * 16) + (y * 256)] = palette.len() as BlockState;
                     palette.push(block as i32);
                 }
             },
@@ -110,12 +112,12 @@ impl ChunkDataSection {
         }
     }
 
-    pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
+    pub fn get_block(&self, x: u8, y: u8, z: u8) -> BlockState {
         match self {
             Self::Filled(x) => *x,
             Self::Paletted { blocks, palette } => {
                 let (x, y, z) = (x as usize, y as usize, z as usize);
-                palette[blocks[x + (z * 16) + (y * 256)] as usize] as u16
+                palette[blocks[x + (z * 16) + (y * 256)] as usize] as BlockState
             }
         }
     }
@@ -183,11 +185,11 @@ impl ChunkData {
         &mut self.sections[y as usize]
     }
 
-    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: u16) {
+    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: BlockState) {
         let section = self.get_section_mut(y / 16);
         section.set_block(x, y.rem_euclid(16), z, block);
     }
-    pub fn get_block(&self, x: u8, y: u8, z: u8) -> u16 {
+    pub fn get_block(&self, x: u8, y: u8, z: u8) -> BlockState {
         self.get_section(y / 16)
             .get_block(x, y.rem_euclid(16), z)
     }

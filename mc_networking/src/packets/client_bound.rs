@@ -594,6 +594,9 @@ mod play {
                 } => {
                     encoder.write_u8(*bits_per_entry);
                     encoder.write_varint(palette.len() as _);
+                    for p in palette {
+                        encoder.write_varint(*p);
+                    }
                     encoder.write_varint(data_array.len() as _);
                     for x in data_array {
                         encoder.write_i64(*x);
