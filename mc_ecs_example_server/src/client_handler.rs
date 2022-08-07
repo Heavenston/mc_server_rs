@@ -112,7 +112,7 @@ fn handle_client_event(
             });
 
             client_component.0.send_packet_sync(&C2FPlayerAbilities::new(
-                true, false, true, true, 1., 1.
+                true, false, true, true, 1., 0.1
             ));
             client_component.0.send_packet_sync(&C47SetHeldItem {
                 slot: 3,
