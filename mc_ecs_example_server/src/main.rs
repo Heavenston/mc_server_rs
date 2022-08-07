@@ -16,6 +16,38 @@ use std::{ sync::{ Arc, RwLock }, time::Duration };
 
 use legion::{ Schedule, World, system, systems::CommandBuffer };
 use tokio::{ net::*, runtime };
+use fern::colors::{Color, ColoredLevelConfig};
+use log::*;
+
+fn setup_logger(log_filter: log::LevelFilter) {
+    let colors_line = ColoredLevelConfig::new()
+        .debug(Color::BrightBlack)
+        .info(Color::Green)
+        .warn(Color::Yellow)
+        .error(Color::Red);
+
+    fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "{color_line}[{date}][{target}][{level}{color_line}] {message}\x1B[0m",
+                color_line = format_args!(
+                    "\x1B[{}m",
+                    colors_line.get_color(&record.level()).to_fg_str()
+                ),
+                date = chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+                target = record.target(),
+                level = colors_line.color(record.level()),
+                message = message,
+            ))
+        })
+        .level(log_filter)
+        .level_for("hyper", log::LevelFilter::Info)
+        .level_for("reqwest", log::LevelFilter::Info)
+        .level_for("mio", log::LevelFilter::Info)
+        .chain(std::io::stdout())
+        .apply()
+        .unwrap();
+}
 
 #[system]
 fn client_pusher(cmd: &mut CommandBuffer, #[state] clients: &Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
@@ -37,6 +69,8 @@ async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<
 
 fn main() {
     let pending_clients = Default::default();
+
+    setup_logger(LevelFilter::Debug);
 
     // Starts legion in a nes thread
     std::thread::spawn({

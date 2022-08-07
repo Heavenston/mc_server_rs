@@ -20,3 +20,7 @@ uuid = { version = "0.8", features = ["v4", "v3"] }
 lazy_static = "1.4"
 maplit = "1.0"
 minecraft-data-rs = { version = "0.5", features = ["include-data"] }
+log = "0.4"
+chrono = "0.4"
+
+fern = { version = "0.6", features = ["colored"] }
