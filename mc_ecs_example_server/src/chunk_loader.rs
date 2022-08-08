@@ -68,8 +68,8 @@ impl ChunkProvider for StoneChunkProvider {
 
             for x in 0..16 {
                 for z in 0..16 {
-                    chunk_data.set_block(x, 20, z, ground_block_state);
-                    if x % 2 == z % 2 && x % 2 == 0 {
+                    //chunk_data.set_block(x, 20, z, ground_block_state);
+                    if x == z {
                         chunk_data.set_block(x, 21, z, ground_block_state);
                     }
                 }

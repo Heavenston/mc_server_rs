@@ -56,6 +56,12 @@ impl<E: GlobalEventHandler + 'static> McSchedule<E> {
         self.schedule = Self::create_schedule(&mut vec![schedule]);
     }
 
+    /// Set the list of custom schedules that will be run at the end of every tick
+    /// This will overwrite the previous schedule(s) provided
+    pub fn set_custom_schedules(&mut self, schedule: impl IntoIterator<Item = Schedule>) {
+        self.schedule = Self::create_schedule(&mut schedule.into_iter().collect());
+    }
+
     /// Execute "execute" on the created schedule
     pub fn tick(&mut self, world: &mut World) {
         self.schedule.execute(world, &mut self.resources)

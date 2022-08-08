@@ -2,6 +2,7 @@ mod chunk_loader;
 mod client_handler;
 mod event_handler;
 mod registry_codec;
+mod game_systems;
 
 use crate::chunk_loader::*;
 use chunk_loader::StoneChunkProvider;
@@ -82,14 +83,15 @@ fn main() {
             let mut schedule = McSchedule::new(MyEventHandler);
             schedule.resources.insert(Arc::clone(&chunk_provider));
 
-            schedule.set_custom_schedule(
+            schedule.set_custom_schedules(vec![
                 Schedule::builder()
                     //.add_system(test_clients_system())
                     .add_system(stone_chunk_provider_system(Arc::clone(&chunk_provider)))
                     .add_system(client_pusher_system(pending_clients))
                     .add_system(handle_clients_system())
                     .build(),
-            );
+                game_systems::game_scheduler(),
+            ]);
 
             TickScheduler::builder()
                 .profiling_interval(Duration::from_secs(3))

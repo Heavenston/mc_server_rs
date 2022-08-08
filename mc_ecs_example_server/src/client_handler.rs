@@ -27,6 +27,7 @@ pub struct ClientEventsComponent(pub flume::Receiver<ClientEvent>);
 pub fn handle_clients(
     client_component: &ClientComponent, 
     client_events_component: &mut ClientEventsComponent,
+    location_component: Option<&mut LocationComponent>,
     object_uuid: Option<&ObjectUuidComponent>,
     username_component: Option<&UsernameComponent>,
     entity: &Entity, cmd: &mut CommandBuffer,
@@ -35,7 +36,9 @@ pub fn handle_clients(
     let chunk_provider: Arc<dyn ChunkProvider> = Arc::clone(stone_chunk_provider) as _;
     if let Ok(event) = client_events_component.0.try_recv() {
         handle_client_event(
-            entity, client_component, object_uuid, username_component,
+            entity, client_component,
+            location_component,
+            object_uuid, username_component,
             cmd, event, &chunk_provider
         );
     }
@@ -43,6 +46,7 @@ pub fn handle_clients(
 
 fn handle_client_event(
     entity: &Entity, client_component: &ClientComponent,
+    location_component: Option<&mut LocationComponent>,
     _object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
     cmd: &mut CommandBuffer,
     event: ClientEvent,
@@ -112,7 +116,7 @@ fn handle_client_event(
             });
 
             client_component.0.send_packet_sync(&C2FPlayerAbilities::new(
-                true, false, true, true, 1., 0.1
+                true, false, false, false, 1., 0.1
             ));
             client_component.0.send_packet_sync(&C47SetHeldItem {
                 slot: 3,
@@ -142,6 +146,36 @@ fn handle_client_event(
         ClientEvent::PluginMessage(S0CPluginMessage { channel, data }) => {
             println!("Received {channel:?}: {}", String::from_utf8_lossy(&data));
         }
+
+        ClientEvent::SetPlayerPosition(p) => {
+            let location_cp = if let Some(a) = location_component {
+                a
+            } else { return };
+
+            location_cp.0.x = p.x;
+            location_cp.0.y = p.feet_y;
+            location_cp.0.z = p.z;
+        },
+        ClientEvent::SetPlayerPositionAndRotation(p) => {
+            let location_cp = if let Some(a) = location_component {
+                a
+            } else { return };
+
+            location_cp.0.x = p.x;
+            location_cp.0.y = p.feet_y;
+            location_cp.0.z = p.z;
+
+            location_cp.0.yaw = p.yaw;
+            location_cp.0.pitch = p.pitch;
+        },
+        ClientEvent::SetPlayerRotation(p) => {
+            let location_cp = if let Some(a) = location_component {
+                a
+            } else { return };
+
+            location_cp.0.yaw = p.yaw;
+            location_cp.0.pitch = p.pitch;
+        },
 
         _ => (),
     }
