@@ -48,7 +48,7 @@ pub fn handle_clients(
 fn handle_client_event(
     entity: &Entity, client_component: &ClientComponent,
     location_component: Option<&mut LocationComponent>,
-    _object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
+    object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
     cmd: &mut CommandBuffer,
     event: ClientEvent,
     chunk_provider: &Arc<dyn ChunkProvider>,
@@ -81,7 +81,7 @@ fn handle_client_event(
             cmd.add_component(*entity, network_id);
 
             cmd.add_component(*entity, ChunkObserverComponent {
-                radius: 5,
+                radius: 12,
                 loaded_chunks: Default::default(),
                 chunk_provider: Arc::clone(chunk_provider),
             });
@@ -104,8 +104,8 @@ fn handle_client_event(
                 registry_codec: crate::registry_codec::REGISTRY_CODEC.clone(),
                 hashed_seed: 0,
                 max_players: 2,
-                view_distance: 5,
-                simulation_distance: 5,
+                view_distance: 12,
+                simulation_distance: 12,
                 reduced_debug_info: false,
                 enable_respawn_screen: true,
                 is_debug: false,
@@ -124,6 +124,32 @@ fn handle_client_event(
             ));
             client_component.0.send_packet_sync(&C47SetHeldItem {
                 slot: 3,
+            });
+
+            let default_player = C34AddPlayer {
+                uuid: Uuid::new_v4(),
+                name: "".to_string(),
+                properties: vec![],
+                gamemode: 0,
+                ping: 0,
+                display_name: None,
+                sig_data: (),
+            };
+            let player_username = username_component.map(|a| a.0.clone()).unwrap_or("You".to_string());
+            client_component.0.send_packet_sync(&C34PlayerInfo::AddPlayers {
+                players: vec![
+                    C34AddPlayer {
+                        uuid: object_uuid.map(|a| a.0.clone()).unwrap_or(Uuid::new_v4()),
+                        name: player_username.clone(),
+                        ..default_player.clone()
+                    },
+                    C34AddPlayer {
+                        uuid: Uuid::new_v4(),
+                        name: username_component.map(|a| a.0.clone()).unwrap_or("You".to_string()) + "2",
+                        display_name: Some(format!(r#"{{"text": "{}", "strikethrough": true}}"#, player_username)),
+                        ..default_player.clone()
+                    },
+                ],
             });
 
             client_component.0.send_packet_sync(&C4ASetDefaultSpawnPosition {
