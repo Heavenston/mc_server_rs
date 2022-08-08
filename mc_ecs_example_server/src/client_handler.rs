@@ -100,8 +100,8 @@ fn handle_client_event(
             client_component.0.send_packet_sync(&C23Login {
                 entity_id: network_id.0,
                 is_hardcore: false,
-                gamemode: 0,
-                previous_gamemode: 0,
+                gamemode: 2,
+                previous_gamemode: -1,
                 dimension_type: "heav:voidy".into(),
                 dimension_name: "heav:voidy".into(),
                 dimension_names: vec!["heav:voidy".into()],
