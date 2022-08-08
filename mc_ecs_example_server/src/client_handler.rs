@@ -1,4 +1,5 @@
 use crate::chunk_loader::StoneChunkProvider;
+use crate::game_systems::SpawnPositionComponent;
 use mc_networking::client::{
     client_event::{ ClientEvent, LoginStartResult },
     Client,
@@ -80,14 +81,17 @@ fn handle_client_event(
             cmd.add_component(*entity, network_id);
 
             cmd.add_component(*entity, ChunkObserverComponent {
-                radius: 12,
+                radius: 5,
                 loaded_chunks: Default::default(),
                 chunk_provider: Arc::clone(chunk_provider),
             });
             cmd.add_component(*entity, ChunkLocationComponent::new(i32::MAX, i32::MAX));
-            cmd.add_component(*entity, LocationComponent(Location {
-                x: 0., y: 50., z: 0., yaw: 0., pitch: 0.,
-            }));
+            
+            let spawn_location = Location {
+                x: 0., y: 50., z: 8.5, yaw: -90., pitch: 0.,
+            };
+            cmd.add_component(*entity, LocationComponent(spawn_location));
+            cmd.add_component(*entity, SpawnPositionComponent(spawn_location));
 
             client_component.0.send_packet_sync(&C23Login {
                 entity_id: network_id.0,
@@ -100,8 +104,8 @@ fn handle_client_event(
                 registry_codec: crate::registry_codec::REGISTRY_CODEC.clone(),
                 hashed_seed: 0,
                 max_players: 2,
-                view_distance: 12,
-                simulation_distance: 12,
+                view_distance: 5,
+                simulation_distance: 5,
                 reduced_debug_info: false,
                 enable_respawn_screen: true,
                 is_debug: false,
@@ -123,18 +127,18 @@ fn handle_client_event(
             });
 
             client_component.0.send_packet_sync(&C4ASetDefaultSpawnPosition {
-                location: Position {
-                    x: 0, y: 50, z: 0,
-                },
-                angle: 0.,
+                location: spawn_location.block_position(),
+                angle: spawn_location.pitch,
             });
             client_component.0.send_packet_sync(&C63TeleportEntity {
                 entity_id: network_id.0,
-                x: 0.5, y: 50., z: 0.5, yaw: 0, pitch: 0,
+                x: spawn_location.x, y: spawn_location.y, z: spawn_location.z,
+                yaw: spawn_location.yaw_angle(), pitch: spawn_location.pitch_angle(),
                 on_ground: false,
             });
             client_component.0.send_packet_sync(&C36SynchronizePlayerPosition {
-                x: 0.5, y: 50., z: 0.5, yaw: 0., pitch: 0.,
+                x: spawn_location.x, y: spawn_location.y, z: spawn_location.z,
+                yaw: spawn_location.yaw, pitch: spawn_location.pitch,
                 flags: 0, teleport_id: 0, dismount_vehicle: false,
             });
         }

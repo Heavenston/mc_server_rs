@@ -35,12 +35,13 @@ pub struct StoneChunkProvider {
 }
 impl StoneChunkProvider {
     pub fn new() -> Self {
+        println!("{:#?}", MC_API.blocks.blocks_by_name().unwrap().keys());
         Self {
             loading_chunks: DashMap::default(),
             unloading_chunks: DashMap::default(),
             thread_pool: ThreadPoolBuilder::new().build().unwrap(),
 
-            ground_block_state: MC_API.blocks.blocks_by_name().unwrap()["stone"].id,
+            ground_block_state: MC_API.blocks.blocks_by_name().unwrap()["polished_andesite"].id,
         }
     }
 }
@@ -66,12 +67,11 @@ impl ChunkProvider for StoneChunkProvider {
         self.thread_pool.spawn(move || {
             let mut chunk_data = ChunkData::new();
 
-            for x in 0..16 {
-                for z in 0..16 {
-                    //chunk_data.set_block(x, 20, z, ground_block_state);
-                    if x == z {
-                        chunk_data.set_block(x, 21, z, ground_block_state);
-                    }
+            if chunk_z == 0 || chunk_z == 2 {
+                for x in 0..16 {
+                    chunk_data.set_block(x, 21, 7, ground_block_state);
+                    chunk_data.set_block(x, 21, 8, ground_block_state);
+                    chunk_data.set_block(x, 21, 9, ground_block_state);
                 }
             }
             //chunk_data.get_section_mut(1).fill_with(ground_block_state);
