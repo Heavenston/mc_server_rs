@@ -71,7 +71,7 @@ async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<
 fn main() {
     let pending_clients = Default::default();
 
-    setup_logger(LevelFilter::Debug);
+    setup_logger(if cfg!(debug_assertions) { LevelFilter::Debug } else { LevelFilter::Info });
 
     // Starts legion in a nes thread
     std::thread::spawn({
