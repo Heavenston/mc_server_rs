@@ -21,7 +21,7 @@ use legion::{
     Entity, query::{ IntoQuery, Query }, system, systems::CommandBuffer, world::SubWorld
 };
 use rayon::prelude::*;
-use log::debug;
+use log::{ debug, info };
 
 pub struct ClientEventsComponent(pub flume::Receiver<ClientEvent>);
 
@@ -78,6 +78,9 @@ fn handle_client_event(
         }
 
         ClientEvent::LoggedIn => {
+            let player_username = username_component.map(|a| a.0.clone()).unwrap_or("You".to_string());
+            info!("Player {player_username} just logged in");
+
             let network_id = NetworkIdComponent::new();
             cmd.add_component(*entity, network_id);
 
@@ -136,7 +139,6 @@ fn handle_client_event(
                 display_name: None,
                 sig_data: (),
             };
-            let player_username = username_component.map(|a| a.0.clone()).unwrap_or("You".to_string());
             client_component.0.send_packet_sync(&C34PlayerInfo::AddPlayers {
                 players: vec![
                     C34AddPlayer {
