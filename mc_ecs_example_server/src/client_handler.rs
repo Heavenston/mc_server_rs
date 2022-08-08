@@ -21,6 +21,7 @@ use legion::{
     Entity, query::{ IntoQuery, Query }, system, systems::CommandBuffer, world::SubWorld
 };
 use rayon::prelude::*;
+use log::debug;
 
 pub struct ClientEventsComponent(pub flume::Receiver<ClientEvent>);
 
@@ -174,7 +175,7 @@ fn handle_client_event(
         }
 
         ClientEvent::PluginMessage(S0CPluginMessage { channel, data }) => {
-            println!("Received {channel:?}: {}", String::from_utf8_lossy(&data));
+            debug!("Received {channel:?}: {}", String::from_utf8_lossy(&data));
         }
 
         ClientEvent::SetPlayerPosition(p) => {

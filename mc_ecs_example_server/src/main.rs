@@ -102,8 +102,10 @@ fn main() {
                         schedule.tick(&mut world);
                     },
                     Some(|profiler: &TickProfiler| {
-                        println!("TPS: {:.0}", profiler.tick_per_seconds());
-                        println!("DPT: {:?}", profiler.duration_per_tick());
+                        if let Some(dpt) = profiler.duration_per_tick() {
+                            info!("TPS: {:.0}", profiler.tick_per_seconds());
+                            info!("DPT: {:?}", dpt);
+                        }
                     }),
                 );
         }

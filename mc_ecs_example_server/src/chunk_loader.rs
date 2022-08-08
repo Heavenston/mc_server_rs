@@ -35,7 +35,6 @@ pub struct StoneChunkProvider {
 }
 impl StoneChunkProvider {
     pub fn new() -> Self {
-        println!("{:#?}", MC_API.blocks.blocks_by_name().unwrap().keys());
         Self {
             loading_chunks: DashMap::default(),
             unloading_chunks: DashMap::default(),
