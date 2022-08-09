@@ -5,12 +5,14 @@ use mc_networking::packets::{
 };
 use mc_utils::ChunkData;
 
-use dashmap::DashMap;
-use legion::{system, world::SubWorld, Entity, EntityStore};
-use rayon::{iter::*, ThreadPool, ThreadPoolBuilder};
 use std::sync::{Arc, RwLock};
 
+use dashmap::DashMap;
+use rayon::{iter::*, ThreadPool, ThreadPoolBuilder};
 use minecraft_data_rs::{ Api as McApi, models::version::Version as McVer };
+use bevy_ecs::entity::Entity;
+use bevy_ecs::system::{ self, Query, Res };
+use bevy_ecs::world::{ World, FromWorld };
 
 lazy_static::lazy_static! {
     static ref MC_API: McApi = McApi::new(McVer {
@@ -45,7 +47,7 @@ impl StoneChunkProvider {
     }
 }
 impl ChunkProvider for StoneChunkProvider {
-    fn load_chunk(&self, player: &Entity, chunk_x: i32, chunk_z: i32) {
+    fn load_chunk(&self, player: Entity, chunk_x: i32, chunk_z: i32) {
         if let Some(entry) = self.loading_chunks.get(&(chunk_x, chunk_z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());
@@ -57,7 +59,7 @@ impl ChunkProvider for StoneChunkProvider {
 
         let final_chunk_data = Arc::new(RwLock::new(ChunkLoadingData {
             data: None,
-            waiters: vec![*player],
+            waiters: vec![player],
         }));
         self.loading_chunks
             .insert((chunk_x, chunk_z), Arc::clone(&final_chunk_data));
@@ -83,10 +85,10 @@ impl ChunkProvider for StoneChunkProvider {
         });
     }
 
-    fn unload_chunk(&self, player: &Entity, x: i32, z: i32) {
+    fn unload_chunk(&self, player: Entity, x: i32, z: i32) {
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
             let mut loading_data = entry.write().unwrap();
-            loading_data.waiters.retain(|s| s != player);
+            loading_data.waiters.retain(|s| *s != player);
         }
 
         match self.unloading_chunks.get_mut(&(x, z)) {
@@ -100,11 +102,9 @@ impl ChunkProvider for StoneChunkProvider {
     }
 }
 
-#[system]
-#[read_component(ClientComponent)]
 pub fn stone_chunk_provider(
-    world: &mut SubWorld,
-    #[state] chunk_provider: &Arc<StoneChunkProvider>,
+    world: &World,
+    chunk_provider: Res<Arc<StoneChunkProvider>>,
 ) {
     chunk_provider.unloading_chunks
         .iter().par_bridge()
@@ -114,9 +114,9 @@ pub fn stone_chunk_provider(
                 chunk_z: unloading_chunk.key().1,
             }.to_rawpacket();
 
-            (&*unloading_chunk).iter().for_each(|player| {
-                if let Ok(entry) = world.entry_ref(player.clone()) {
-                    entry.get_component::<ClientComponent>().unwrap()
+            (&*unloading_chunk).iter().copied().for_each(|player| {
+                if let Some(entry) = world.get_entity(player) {
+                    entry.get::<ClientComponent>().unwrap()
                         .0.send_raw_packet_sync(unload_packet.clone());
                 }
             });
@@ -133,10 +133,11 @@ pub fn stone_chunk_provider(
             let data = final_data.data.take().unwrap();
             let (_, raw_packet) = data;
 
-            for waiter in &final_data.waiters {
-                world.entry_ref(*waiter).unwrap()
-                    .into_component::<ClientComponent>().unwrap()
-                    .0.send_raw_packet_sync(raw_packet.clone());
+            for waiter in final_data.waiters.iter().copied() {
+                if let Some(entry) = world.get_entity(waiter) {
+                    entry.get::<ClientComponent>().unwrap()
+                        .0.send_raw_packet_sync(raw_packet.clone());
+                }
             }
 
             false

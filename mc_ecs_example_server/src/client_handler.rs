@@ -1,11 +1,7 @@
 use crate::chunk_loader::StoneChunkProvider;
 use crate::game_systems::SpawnPositionComponent;
-use mc_networking::client::{
-    client_event::{ ClientEvent, LoginStartResult },
-    Client,
-};
+use mc_networking::client::client_event::{ ClientEvent, LoginStartResult };
 use mc_networking::packets::{ client_bound::*, server_bound::* };
-use mc_networking::data_types::{ Slot, Position, command_data::RootNode };
 use mc_ecs_server_lib::entity::{
     NetworkIdComponent, LocationComponent, ObjectUuidComponent, UsernameComponent,
     ClientComponent,
@@ -17,40 +13,48 @@ use mc_utils::Location;
 use std::sync::Arc;
 
 use uuid::Uuid;
-use legion::{
-    Entity, query::{ IntoQuery, Query }, system, systems::CommandBuffer, world::SubWorld
-};
-use rayon::prelude::*;
 use log::{ debug, info };
+use bevy_ecs::entity::Entity;
+use bevy_ecs::system::{ Query, Res, Commands };
+use bevy_ecs::component::Component;
 
+#[derive(Component)]
 pub struct ClientEventsComponent(pub flume::Receiver<ClientEvent>);
 
-#[system(for_each)]
 pub fn handle_clients(
-    client_component: &ClientComponent, 
-    client_events_component: &mut ClientEventsComponent,
-    location_component: Option<&mut LocationComponent>,
-    object_uuid: Option<&ObjectUuidComponent>,
-    username_component: Option<&UsernameComponent>,
-    entity: &Entity, cmd: &mut CommandBuffer,
-    #[resource] stone_chunk_provider: &Arc<StoneChunkProvider>,
+    mut query: Query<(
+        Entity,
+        &ClientComponent, 
+        &mut ClientEventsComponent,
+        Option<&mut LocationComponent>,
+        Option<&ObjectUuidComponent>,
+        Option<&UsernameComponent>,
+    )>,
+    mut commands: Commands,
+    stone_chunk_provider: Res<Arc<StoneChunkProvider>>,
 ) {
-    let chunk_provider: Arc<dyn ChunkProvider> = Arc::clone(stone_chunk_provider) as _;
-    if let Ok(event) = client_events_component.0.try_recv() {
-        handle_client_event(
-            entity, client_component,
-            location_component,
-            object_uuid, username_component,
-            cmd, event, &chunk_provider
-        );
-    }
+    let chunk_provider: Arc<dyn ChunkProvider> = Arc::clone(&*stone_chunk_provider) as _;
+
+    query.for_each_mut(|(
+        entity, client_component, client_events_component, 
+        mut location_component, object_uuid, username_component
+    )| {
+        if let Ok(event) = client_events_component.0.try_recv() {
+            handle_client_event(
+                entity, client_component,
+                location_component.as_mut().map(|a| &mut **a),
+                object_uuid, username_component,
+                &mut commands, event, &chunk_provider
+            );
+        }
+    });
 }
 
 fn handle_client_event(
-    entity: &Entity, client_component: &ClientComponent,
+    entity: Entity, client_component: &ClientComponent,
     location_component: Option<&mut LocationComponent>,
     object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
-    cmd: &mut CommandBuffer,
+    commands: &mut Commands,
     event: ClientEvent,
     chunk_provider: &Arc<dyn ChunkProvider>,
 ) {
@@ -66,8 +70,9 @@ fn handle_client_event(
                 &Uuid::new_v4(),
                 format!("OfflinePlayer:{}", username).as_bytes(),
             );
-            cmd.add_component(*entity, UsernameComponent(username.clone()));
-            cmd.add_component(*entity, ObjectUuidComponent(uuid));
+            commands.entity(entity)
+                .insert(ObjectUuidComponent(uuid))
+                .insert(UsernameComponent(username.clone()));
 
             response
                 .send(LoginStartResult::Accept {
@@ -82,20 +87,20 @@ fn handle_client_event(
             info!("Player {player_username} just logged in");
 
             let network_id = NetworkIdComponent::new();
-            cmd.add_component(*entity, network_id);
-
-            cmd.add_component(*entity, ChunkObserverComponent {
-                radius: 12,
-                loaded_chunks: Default::default(),
-                chunk_provider: Arc::clone(chunk_provider),
-            });
-            cmd.add_component(*entity, ChunkLocationComponent::new(i32::MAX, i32::MAX));
-            
             let spawn_location = Location {
                 x: 0., y: 50., z: 8.5, yaw: -90., pitch: 0.,
             };
-            cmd.add_component(*entity, LocationComponent(spawn_location));
-            cmd.add_component(*entity, SpawnPositionComponent(spawn_location));
+
+            commands.entity(entity)
+                .insert(network_id)
+                .insert(ChunkObserverComponent {
+                    radius: 12,
+                    loaded_chunks: Default::default(),
+                    chunk_provider: Arc::clone(chunk_provider),
+                })
+                .insert(ChunkLocationComponent::new(0, 0))
+                .insert(LocationComponent(spawn_location))
+                .insert(SpawnPositionComponent(spawn_location));
 
             client_component.0.send_packet_sync(&C23Login {
                 entity_id: network_id.0,
@@ -173,7 +178,7 @@ fn handle_client_event(
         }
 
         ClientEvent::Logout => {
-            cmd.remove(*entity);
+            commands.entity(entity).despawn();
         }
 
         ClientEvent::PluginMessage(S0CPluginMessage { channel, data }) => {

@@ -1,21 +1,19 @@
 mod chunk_loader;
 mod client_handler;
-mod event_handler;
 mod registry_codec;
 mod game_systems;
 
 use crate::chunk_loader::*;
 use chunk_loader::StoneChunkProvider;
-use client_handler::{ ClientEventsComponent, handle_clients_system };
-use event_handler::MyEventHandler;
-use mc_ecs_server_lib::mc_schedule::McSchedule;
+use client_handler::{ ClientEventsComponent, handle_clients };
+use mc_ecs_server_lib::mc_app::{ McApp, McAppStage };
 use mc_ecs_server_lib::entity::ClientComponent;
 use mc_networking::client::Client;
 use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
 
 use std::{ sync::{ Arc, RwLock }, time::Duration };
 
-use legion::{ Schedule, World, system, systems::CommandBuffer };
+use bevy_ecs::system::Commands;
 use tokio::{ net::*, runtime };
 use fern::colors::{Color, ColoredLevelConfig};
 use log::*;
@@ -50,10 +48,15 @@ fn setup_logger(log_filter: log::LevelFilter) {
         .unwrap();
 }
 
-#[system]
-fn client_pusher(cmd: &mut CommandBuffer, #[state] clients: &Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
-    for (a, b) in clients.write().unwrap().drain(..) {
-        cmd.push((a, b));
+fn client_pusher_system(
+    clients: Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>,
+) -> impl FnMut(Commands) {
+    move |mut commands: Commands| {
+        for (a, b) in clients.write().unwrap().drain(..) {
+            commands.spawn()
+                .insert(a)
+                .insert(b);
+        }
     }
 }
 async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
@@ -79,27 +82,21 @@ fn main() {
         || {
             let chunk_provider = Arc::new(StoneChunkProvider::new());
 
-            let mut world: World = World::default();
-            let mut schedule = McSchedule::new(MyEventHandler);
-            schedule.resources.insert(Arc::clone(&chunk_provider));
+            let mut app = McApp::new();
+            app.world.insert_resource(Arc::clone(&chunk_provider));
 
-            schedule.set_custom_schedules(vec![
-                Schedule::builder()
-                    //.add_system(test_clients_system())
-                    .add_system(stone_chunk_provider_system(Arc::clone(&chunk_provider)))
-                    .add_system(client_pusher_system(pending_clients))
-                    .add_system(handle_clients_system())
-                    .build(),
-                game_systems::game_scheduler(),
-            ]);
+            app.add_system(McAppStage::BeforeTick, client_pusher_system(pending_clients));
+
+            app.add_system(McAppStage::Tick, stone_chunk_provider);
+            app.add_system(McAppStage::Tick, handle_clients);
+            app.add_system_set(McAppStage::Tick, game_systems::game_systems());
 
             TickScheduler::builder()
                 .profiling_interval(Duration::from_secs(3))
                 .build()
                 .start(
                     move || {
-                        //world.pack(legion::storage::PackOptions::force());
-                        schedule.tick(&mut world);
+                        app.tick();
                     },
                     Some(|profiler: &TickProfiler| {
                         if let Some(dpt) = profiler.duration_per_tick() {
