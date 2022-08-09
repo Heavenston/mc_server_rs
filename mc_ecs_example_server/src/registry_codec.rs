@@ -72,7 +72,7 @@ lazy_static::lazy_static! {
                 ambient_light: 0.,
                 has_skylight: 1,
                 has_ceiling: 0,
-                effects: "minecraft:overworld".into(),
+                effects: "minecraft:the_end".into(),
                 has_raids: 1,
                 monster_spawn_block_light_limit: 0,
                 respawn_anchor_works: 0,
