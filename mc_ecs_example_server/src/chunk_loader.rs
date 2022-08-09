@@ -107,7 +107,7 @@ pub fn stone_chunk_provider(
     chunk_provider: Res<Arc<StoneChunkProvider>>,
 ) {
     chunk_provider.unloading_chunks
-        .iter().par_bridge()
+        .iter()
         .for_each(|unloading_chunk| {
             let unload_packet = C1AUnloadChunk {
                 chunk_x: unloading_chunk.key().0,
