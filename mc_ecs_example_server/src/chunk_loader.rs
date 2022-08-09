@@ -66,7 +66,7 @@ impl ChunkProvider for StoneChunkProvider {
 
         let ground_block_state = self.ground_block_state as u16;
         self.thread_pool.spawn(move || {
-            let mut chunk_data = ChunkData::new();
+            let mut chunk_data = ChunkData::new(crate::WORLD_HEIGHT / 16);
 
             if chunk_z == 0 || chunk_z == 2 {
                 for x in 0..16 {

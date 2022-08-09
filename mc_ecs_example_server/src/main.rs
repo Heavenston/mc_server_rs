@@ -18,6 +18,8 @@ use tokio::{ net::*, runtime };
 use fern::colors::{Color, ColoredLevelConfig};
 use log::*;
 
+pub const WORLD_HEIGHT: usize = 64;
+
 fn setup_logger(log_filter: log::LevelFilter) {
     let colors_line = ColoredLevelConfig::new()
         .debug(Color::BrightBlack)

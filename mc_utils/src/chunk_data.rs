@@ -167,13 +167,22 @@ impl Default for ChunkDataSection {
 
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ChunkData {
-    sections: [ChunkDataSection; 16],
+    sections: Vec<ChunkDataSection>,
 }
 impl ChunkData {
-    pub fn new() -> Self {
+    pub fn new(sections: usize) -> Self {
         Self {
-            sections: Default::default(),
+            sections: vec![Default::default(); sections],
         }
+    }
+
+    /// Return the height of this chunk in number of sections
+    pub fn sections_height(&self) -> usize {
+        self.sections.len()
+    }
+    /// Return the height of this chunk in number of blocks
+    pub fn block_height(&self) -> usize {
+        self.sections_height() * 16
     }
 
     /// Get a reference to a section
@@ -189,9 +198,9 @@ impl ChunkData {
         let section = self.get_section_mut(y / 16);
         section.set_block(x, y.rem_euclid(16), z, block);
     }
-    pub fn get_block(&self, x: u8, y: u8, z: u8) -> BlockState {
-        self.get_section(y / 16)
-            .get_block(x, y.rem_euclid(16), z)
+    pub fn get_block(&self, x: u8, y: u16, z: u8) -> BlockState {
+        self.get_section((y / 16) as u8)
+            .get_block(x, y.rem_euclid(16) as u8, z)
     }
 
     pub fn encode_full(
@@ -201,8 +210,8 @@ impl ChunkData {
             let mut motion_blocking_heightmap = BitBuffer::create(9, 256);
             for x in 0..16 {
                 for z in 0..16 {
-                    'height_loop: for y in 255..=0 {
-                        if self.get_block(x, y, z) != 0 {
+                    'height_loop: for y in (0..self.block_height()).rev() {
+                        if self.get_block(x, y as u16, z) != 0 {
                             motion_blocking_heightmap.set_entry(((x * 16) + z) as usize, y as u32);
                             break 'height_loop;
                         }
