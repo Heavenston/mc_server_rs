@@ -18,16 +18,19 @@ pub fn teleport_if_dead(
     mut query: Query<(
         &ClientComponent,
         &NetworkIdComponent,
-        &SpawnPositionComponent,
+        Option<&SpawnPositionComponent>,
         &mut LocationComponent,
     )>,
 ) {
     query.for_each_mut(|(client_cp, network_id_cp, spawn_pos, mut location_cp)| {
-        if location_cp.0.y > -10. {
+        if location_cp.0.z > 6.5 && location_cp.0.z < 10.5 {
             return;
         }
 
-        let spawn_pos = spawn_pos.0;
+        let spawn_pos = spawn_pos.map(|a| a.0).unwrap_or(Location {
+            x: 0., y: 50., z: 0.,
+            yaw: 0., pitch: 0.
+        });
         location_cp.0 = spawn_pos;
 
         client_cp.0.send_packet_sync(&C63TeleportEntity {

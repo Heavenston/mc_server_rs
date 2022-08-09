@@ -88,7 +88,7 @@ fn handle_client_event(
 
             let network_id = NetworkIdComponent::new();
             let spawn_location = Location {
-                x: 0., y: 50., z: 8.5, yaw: -90., pitch: 0.,
+                x: 0., y: 22., z: 8.5, yaw: -90., pitch: 0.,
             };
 
             commands.entity(entity)

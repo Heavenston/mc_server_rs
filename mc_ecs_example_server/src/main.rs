@@ -94,6 +94,7 @@ fn main() {
             app.add_system_set(McAppStage::Tick, game_systems::game_systems());
 
             TickScheduler::builder()
+                .minimum_duration_per_ticks(Duration::from_secs(1) / 120)
                 .profiling_interval(Duration::from_secs(3))
                 .build()
                 .start(
