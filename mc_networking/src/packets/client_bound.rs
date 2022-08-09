@@ -1492,6 +1492,20 @@ mod play {
         }
     }
 
+    /// Displays a message above the hotbar (the same as position 2 in Player Chat Message.
+    #[derive(Clone, Debug)]
+    pub struct C40SetActionBarText {
+        pub text: String,
+    }
+    impl ClientBoundPacket for C40SetActionBarText {
+        const PACKET_ID: i32 = 0x40;
+
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
+            encoder.write_string(&self.text);
+        }
+    }
+
+
     /// Sent to change the player's slot selection.
     ///
     /// <https://wiki.vg/Protocol#Set_Held_Item_.28clientbound.29>
@@ -1634,6 +1648,26 @@ mod play {
                 );
                 encoder.write_bytes(&slot.encode());
             }
+        }
+    }
+
+    /// Time is based on ticks, where 20 ticks happen every second.
+    /// There are 24000 ticks in a day, making Minecraft days exactly 20 minutes long.
+    /// The time of day is based on the timestamp modulo 24000. 0 is sunrise, 6000 is noon, 12000 is sunset, and 18000 is midnight.
+    /// The default SMP server increments the time by 20 every second.
+    #[derive(Clone, Debug)]
+    pub struct C59UpdateTime {
+        /// In ticks; not changed by server commands.
+        pub world_age: i64,
+        /// The world (or region) time, in ticks. If negative the sun will stop moving at the Math.abs of the time.
+        pub time_of_day: i64,
+    }
+    impl ClientBoundPacket for C59UpdateTime {
+        const PACKET_ID: i32 = 0x59;
+
+        fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
+            encoder.write_i64(self.world_age);
+            encoder.write_i64(self.time_of_day);
         }
     }
 

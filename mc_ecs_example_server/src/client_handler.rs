@@ -88,7 +88,7 @@ fn handle_client_event(
 
             let network_id = NetworkIdComponent::new();
             let spawn_location = Location {
-                x: 0., y: 22., z: 8.5, yaw: -90., pitch: 0.,
+                x: 1.5, y: 22., z: 8.5, yaw: -90., pitch: 0.,
             };
 
             commands.entity(entity)
@@ -174,6 +174,10 @@ fn handle_client_event(
                 x: spawn_location.x, y: spawn_location.y, z: spawn_location.z,
                 yaw: spawn_location.yaw, pitch: spawn_location.pitch,
                 flags: 0, teleport_id: 0, dismount_vehicle: false,
+            });
+            client_component.0.send_packet_sync(&C59UpdateTime {
+                world_age: 0,
+                time_of_day: -18000, // Not moving midnight
             });
         }
 

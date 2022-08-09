@@ -68,7 +68,7 @@ impl ChunkProvider for StoneChunkProvider {
         self.thread_pool.spawn(move || {
             let mut chunk_data = ChunkData::new(crate::WORLD_HEIGHT / 16);
 
-            if chunk_z == 0 || chunk_z == 2 {
+            if (chunk_z == 0 || chunk_z == 2) && chunk_x >= 0 {
                 for x in 0..16 {
                     chunk_data.set_block(x, 21, 7, ground_block_state);
                     chunk_data.set_block(x, 21, 8, ground_block_state);
