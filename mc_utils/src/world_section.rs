@@ -40,6 +40,9 @@ impl WorldSection {
     pub fn get_chunk(&mut self, x: i32, z: i32) -> Option<&ChunkData> {
         self.chunks.get(&(x, z))
     }
+    pub fn get_chunk_or_default(&mut self, x: i32, z: i32) -> &ChunkData {
+        self.chunks.get(&(x, z)).unwrap_or(self.default_chunk.as_ref().expect("No default chunk was set"))
+    }
 
     pub fn set_block(&mut self, position: Position, block: BlockState) {
         let WorldSection { chunks, default_chunk, .. } = self;
