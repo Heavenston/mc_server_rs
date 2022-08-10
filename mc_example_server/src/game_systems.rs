@@ -1,8 +1,6 @@
-use mc_server_lib::entity::{ ClientComponent, NetworkIdComponent, LocationComponent };
+use mc_server_lib::entity::{ ClientComponent, LocationComponent };
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
-
-use std::time::Instant;
 
 use bevy_ecs::entity::Entity;
 use bevy_ecs::schedule::SystemSet;

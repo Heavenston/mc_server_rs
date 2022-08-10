@@ -1,6 +1,6 @@
 use mc_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
 use mc_networking::packets::{
-    client_bound::{ C1AUnloadChunk, ClientBoundPacket, C1FChunkDataAndUpdateLight },
+    client_bound::{ C1AUnloadChunk, ClientBoundPacket },
     RawPacket
 };
 use mc_utils::ChunkData;
@@ -8,11 +8,11 @@ use mc_utils::ChunkData;
 use std::sync::{Arc, RwLock};
 
 use dashmap::DashMap;
-use rayon::{iter::*, ThreadPool, ThreadPoolBuilder};
+use rayon::{ ThreadPool, ThreadPoolBuilder};
 use minecraft_data_rs::{ Api as McApi, models::version::Version as McVer };
 use bevy_ecs::entity::Entity;
-use bevy_ecs::system::{ self, Query, Res };
-use bevy_ecs::world::{ World, FromWorld };
+use bevy_ecs::system::Res;
+use bevy_ecs::world::World;
 
 lazy_static::lazy_static! {
     static ref MC_API: McApi = McApi::new(McVer {
