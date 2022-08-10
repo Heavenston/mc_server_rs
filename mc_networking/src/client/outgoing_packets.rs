@@ -19,8 +19,9 @@ use tokio::{
 pub(super) enum OutgoingPacketEvent {
     /// Send a packet
     Packet(RawPacket),
-    /// Sends a packet and notify whe it had been sent
+    /// Sends a packet and notify when it has actually been sent
     PacketNow(RawPacket, Arc<Notify>),
+    /// Changes the packet's compression config
     SetCompression(PacketCompression),
     /// Sets the shared_key to enable encryption
     SetEncryption(Option<[u8; 16]>),
@@ -62,18 +63,19 @@ pub(super) async fn listen_outgoing_packets(
                 notify.notify_one();
                 packet_buffer.clear();
             }
-            (OutgoingPacketEvent::SetCompression(nc), ..) => compression = nc,
-            (OutgoingPacketEvent::SetEncryption(e), ..) => match e {
-                Some(shared_key) => {
+
+            (OutgoingPacketEvent::SetCompression(nc), ..) => 
+                compression = nc,
+
+            (OutgoingPacketEvent::SetEncryption(e), ..) =>
+                encryption = e.map(|shared_key| {
                     let cipher = Cipher::aes_128_cfb8();
-                    encryption = Some((
+                    (
                         cipher,
                         Crypter::new(cipher, Mode::Encrypt, &shared_key, Some(&shared_key))
-                            .unwrap(),
-                    ));
-                }
-                None => encryption = None,
-            },
+                        .unwrap(),
+                    )
+                }),
         }
     }
 }

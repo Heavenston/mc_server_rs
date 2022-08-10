@@ -1,0 +1,48 @@
+{
+	"version": {
+		"name": "1.19.1",
+		"protocol": 759
+	},
+	"players": {
+		"max": 0,
+		"online": 0,
+		"sample": []
+	},
+	"description": [
+		"",
+		{
+			"text": "Heavenstone",
+			"italic": true,
+			"color": "red"
+		},
+		{
+			"text": "'s ",
+			"color": "red"
+		},
+		{
+			"text": "very",
+			"bold": true,
+			"underlined": true,
+			"color": "red"
+		},
+		{
+			"text": " cool server\n",
+			"color": "red"
+		},
+		{
+			"text": "------------",
+			"obfuscated": true,
+			"color": "red"
+		},
+		{
+			"text": "JOIN",
+			"bold": true,
+			"color": "red"
+		},
+		{
+			"text": "-------------",
+			"obfuscated": true,
+			"color": "red"
+		}
+	]
+}

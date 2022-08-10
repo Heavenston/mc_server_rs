@@ -1,9 +1,11 @@
 [workspace]
 members = [
     "mc_networking",
-    "mc_example_server",
     "mc_utils",
-    "mc_server_lib"
+    "mc_example_server",
+    "mc_server_lib",
+    "mc_ecs_example_server",
+    "mc_ecs_server_lib"
 ]
 
 [profile.release]

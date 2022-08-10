@@ -1,8 +1,7 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BitBuffer {
     entry_bit_size: u64,
     entries_per_long: u64,
-    size: usize,
     mask: u64,
     longs: Vec<i64>,
 }
@@ -16,18 +15,16 @@ impl BitBuffer {
         BitBuffer {
             entry_bit_size: entry_bit_size as u64,
             longs,
-            size,
             entries_per_long,
             mask: (1 << entry_bit_size) - 1,
         }
     }
 
-    pub fn load(entries: usize, bits_per_entry: u8, longs: Vec<i64>) -> BitBuffer {
+    pub fn load(bits_per_entry: u8, longs: Vec<i64>) -> BitBuffer {
         let entries_per_long = 64 / bits_per_entry as u64;
         BitBuffer {
             entry_bit_size: bits_per_entry as u64,
             longs,
-            size: entries,
             entries_per_long,
             mask: (1 << bits_per_entry) - 1,
         }
@@ -56,5 +53,25 @@ impl BitBuffer {
 
     pub fn into_buffer(self) -> Vec<i64> {
         self.longs
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::BitBuffer;
+
+    #[test]
+    fn test_bit_buffer() {
+        let bit_size = 3;
+        let entries = 30u32;
+        let modulo = 2u32.pow(bit_size as u32);
+
+        let mut bf = BitBuffer::create(bit_size, entries as usize);
+        for (i, v) in (0..entries).enumerate() {
+            bf.set_entry(i, v % modulo);
+        }
+        assert_eq!(bf.get_entry(0), 0);
+        assert_eq!(bf.get_entry(1), 1);
+        assert!((0..entries).enumerate().all(|(i, v)| bf.get_entry(i) == v % modulo));
     }
 }

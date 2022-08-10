@@ -1,0 +1,26 @@
+[package]
+name = "mc_ecs_example_server"
+version = "0.1.0"
+authors = ["Heavenstone <malolegendrelemaire@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mc_networking = { path = "../mc_networking" }
+mc_utils = { path = "../mc_utils" }
+mc_ecs_server_lib = { path = "../mc_ecs_server_lib" }
+tokio = { version = "1.0", features = ["full"] }
+bevy_ecs = "0.8"
+rayon = "1.5"
+dashmap = "4.0"
+flume = "0.10"
+serde_json = "1.0"
+uuid = { version = "0.8", features = ["v4", "v3"] }
+lazy_static = "1.4"
+maplit = "1.0"
+minecraft-data-rs = { version = "0.5", features = ["include-data"] }
+log = "0.4"
+chrono = "0.4"
+
+fern = { version = "0.6", features = ["colored"] }

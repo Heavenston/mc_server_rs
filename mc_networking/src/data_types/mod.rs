@@ -8,6 +8,7 @@ use tokio::io::{AsyncRead, AsyncReadExt};
 use uuid::Uuid;
 
 pub mod bitbuffer;
+pub mod bitset;
 pub mod command_data;
 pub mod encoder;
 mod identifier;
@@ -95,11 +96,9 @@ pub struct Position {
 }
 impl Position {
     pub fn encode(&self) -> u64 {
-        let x = u32::from_ne_bytes(self.x.to_ne_bytes()) as u64;
-        let y = u32::from_ne_bytes(self.y.to_ne_bytes()) as u64;
-        let z = u32::from_ne_bytes(self.z.to_ne_bytes()) as u64;
-
-        ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
+        ((self.x as u64 & 0x3FFFFFF) << 38) |
+        ((self.z as u64 & 0x3FFFFFF) << 12) |
+         (self.y as u64 & 0xFFF)
     }
 
     pub fn decode(bytes: i64) -> Self {
@@ -331,7 +330,7 @@ impl MetadataValue {
     pub async fn decode_async<T: AsyncRead + Unpin>(stream: &mut T) -> DecodingResult<Self> {
         let kind = encoder::varint::decode_async(stream).await?;
 
-        #[allow(overlapping_patterns)]
+        #[allow(overlapping_range_endpoints)]
         match kind {
             0 => Ok(Self::Byte(stream.read_u8().await?)),
             1 => Ok(Self::VarInt(encoder::varint::decode_async(stream).await?)),

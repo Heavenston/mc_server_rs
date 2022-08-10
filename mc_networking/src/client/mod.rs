@@ -36,10 +36,11 @@ pub enum ClientState {
 
 /// Handles TCPStreams as minecraft clients into a stream of events
 #[derive(Clone)]
+#[allow(dead_code)] // TODO: Some fields aren't *yet* used, but if they are never used, please
+                    // remove them
 pub struct Client {
     compression: Arc<RwLock<PacketCompression>>,
     state: Arc<RwLock<ClientState>>,
-    #[allow(dead_code)]
     event_sender: flume::Sender<ClientEvent>,
     packet_sender: flume::Sender<OutgoingPacketEvent>,
     peer_addr: std::net::SocketAddr,
@@ -92,7 +93,7 @@ impl Client {
                             *state.write().await = ClientState::Disconnected;
                             packet_sender
                                 .send_async(OutgoingPacketEvent::Packet(
-                                    C19PlayDisconnect {
+                                    C17Disconnect {
                                         reason: json!({
                                             "text": "Unexpected error"
                                         }),
