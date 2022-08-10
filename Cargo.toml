@@ -3,9 +3,7 @@ members = [
     "mc_networking",
     "mc_utils",
     "mc_example_server",
-    "mc_server_lib",
-    "mc_ecs_example_server",
-    "mc_ecs_server_lib"
+    "mc_server_lib"
 ]
 
 [profile.release]

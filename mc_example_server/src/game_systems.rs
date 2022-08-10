@@ -1,4 +1,4 @@
-use mc_ecs_server_lib::entity::{ ClientComponent, NetworkIdComponent, LocationComponent };
+use mc_server_lib::entity::{ ClientComponent, NetworkIdComponent, LocationComponent };
 use mc_networking::packets::client_bound::*;
 use mc_utils::Location;
 

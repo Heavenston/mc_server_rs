@@ -1,4 +1,4 @@
-use mc_ecs_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
+use mc_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
 use mc_networking::packets::{
     client_bound::{ C1AUnloadChunk, ClientBoundPacket, C1FChunkDataAndUpdateLight },
     RawPacket

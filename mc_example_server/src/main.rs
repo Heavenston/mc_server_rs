@@ -1,14 +1,24 @@
-mod commands;
-mod entities;
-mod generator;
-mod server;
+mod chunk_loader;
+mod client_handler;
+mod registry_codec;
+mod game_systems;
 
-use server::Server;
+use crate::chunk_loader::*;
+use chunk_loader::StoneChunkProvider;
+use client_handler::{ ClientEventsComponent, handle_clients };
+use mc_server_lib::mc_app::{ McApp, McAppStage };
+use mc_server_lib::entity::ClientComponent;
+use mc_networking::client::Client;
+use mc_utils::tick_scheduler::{TickProfiler, TickScheduler};
 
-use clap::{App, Arg};
+use std::{ sync::{ Arc, RwLock }, time::Duration };
+
+use bevy_ecs::system::Commands;
+use tokio::{ net::*, runtime };
 use fern::colors::{Color, ColoredLevelConfig};
 use log::*;
-use std::sync::Arc;
+
+pub const WORLD_HEIGHT: usize = 64;
 
 fn setup_logger(log_filter: log::LevelFilter) {
     let colors_line = ColoredLevelConfig::new()
@@ -35,60 +45,74 @@ fn setup_logger(log_filter: log::LevelFilter) {
         .level_for("hyper", log::LevelFilter::Info)
         .level_for("reqwest", log::LevelFilter::Info)
         .level_for("mio", log::LevelFilter::Info)
-        .level_for("tracing", log::LevelFilter::Info)
-        .level_for("want", log::LevelFilter::Info)
         .chain(std::io::stdout())
         .apply()
         .unwrap();
 }
 
-#[tokio::main]
-async fn main() {
-    let clap_matches = App::new("Mc Example Server")
-        .author("Heavenstone")
-        .arg(
-            Arg::with_name("debug")
-                .short("d")
-                .long("debug")
-                .multiple(true)
-                .help("Enable debug logs, or Trace logs when present twice or more"),
-        )
-        .arg(
-            Arg::with_name("port")
-                .short("p")
-                .long("port")
-                .value_name("port")
-                .default_value("25565")
-                .validator(|p| match p.parse::<i64>() {
-                    Err(..) => Err("Must be a valid number".to_string()),
-                    Ok(0..=65353) => Ok(()),
-                    Ok(..) => Err("Cannot be higher than 65353".to_string()),
-                })
-                .takes_value(true),
-        )
-        .get_matches();
+fn client_pusher_system(
+    clients: Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>,
+) -> impl FnMut(Commands) {
+    move |mut commands: Commands| {
+        for (a, b) in clients.write().unwrap().drain(..) {
+            commands.spawn()
+                .insert(a)
+                .insert(b);
+        }
+    }
+}
+async fn start_network_server(addr: impl ToSocketAddrs, clients: Arc<RwLock<Vec<(ClientComponent, ClientEventsComponent)>>>) {
+    let listener = TcpListener::bind(addr).await.unwrap();
 
-    setup_logger(match clap_matches.occurrences_of("debug") {
-        0 => log::LevelFilter::Info,
-        1 => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Trace,
+    loop {
+        let (socket, ..) = listener.accept().await.unwrap();
+        let (client, event_receiver) = Client::new(socket, 100, 500);
+        clients.write().unwrap().push((
+            ClientComponent(client), ClientEventsComponent(event_receiver)
+        ));
+    }
+}
+
+fn main() {
+    let pending_clients = Default::default();
+
+    setup_logger(if cfg!(debug_assertions) { LevelFilter::Debug } else { LevelFilter::Info });
+
+    // Starts legion in a nes thread
+    std::thread::spawn({
+        let pending_clients = Arc::clone(&pending_clients);
+        || {
+            let chunk_provider = Arc::new(StoneChunkProvider::new());
+
+            let mut app = McApp::new();
+            app.world.insert_resource(Arc::clone(&chunk_provider));
+
+            app.add_system(McAppStage::BeforeTick, client_pusher_system(pending_clients));
+
+            app.add_system(McAppStage::Tick, stone_chunk_provider);
+            app.add_system(McAppStage::Tick, handle_clients);
+            app.add_system_set(McAppStage::Tick, game_systems::game_systems());
+
+            TickScheduler::builder()
+                .minimum_duration_per_ticks(Duration::from_secs(1) / 120)
+                .profiling_interval(Duration::from_secs(3))
+                .build()
+                .start(
+                    move || {
+                        app.tick();
+                    },
+                    Some(|profiler: &TickProfiler| {
+                        if let Some(dpt) = profiler.duration_per_tick() {
+                            info!("TPS: {:.0}", profiler.tick_per_seconds());
+                            info!("DPT: {:?}", dpt);
+                        }
+                    }),
+                );
+        }
     });
 
-    info!("Loading server...");
-    let server = Arc::new(Server::new().await);
-    Server::start_ticker(Arc::clone(&server)).await;
-    info!("Server loaded");
-
-    let port = clap_matches.value_of("port").unwrap();
-
-    info!("Starting server on port {}", port);
-    match Server::listen(Arc::clone(&server), format!("0.0.0.0:{}", port)).await {
-        Ok(j) => {
-            info!("Server started");
-            if let Err(error) = j.await {
-                error!("Server stopped with error: {}", error)
-            }
-        }
-        Err(error) => error!("Could not start server: {}", error),
-    }
+    let tokio_runtime = runtime::Builder::new_multi_thread()
+        .enable_all().build().unwrap();
+    let _ = tokio_runtime.enter();
+    tokio_runtime.block_on(start_network_server("0.0.0.0:25565", pending_clients));
 }

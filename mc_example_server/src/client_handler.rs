@@ -2,12 +2,12 @@ use crate::chunk_loader::StoneChunkProvider;
 use crate::game_systems::SpawnPositionComponent;
 use mc_networking::client::client_event::{ ClientEvent, LoginStartResult };
 use mc_networking::packets::{ client_bound::*, server_bound::* };
-use mc_ecs_server_lib::entity::{
+use mc_server_lib::entity::{
     NetworkIdComponent, LocationComponent, ObjectUuidComponent, UsernameComponent,
     ClientComponent,
     chunk::{ ChunkObserverComponent, ChunkLocationComponent }
 };
-use mc_ecs_server_lib::chunk_manager::ChunkProvider;
+use mc_server_lib::chunk_manager::ChunkProvider;
 use mc_utils::Location;
 
 use std::sync::Arc;
