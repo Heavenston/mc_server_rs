@@ -4,8 +4,6 @@ use crate::{
 };
 use mc_networking::packets::client_bound::*;
 
-use std::sync::Arc;
-
 use ahash::AHashSet;
 use bevy_ecs::component::Component;
 use bevy_ecs::system::Query;
@@ -17,7 +15,7 @@ use bevy_ecs::query::Changed;
 pub struct ChunkObserverComponent {
     pub radius: i32,
     pub loaded_chunks: AHashSet<(i32, i32)>,
-    pub chunk_provider: Arc<dyn ChunkProvider>,
+    pub chunk_provider: Box<dyn ChunkProvider>,
 }
 
 /// Represent the chunk location of an [Entity] with the [ChunkLoaderComponent]

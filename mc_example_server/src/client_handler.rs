@@ -7,7 +7,6 @@ use mc_server_lib::entity::{
     ClientComponent,
     chunk::{ ChunkObserverComponent, ChunkLocationComponent }
 };
-use mc_server_lib::chunk_manager::ChunkProvider;
 use mc_utils::Location;
 
 use std::sync::Arc;
@@ -33,8 +32,6 @@ pub fn handle_clients(
     mut commands: Commands,
     stone_chunk_provider: Res<Arc<StoneChunkProvider>>,
 ) {
-    let chunk_provider: Arc<dyn ChunkProvider> = Arc::clone(&*stone_chunk_provider) as _;
-
     query.for_each_mut(|(
         entity, client_component, client_events_component, 
         mut location_component, object_uuid, username_component
@@ -44,7 +41,7 @@ pub fn handle_clients(
                 entity, client_component,
                 location_component.as_mut().map(|a| &mut **a),
                 object_uuid, username_component,
-                &mut commands, event, &chunk_provider
+                &mut commands, event, &*stone_chunk_provider
             );
         }
     });
@@ -56,7 +53,7 @@ fn handle_client_event(
     object_uuid: Option<&ObjectUuidComponent>, username_component: Option<&UsernameComponent>,
     commands: &mut Commands,
     event: ClientEvent,
-    chunk_provider: &Arc<dyn ChunkProvider>,
+    chunk_provider: &Arc<StoneChunkProvider>,
 ) {
     match event {
         ClientEvent::ServerListPing { response } => {
@@ -96,7 +93,7 @@ fn handle_client_event(
                 .insert(ChunkObserverComponent {
                     radius: 12,
                     loaded_chunks: Default::default(),
-                    chunk_provider: Arc::clone(chunk_provider),
+                    chunk_provider: Box::new(Arc::clone(chunk_provider)) as _
                 })
                 .insert(ChunkLocationComponent::new(0, 0))
                 .insert(LocationComponent(spawn_location))

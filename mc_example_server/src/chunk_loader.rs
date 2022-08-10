@@ -1,4 +1,4 @@
-use mc_server_lib::{chunk_manager::ChunkProvider, entity::ClientComponent};
+use mc_server_lib::{ chunk_manager::ConstChunkProvider, entity::ClientComponent };
 use mc_networking::packets::{
     client_bound::{ C1AUnloadChunk, ClientBoundPacket },
     RawPacket
@@ -46,8 +46,9 @@ impl StoneChunkProvider {
         }
     }
 }
-impl ChunkProvider for StoneChunkProvider {
-    fn load_chunk(&self, player: Entity, chunk_x: i32, chunk_z: i32) {
+
+impl ConstChunkProvider for StoneChunkProvider {
+    fn const_load_chunk(&self, player: Entity, chunk_x: i32, chunk_z: i32) {
         if let Some(entry) = self.loading_chunks.get(&(chunk_x, chunk_z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());
@@ -85,7 +86,7 @@ impl ChunkProvider for StoneChunkProvider {
         });
     }
 
-    fn unload_chunk(&self, player: Entity, x: i32, z: i32) {
+    fn const_unload_chunk(&self, player: Entity, x: i32, z: i32) {
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
             let mut loading_data = entry.write().unwrap();
             loading_data.waiters.retain(|s| *s != player);
