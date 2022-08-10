@@ -186,20 +186,20 @@ impl ChunkData {
     }
 
     /// Get a reference to a section
-    pub fn get_section(&self, y: u8) -> &ChunkDataSection {
+    pub fn get_section(&self, y: u16) -> &ChunkDataSection {
         &self.sections[y as usize]
     }
     /// Get a mutable reference to a section
-    pub fn get_section_mut(&mut self, y: u8) -> &mut ChunkDataSection {
+    pub fn get_section_mut(&mut self, y: u16) -> &mut ChunkDataSection {
         &mut self.sections[y as usize]
     }
 
-    pub fn set_block(&mut self, x: u8, y: u8, z: u8, block: BlockState) {
+    pub fn set_block(&mut self, x: u8, y: u16, z: u8, block: BlockState) {
         let section = self.get_section_mut(y / 16);
-        section.set_block(x, y.rem_euclid(16), z, block);
+        section.set_block(x, y.rem_euclid(16) as u8, z, block);
     }
     pub fn get_block(&self, x: u8, y: u16, z: u8) -> BlockState {
-        self.get_section((y / 16) as u8)
+        self.get_section(y / 16)
             .get_block(x, y.rem_euclid(16) as u8, z)
     }
 
