@@ -11,7 +11,7 @@ use dashmap::DashMap;
 use rayon::{ ThreadPool, ThreadPoolBuilder};
 use minecraft_data_rs::{ Api as McApi, models::version::Version as McVer };
 use bevy_ecs::entity::Entity;
-use bevy_ecs::system::Res;
+use bevy_ecs::system::{ Res, Commands };
 use bevy_ecs::world::World;
 
 lazy_static::lazy_static! {
@@ -48,7 +48,10 @@ impl StoneChunkProvider {
 }
 
 impl ConstChunkProvider for StoneChunkProvider {
-    fn const_load_chunk(&self, player: Entity, chunk_x: i32, chunk_z: i32) {
+    fn const_load_chunk(
+        &self, player: Entity, commands: &mut Commands,
+        chunk_x: i32, chunk_z: i32
+    ) {
         if let Some(entry) = self.loading_chunks.get(&(chunk_x, chunk_z)) {
             let loading_data = &*entry;
             loading_data.write().unwrap().waiters.push(player.clone());
@@ -86,7 +89,10 @@ impl ConstChunkProvider for StoneChunkProvider {
         });
     }
 
-    fn const_unload_chunk(&self, player: Entity, x: i32, z: i32) {
+    fn const_unload_chunk(
+        &self, player: Entity, commands: &mut Commands,
+        x: i32, z: i32
+    ) {
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
             let mut loading_data = entry.write().unwrap();
             loading_data.waiters.retain(|s| *s != player);

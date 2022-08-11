@@ -6,7 +6,7 @@ use mc_networking::packets::client_bound::*;
 
 use ahash::AHashSet;
 use bevy_ecs::component::Component;
-use bevy_ecs::system::Query;
+use bevy_ecs::system::{ Query, Commands };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::Changed;
 
@@ -53,7 +53,8 @@ pub(crate) fn chunk_locations_update(
 }
 
 pub(crate) fn chunk_observer_chunk_loadings(
-    mut query: Query<(Entity, &mut ChunkObserverComponent, &ChunkLocationComponent, &ClientComponent)>
+    mut query: Query<(Entity, &mut ChunkObserverComponent, &ChunkLocationComponent, &ClientComponent)>,
+    mut commands: Commands,
 ) {
     query.for_each_mut(|(entity, mut chunk_observer, chunk_loc, client)| {
         // This system only really runs for observers that just changed chunk
