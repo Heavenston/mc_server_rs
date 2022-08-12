@@ -13,6 +13,7 @@ pub struct WorldSection {
 
 impl WorldSection {
     pub fn new(world_height: usize) -> Self {
+        assert_eq!(world_height % 16, 0, "World height must be a multiple of 16");
         Self {
             world_height,
 
@@ -47,7 +48,7 @@ impl WorldSection {
     pub fn set_block(&mut self, position: Position, block: BlockState) {
         let WorldSection { chunks, default_chunk, .. } = self;
 
-        let (chunk_x, chunk_z) = (position.y / 16, position.z / 16);
+        let (chunk_x, chunk_z) = (position.x / 16, position.z / 16);
         let chunk = if let Some(default_chunk) = &default_chunk {
             chunks.entry((chunk_x, chunk_z)).or_insert_with(|| default_chunk.clone())
         } else if let Some(c) = chunks.get_mut(&(chunk_x, chunk_z))
@@ -69,4 +70,31 @@ impl WorldSection {
             position.z.rem_euclid(16) as u8,
         )).unwrap_or(0)
     }
+}
+
+#[test]
+#[should_panic(expected = "No default chunk was set")]
+fn test_wrong_chunk_panic() {
+    let mut wc = WorldSection::new(128);
+    assert_eq!(wc.chunks.len(), 0);
+    wc.set_block(Position { x: 30, y: 10, z: 230 }, 1);
+}
+
+#[test]
+fn test_chunk_length() {
+    let mut wc = WorldSection::new(256);
+    wc.set_default_chunk(Some(ChunkData::new(256 / 16)));
+    assert_eq!(wc.chunks.len(), 0);
+    wc.set_block(Position { x: 30, y: 10, z: 230 }, 1);
+    assert_eq!(wc.chunks.len(), 1);
+    wc.set_block(Position { x: 0, y: 10, z: 230 }, 15);
+    assert_eq!(wc.chunks.len(), 2);
+    wc.set_block(Position { x: 0, y: 12, z: 230 }, 7);
+    assert_eq!(wc.chunks.len(), 2);
+    wc.set_block(Position { x: 30, y: 12, z: 231 }, 4);
+    assert_eq!(wc.chunks.len(), 2);
+    wc.set_block(Position { x: 30, y: 85, z: 231 }, 0);
+    assert_eq!(wc.chunks.len(), 2);
+    wc.set_block(Position { x: 13, y: 30, z: 331231 }, 9);
+    assert_eq!(wc.chunks.len(), 3);
 }
