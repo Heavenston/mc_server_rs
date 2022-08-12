@@ -16,7 +16,7 @@ pub trait FlooringDiv {
 }
 macro_rules! impl_rounding_down_div {
     ($($a: ident),*) => {$(
-        impl RoudingDownDiv for $a {
+        impl FlooringDiv for $a {
             fn one() -> Self { 1 }
             fn zero() -> Self { 0 }
 
