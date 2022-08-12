@@ -49,7 +49,6 @@ impl WorldSection {
         let WorldSection { chunks, default_chunk, .. } = self;
 
         let (chunk_x, chunk_z) = (position.x.flooring_div(16), position.z.flooring_div(16));
-        println!("{chunk_x} {chunk_z}");
         let chunk = if let Some(default_chunk) = &default_chunk {
             chunks.entry((chunk_x, chunk_z)).or_insert_with(|| default_chunk.clone())
         } else if let Some(c) = chunks.get_mut(&(chunk_x, chunk_z))
