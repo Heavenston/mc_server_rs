@@ -26,13 +26,22 @@ pub struct ChunkLocationComponent {
     pub x: i32,
     pub z: i32,
     pub changed: bool,
+    pub force_change: u8,
 }
 impl ChunkLocationComponent {
     pub fn new(x: i32, z: i32) -> Self {
         Self {
             x,
             z,
-            changed: true,
+            changed: false,
+            force_change: 0,
+        }
+    }
+
+    pub fn with_force_change(self, force_change: u8) -> Self {
+        Self {
+            force_change,
+            ..self
         }
     }
 }
@@ -46,6 +55,10 @@ pub(crate) fn chunk_locations_update(
         let chunk_z = location.0.chunk_z();
 
         chunk_loc.changed = chunk_loc.x != chunk_x || chunk_loc.z != chunk_z;
+        if chunk_loc.force_change > 0 {
+            chunk_loc.changed = true;
+            chunk_loc.force_change -= 1;
+        }
 
         chunk_loc.x = chunk_x;
         chunk_loc.z = chunk_z;

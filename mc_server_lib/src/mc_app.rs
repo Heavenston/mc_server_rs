@@ -4,14 +4,18 @@ use std::any::TypeId;
 
 use bevy_ecs::schedule::{
     Schedule, SystemStage, SystemSet,
-    StageLabel, StageLabelId, IntoSystemDescriptor
+    StageLabel, StageLabelId, IntoSystemDescriptor,
+    ParallelSystemDescriptorCoercion,
 };
 use bevy_ecs::world::World;
 
 fn chunks_systems() -> SystemSet {
     SystemSet::new()
-        .with_system(chunk_locations_update)
-        .with_system(chunk_observer_chunk_loadings)
+        .with_system(chunk_locations_update
+            .label("chunk_locations_update"))
+        .with_system(chunk_observer_chunk_loadings
+            .label("chunk_observer_chunk_loadings")
+            .after("chunk_locations_update"))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
