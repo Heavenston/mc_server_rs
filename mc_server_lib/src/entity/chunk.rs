@@ -93,7 +93,7 @@ pub(crate) fn chunk_observer_chunk_loadings(
                             chunk_observer.loaded_chunks.insert((chunk_x, chunk_z));
                             chunk_observer
                                 .chunk_provider
-                                .load_chunk(entity, chunk_x, chunk_z);
+                                .load_chunk(entity, &mut commands, chunk_x, chunk_z);
                         }
                     }
                 }

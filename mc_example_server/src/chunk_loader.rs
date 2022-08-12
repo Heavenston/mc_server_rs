@@ -49,7 +49,7 @@ impl StoneChunkProvider {
 
 impl ConstChunkProvider for StoneChunkProvider {
     fn const_load_chunk(
-        &self, player: Entity, commands: &mut Commands,
+        &self, player: Entity, _commands: &mut Commands,
         chunk_x: i32, chunk_z: i32
     ) {
         if let Some(entry) = self.loading_chunks.get(&(chunk_x, chunk_z)) {
@@ -90,7 +90,7 @@ impl ConstChunkProvider for StoneChunkProvider {
     }
 
     fn const_unload_chunk(
-        &self, player: Entity, commands: &mut Commands,
+        &self, player: Entity, _commands: &mut Commands,
         x: i32, z: i32
     ) {
         if let Some(entry) = self.loading_chunks.get(&(x, z)) {
