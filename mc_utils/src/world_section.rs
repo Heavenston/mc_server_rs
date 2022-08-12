@@ -1,4 +1,4 @@
-use crate::{ BlockState, ChunkData };
+use crate::{ BlockState, ChunkData, FlooringDiv };
 use mc_networking::data_types::Position;
 
 use std::convert::TryInto;
@@ -48,26 +48,27 @@ impl WorldSection {
     pub fn set_block(&mut self, position: Position, block: BlockState) {
         let WorldSection { chunks, default_chunk, .. } = self;
 
-        let (chunk_x, chunk_z) = (position.x / 16, position.z / 16);
+        let (chunk_x, chunk_z) = (position.x.flooring_div(16), position.z.flooring_div(16));
+        println!("{chunk_x} {chunk_z}");
         let chunk = if let Some(default_chunk) = &default_chunk {
             chunks.entry((chunk_x, chunk_z)).or_insert_with(|| default_chunk.clone())
         } else if let Some(c) = chunks.get_mut(&(chunk_x, chunk_z))
         { c } else { panic!("No default chunk was set") };
 
         chunk.set_block(
-            position.x.rem_euclid(16) as u8,
+            position.x.rem_euclid(16).try_into().unwrap(),
             position.y.try_into().unwrap(),
-            position.z.rem_euclid(16) as u8,
+            position.z.rem_euclid(16).try_into().unwrap(),
             block
         );
     }
     pub fn get_block(&self, position: Position) -> BlockState {
-        let (chunk_x, chunk_z) = (position.y / 16, position.z / 16);
+        let (chunk_x, chunk_z) = (position.y.flooring_div(16), position.z.flooring_div(16));
 
         self.chunks.get(&(chunk_x, chunk_z)).map(|c| c.get_block(
-            position.x.rem_euclid(16) as u8,
+            position.x.rem_euclid(16).try_into().unwrap(),
             position.y.try_into().unwrap(),
-            position.z.rem_euclid(16) as u8,
+            position.z.rem_euclid(16).try_into().unwrap(),
         )).unwrap_or(0)
     }
 }
@@ -85,15 +86,15 @@ fn test_chunk_length() {
     let mut wc = WorldSection::new(256);
     wc.set_default_chunk(Some(ChunkData::new(256 / 16)));
     assert_eq!(wc.chunks.len(), 0);
-    wc.set_block(Position { x: 30, y: 10, z: 230 }, 1);
+    wc.set_block(Position { x: -12, y: 10, z: 230 }, 1);
     assert_eq!(wc.chunks.len(), 1);
     wc.set_block(Position { x: 0, y: 10, z: 230 }, 15);
     assert_eq!(wc.chunks.len(), 2);
     wc.set_block(Position { x: 0, y: 12, z: 230 }, 7);
     assert_eq!(wc.chunks.len(), 2);
-    wc.set_block(Position { x: 30, y: 12, z: 231 }, 4);
+    wc.set_block(Position { x: -12, y: 12, z: 231 }, 4);
     assert_eq!(wc.chunks.len(), 2);
-    wc.set_block(Position { x: 30, y: 85, z: 231 }, 0);
+    wc.set_block(Position { x: -12, y: 85, z: 231 }, 0);
     assert_eq!(wc.chunks.len(), 2);
     wc.set_block(Position { x: 13, y: 30, z: 331231 }, 9);
     assert_eq!(wc.chunks.len(), 3);
