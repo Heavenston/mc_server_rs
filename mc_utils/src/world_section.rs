@@ -37,10 +37,10 @@ impl WorldSection {
         self.chunks.insert((x, z), self.default_chunk.clone().expect("No default chunk was set"));
     }
 
-    pub fn get_chunk(&mut self, x: i32, z: i32) -> Option<&ChunkData> {
+    pub fn get_chunk(&self, x: i32, z: i32) -> Option<&ChunkData> {
         self.chunks.get(&(x, z))
     }
-    pub fn get_chunk_or_default(&mut self, x: i32, z: i32) -> &ChunkData {
+    pub fn get_chunk_or_default(&self, x: i32, z: i32) -> &ChunkData {
         self.chunks.get(&(x, z)).unwrap_or(self.default_chunk.as_ref().expect("No default chunk was set"))
     }
 
