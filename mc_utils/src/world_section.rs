@@ -51,7 +51,7 @@ impl WorldSection {
         let chunk = if let Some(default_chunk) = &default_chunk {
             chunks.entry((chunk_x, chunk_z)).or_insert_with(|| default_chunk.clone())
         } else if let Some(c) = chunks.get_mut(&(chunk_x, chunk_z))
-        { c } else { return };
+        { c } else { panic!("No default chunk was set") };
 
         chunk.set_block(
             position.x.rem_euclid(16) as u8,
