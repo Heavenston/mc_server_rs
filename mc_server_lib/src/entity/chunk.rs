@@ -4,8 +4,6 @@ use crate::{
 };
 use mc_networking::packets::client_bound::*;
 
-use std::mem::size_of;
-
 use ahash::AHashSet;
 use smallvec::SmallVec;
 use bevy_ecs::component::Component;
@@ -107,8 +105,10 @@ pub(crate) fn chunk_observer_chunk_loadings(
                 .retain(|(loaded_chunk_x, loaded_chunk_z)| {
                     let distance_x = (loaded_chunk_x - chunk_loc_x).abs();
                     let distance_z = (loaded_chunk_z - chunk_loc_z).abs();
+                    let should_force_update = concerned_fcucs
+                        .iter().any(|fcuc| fcuc.updates.contains(&(*loaded_chunk_x, *loaded_chunk_z)));
                     let keep = distance_x <= radius && distance_z <= radius;
-                    if !keep { 
+                    if should_force_update || !keep { 
                         chunk_provider
                             .unload_chunk(entity, &mut commands, *loaded_chunk_x, *loaded_chunk_z);
                     }
