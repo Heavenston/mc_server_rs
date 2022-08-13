@@ -102,12 +102,17 @@ pub(crate) fn chunk_observer_chunk_loadings(
             let chunk_loc_x = chunk_loc.x;
             let chunk_loc_z = chunk_loc.z;
             let radius = chunk_observer.radius;
-            chunk_observer
-                .loaded_chunks
+            let ChunkObserverComponent { loaded_chunks, chunk_provider, .. } = &mut *chunk_observer;
+            loaded_chunks
                 .retain(|(loaded_chunk_x, loaded_chunk_z)| {
                     let distance_x = (loaded_chunk_x - chunk_loc_x).abs();
                     let distance_z = (loaded_chunk_z - chunk_loc_z).abs();
-                    distance_x <= radius && distance_z <= radius
+                    let keep = distance_x <= radius && distance_z <= radius;
+                    if !keep { 
+                        chunk_provider
+                            .unload_chunk(entity, &mut commands, *loaded_chunk_x, *loaded_chunk_z);
+                    }
+                    keep
                 });
         }
 
@@ -122,7 +127,6 @@ pub(crate) fn chunk_observer_chunk_loadings(
                         let should_force_update = concerned_fcucs
                             .iter().any(|fcuc| fcuc.updates.contains(&(chunk_x, chunk_z)));
                         if should_force_update || !chunk_observer.loaded_chunks.contains(&(chunk_x, chunk_z)) {
-                            println!("UPDATE of {chunk_x} {chunk_z}");
                             chunk_observer.loaded_chunks.insert((chunk_x, chunk_z));
                             chunk_observer
                                 .chunk_provider
