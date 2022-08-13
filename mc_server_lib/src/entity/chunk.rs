@@ -4,11 +4,21 @@ use crate::{
 };
 use mc_networking::packets::client_bound::*;
 
+use std::mem::size_of;
+
 use ahash::AHashSet;
+use smallvec::SmallVec;
 use bevy_ecs::component::Component;
 use bevy_ecs::system::{ Query, Commands };
 use bevy_ecs::entity::Entity;
 use bevy_ecs::query::Changed;
+
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub struct ForceChunkUpdatesComponent {
+    pub targets: SmallVec<[Entity; 2]>,
+    pub updates: SmallVec<[(i32, i32); 2]>,
+}
 
 /// Will call load_chunk for every chunk in radius around it's [ChunkLocationComponent]
 #[derive(Component)]
@@ -67,13 +77,20 @@ pub(crate) fn chunk_locations_update(
 
 pub(crate) fn chunk_observer_chunk_loadings(
     mut query: Query<(Entity, &mut ChunkObserverComponent, &ChunkLocationComponent, &ClientComponent)>,
+    force_updates_query: Query<&ForceChunkUpdatesComponent>,
     mut commands: Commands,
 ) {
+    type FcucVec<'a> = SmallVec<[&'a ForceChunkUpdatesComponent; 1]>;
+    let force_updates =
+        force_updates_query.iter().collect::<FcucVec>();
+
     query.for_each_mut(|(entity, mut chunk_observer, chunk_loc, client)| {
         // This system only really runs for observers that just changed chunk
         if !chunk_loc.changed {
             return;
         }
+        let concerned_fcucs: FcucVec = force_updates.iter().copied()
+            .filter(|fcuc| fcuc.targets.contains(&entity)).collect();
 
         client.0.send_packet_sync(&C48SetCenterChunk {
             chunk_x: chunk_loc.x,
@@ -102,7 +119,9 @@ pub(crate) fn chunk_observer_chunk_loadings(
                     {
                         let chunk_x = chunk_loc.x + chunk_dx;
                         let chunk_z = chunk_loc.z + chunk_dz;
-                        if !chunk_observer.loaded_chunks.contains(&(chunk_x, chunk_z)) {
+                        let should_force_update = concerned_fcucs
+                            .iter().any(|fcuc| fcuc.updates.contains(&(chunk_x, chunk_z)));
+                        if should_force_update || !chunk_observer.loaded_chunks.contains(&(chunk_x, chunk_z)) {
                             chunk_observer.loaded_chunks.insert((chunk_x, chunk_z));
                             chunk_observer
                                 .chunk_provider
