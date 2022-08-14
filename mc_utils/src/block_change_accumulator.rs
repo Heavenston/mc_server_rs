@@ -45,9 +45,9 @@ impl BlockChangeAccumulator {
                 z.rem_euclid(SCALE_FACTOR).try_into().unwrap()
             ),
             (
-                x / SCALE_FACTOR,
-                y / SCALE_FACTOR,
-                z / SCALE_FACTOR
+                x.flooring_div(SCALE_FACTOR),
+                y.flooring_div(SCALE_FACTOR),
+                z.flooring_div(SCALE_FACTOR)
             )
         )
     }
