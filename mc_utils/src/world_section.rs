@@ -77,7 +77,7 @@ impl WorldSection {
             position.x.rem_euclid(16).try_into().unwrap(),
             position.y.try_into().unwrap(),
             position.z.rem_euclid(16).try_into().unwrap(),
-        )).unwrap_or(0)
+        )).unwrap_or(u16::MAX)
     }
 }
 
