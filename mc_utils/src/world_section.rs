@@ -4,6 +4,7 @@ use mc_networking::data_types::Position;
 use std::convert::TryInto;
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct WorldSection {
     world_height: usize,
 
@@ -70,7 +71,7 @@ impl WorldSection {
         );
     }
     pub fn get_block(&self, position: Position) -> BlockState {
-        let (chunk_x, chunk_z) = (position.x.flooring_div(16), position.z.flooring_div(16));
+        let (chunk_x, chunk_z) = (position.y.flooring_div(16), position.z.flooring_div(16));
 
         self.chunks.get(&(chunk_x, chunk_z)).map(|c| c.get_block(
             position.x.rem_euclid(16).try_into().unwrap(),
