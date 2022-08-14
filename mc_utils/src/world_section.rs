@@ -55,29 +55,23 @@ impl WorldSection {
     }
 
     pub fn set_block(&mut self, position: Position, block: BlockState) {
-        let WorldSection { chunks, default_chunk, .. } = self;
-
-        let (chunk_x, chunk_z) = (position.x.flooring_div(16), position.z.flooring_div(16));
-        let chunk = if let Some(default_chunk) = &default_chunk {
-            chunks.entry((chunk_x, chunk_z)).or_insert_with(|| default_chunk.clone())
-        } else if let Some(c) = chunks.get_mut(&(chunk_x, chunk_z))
-        { c } else { panic!("No default chunk was set") };
-
-        chunk.set_block(
-            position.x.rem_euclid(16).try_into().unwrap(),
-            position.y.try_into().unwrap(),
-            position.z.rem_euclid(16).try_into().unwrap(),
-            block
-        );
+        self
+            .get_chunk_mut(position.x.flooring_div(16), position.z.flooring_div(16))
+            .set_block(
+                position.x.rem_euclid(16).try_into().unwrap(),
+                position.y.try_into().unwrap(),
+                position.z.rem_euclid(16).try_into().unwrap(),
+                block
+            );
     }
     pub fn get_block(&self, position: Position) -> BlockState {
-        let (chunk_x, chunk_z) = (position.y.flooring_div(16), position.z.flooring_div(16));
-
-        self.chunks.get(&(chunk_x, chunk_z)).map(|c| c.get_block(
-            position.x.rem_euclid(16).try_into().unwrap(),
-            position.y.try_into().unwrap(),
-            position.z.rem_euclid(16).try_into().unwrap(),
-        )).unwrap_or(u16::MAX)
+        self
+            .get_chunk_or_default(position.x.flooring_div(16), position.z.flooring_div(16))
+            .get_block(
+                position.x.rem_euclid(16).try_into().unwrap(),
+                position.y.try_into().unwrap(),
+                position.z.rem_euclid(16).try_into().unwrap(),
+            )
     }
 }
 
