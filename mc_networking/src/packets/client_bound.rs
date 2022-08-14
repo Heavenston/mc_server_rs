@@ -1451,7 +1451,7 @@ mod play {
         }
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     pub struct C3DBlockChange {
         pub x: u8,
         pub y: u8,
@@ -1462,7 +1462,7 @@ mod play {
     /// Fired whenever 2 or more blocks are changed within the same chunk on the same tick.
     ///
     /// <https://wiki.vg/Prrotocol#Multi_Block_Change>
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, PartialEq, Eq, Hash)]
     pub struct C3DUpdateSectionBlocks {
         pub section_x: i32,
         pub section_y: i32,
