@@ -143,7 +143,7 @@ impl BlockChangeAccumulator {
             }
         }
 
-        sections.into_iter().map(|(section_pos, blocks)| C3DUpdateSectionBlocks {
+        sections.into_iter().filter(|(_, a)| !a.is_empty()).map(|(section_pos, blocks)| C3DUpdateSectionBlocks {
             section_x: section_pos.0,
             section_y: section_pos.1,
             section_z: section_pos.2,
