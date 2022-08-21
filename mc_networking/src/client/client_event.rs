@@ -44,6 +44,7 @@ pub enum ClientEvent {
     ChatMessage(S04ChatMessage),
     ClickContainer(S0AClickContainer),
     PluginMessage(S0CPluginMessage),
+    Interact(S0FInteract),
     SetPlayerPosition(S13SetPlayerPosition),
     SetPlayerPositionAndRotation(S14SetPlayerPositionAndRotation),
     SetPlayerRotation(S15SetPlayerRotation),

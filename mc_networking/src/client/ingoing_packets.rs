@@ -408,6 +408,7 @@ pub(super) async fn listen_ingoing_packets(
                     S06ClientCommand => { unimplemented!("S06ClientCommand") },
                     S0AClickContainer => ClickContainer,
                     S0CPluginMessage => PluginMessage,
+                    S0FInteract => Interact,
                     S11KeepAlive => {
                         debug!("Received keep alive");
                         let mut data = keep_alive_data.write().await;
