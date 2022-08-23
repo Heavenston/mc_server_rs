@@ -9,7 +9,7 @@ pub struct WorldSection {
     world_height: usize,
 
     default_chunk: Option<ChunkData>,
-    chunks: HashMap<(i32, i32), ChunkData>,
+    pub(crate) chunks: HashMap<(i32, i32), ChunkData>,
 }
 
 impl WorldSection {
@@ -29,6 +29,13 @@ impl WorldSection {
             self.world_height
         );
         self.default_chunk = data;
+    }
+
+    pub fn chunks(&self) -> impl Iterator<Item = (&(i32, i32), &ChunkData)> {
+        self.chunks.iter()
+    }
+    pub fn chunks_mut(&mut self) -> impl Iterator<Item = (&(i32, i32), &mut ChunkData)> {
+        self.chunks.iter_mut()
     }
 
     pub fn set_chunk(&mut self, x: i32, z: i32, data: ChunkData) {

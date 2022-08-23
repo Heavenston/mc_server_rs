@@ -55,6 +55,35 @@ impl BlockChangeAccumulator {
     pub fn new() -> Self {
         Self::default()
     }
+    /*pub fn from_difference(from: &WorldSection, to: &WorldSection) -> Self {
+        let bca = Self::new();
+
+        for ((chunk_x, chunk_z), chunk) in from.chunks.iter() {
+            if let Some(second_chunk) = to.get_chunk(*chunk_x, *chunk_z) {
+                if chunk.sections_height() != second_chunk.sections_height() { continue }
+
+                for section_index in 0..(chunk.sections_height() as u16) {
+                    let first_section = chunk.get_section(section_index);
+                    let second_section = second_chunk.get_section(section_index);
+                    if first_section != second_section {
+                        continue;
+                    }
+
+                    for dx in 0..16 {
+                        for dy in 0..16 {
+                            for dz in 0..16 {
+                                if first_section.get_block(dx, dy, dz) != second_section.get_block(dx, dy, dz) {
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        bca
+    }*/
 
     pub fn set_block(&mut self, pos: Position, block_id: BlockState) {
         let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
@@ -70,7 +99,18 @@ impl BlockChangeAccumulator {
         self.mini_sections.get(&mini_section_pos).and_then(|a| a[block_index])
     }
 
-    pub fn apply_to(&self, world_section: &mut WorldSection) {
+    pub fn apply_to_accumulator(&self, other: &mut BlockChangeAccumulator) {
+        for (mini_section_pos, blocks) in self.mini_sections.iter() {
+            other.mini_sections.entry(*mini_section_pos)
+                .and_modify(|other_blocks| {
+                    (0..blocks.len())
+                        .filter_map(|i| blocks[i].map(|b| (i, b)))
+                        .for_each(|(i, b)| other_blocks[i] = Some(b))
+                })
+                .or_insert_with(|| blocks.clone());
+        }
+    }
+    pub fn apply_to_world(&self, world_section: &mut WorldSection) {
         for (mini_section_pos, blocks) in self.mini_sections.iter() {
             let (mini_offset, section_pos) = Self::mini_to_full_section(*mini_section_pos);
             let mini_block_offset = (
