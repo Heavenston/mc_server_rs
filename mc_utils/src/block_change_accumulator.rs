@@ -85,6 +85,10 @@ impl BlockChangeAccumulator {
         bca
     }*/
 
+    pub fn clear(&mut self) {
+        self.mini_sections.clear();
+    }
+
     pub fn set_block(&mut self, pos: Position, block_id: BlockState) {
         let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
 
