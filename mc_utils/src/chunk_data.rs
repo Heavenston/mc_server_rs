@@ -17,7 +17,7 @@ pub type BlockState = u16;
 
 /// Because neither serde nor big array can just use a boxed slice of 4096 u16.
 /// So this type is a (de)serializable array of 4096 u16.
-#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ChunkArray {
     #[serde(with = "BigArray")] 
     pub array: [BlockState; 4096],
@@ -47,7 +47,7 @@ impl DerefMut for ChunkArray {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum ChunkDataSection {
     Paletted {
         blocks: Box<ChunkArray>,
@@ -165,7 +165,7 @@ impl Default for ChunkDataSection {
 }
 
 
-#[derive(Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct ChunkData {
     sections: Vec<ChunkDataSection>,
 }

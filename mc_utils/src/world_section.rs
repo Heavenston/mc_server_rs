@@ -50,15 +50,20 @@ impl WorldSection {
         self.chunks.get(&(x, z))
     }
     pub fn get_chunk_or_default(&self, x: i32, z: i32) -> &ChunkData {
-        self.chunks.get(&(x, z)).unwrap_or(self.default_chunk.as_ref().expect("No default chunk was set"))
+        self.chunks.get(&(x, z)).unwrap_or_else(||
+            self.default_chunk.as_ref().expect(&format!("Cannot get chunk {}-{} because no default chunk was set", x, z))
+        )
     }
     pub fn get_chunk_mut(&mut self, x: i32, z: i32) -> &mut ChunkData {
         let WorldSection { chunks, default_chunk, .. } = self;
 
         if let Some(default_chunk) = &default_chunk {
             chunks.entry((x, z)).or_insert_with(|| default_chunk.clone())
-        } else if let Some(c) = chunks.get_mut(&(x, z))
-        { c } else { panic!("No default chunk was set") }
+        } else if let Some(c) = chunks.get_mut(&(x, z)) {
+           c
+        } else {
+           panic!("Cannot get chunk {}-{} because no default chunk was set", x, z)
+        }
     }
 
     pub fn set_block(&mut self, position: Position, block: BlockState) {
@@ -83,7 +88,7 @@ impl WorldSection {
 }
 
 #[test]
-#[should_panic(expected = "No default chunk was set")]
+#[should_panic(expected = "Cannot get chunk 1-14 because no default chunk was set")]
 fn test_wrong_chunk_panic() {
     let mut wc = WorldSection::new(128);
     assert_eq!(wc.chunks.len(), 0);

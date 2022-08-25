@@ -122,8 +122,8 @@ impl BlockChangeAccumulator {
                 mini_offset.1 * MINI_SECTIONS_SIDES as u8,
                 mini_offset.2 * MINI_SECTIONS_SIDES as u8,
             );
-            let section = world_section.get_chunk_mut(section_pos.0, section_pos.1)
-                .get_section_mut(mini_section_pos.1.try_into().unwrap());
+            let section = world_section.get_chunk_mut(section_pos.0, section_pos.2)
+                .get_section_mut(section_pos.1.try_into().unwrap());
             for dz in 0..(MINI_SECTIONS_SIDES as usize) {
                 for dy in 0..(MINI_SECTIONS_SIDES as usize) {
                     for dx in 0..(MINI_SECTIONS_SIDES as usize) {
@@ -199,17 +199,41 @@ impl BlockChangeAccumulator {
 
 #[cfg(test)]
 mod tests {
-    use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
+    use crate::{ WorldSection, ChunkData };
     use super::*;
+
+    use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
+
+    #[test]
+    pub fn test_apply_to_world_bca() {
+        let mut bca = BlockChangeAccumulator::new();
+        let mut world = WorldSection::new(256);
+        let empty_chunk = ChunkData::new(256 / 16);
+        
+        let first_block_pos = Position { x: 120, y: 32, z: -368 };
+        world.set_chunk(7, -23, empty_chunk.clone());
+        world.set_block(first_block_pos, 69);
+        assert_eq!(world.get_block(first_block_pos), 69);
+        assert_eq!(bca.get_block(first_block_pos), None);
+
+        bca.set_block(first_block_pos, 420);
+        assert_eq!(world.get_block(first_block_pos), 69);
+        assert_eq!(bca.get_block(first_block_pos), Some(420));
+
+        bca.apply_to_world(&mut world);
+
+        assert_eq!(world.get_block(first_block_pos), 420, "Apply did not change the correct block (or none at all)");
+        assert_eq!(bca.get_block(first_block_pos), Some(420));
+    }
 
     #[test]
     pub fn test_bca() {
         let mut bca = BlockChangeAccumulator::new();
         assert_eq!(bca.to_packets(None).count(), 0);
         assert_eq!(bca.get_block(Position { x: 120, y: 32, z: 7 }), None);
-        assert_eq!(bca.get_block(Position { x: 120, y: 83, z: -332 }), None);
-        assert_eq!(bca.get_block(Position { x: -438, y: 8, z: -332 }), None);
-        assert_eq!(bca.get_block(Position { x: -438, y: 8, z: 912 }), None);
+        assert_eq!(bca.get_block(Position { x: 120, y: 83, z: -1 }), None);
+        assert_eq!(bca.get_block(Position { x: -1, y: 8, z: -1 }), None);
+        assert_eq!(bca.get_block(Position { x: -1, y: 8, z: 912 }), None);
         assert_eq!(bca.get_block(Position { x: 0, y: 39, z: 21303989 }), None);
         assert_eq!(bca.get_block(Position { x: 0, y: 0, z: 8231 }), None);
         assert_eq!(bca.get_block(Position { x: 0, y: 0, z: 0 }), None);
@@ -235,11 +259,12 @@ mod tests {
             a.block_id == 3
         ));
 
+        bca.set_block(Position { x: -1, y: 30, z: -4 }, 93);
         bca.set_block(Position { x: 123, y: 30, z: 12093 }, 679);
 
         let packets: Vec<_> = bca.to_packets(None).collect();
         println!("{packets:#?}");
-        assert_eq!(packets.len(), 2);
+        assert_eq!(packets.len(), 3);
         assert!(packets.iter().any(|p| {
             p.section_x == 7 && p.section_y == 1 && p.section_z == 755 &&
             p.blocks == vec![C3DBlockChange {
