@@ -58,3 +58,20 @@ impl Location {
         self.x == other.x && self.y == other.y && self.z == other.z
     }
 }
+
+impl From<Position> for Location {
+    fn from(pos: Position) -> Location {
+        Location {
+            x: pos.x as f64,
+            y: pos.y as f64,
+            z: pos.z as f64,
+            ..Location::default()
+        }
+    }
+}
+
+impl Into<Position> for Location {
+    fn into(self) -> Position {
+        self.block_position()
+    }
+}
