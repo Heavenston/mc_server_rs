@@ -20,7 +20,7 @@ impl Location {
     }
 
     pub fn distance2(&self, other: Location) -> f64 {
-        (other.x - self.x).powf(2.0) + (other.y - self.y).powf(2.0) + (other.z - self.z).powf(2.0)
+        (other.x - self.x).powi(2) + (other.y - self.y).powi(2) + (other.z - self.z).powi(2)
     }
 
     pub fn distance(&self, other: Location) -> f64 {
@@ -28,7 +28,7 @@ impl Location {
     }
 
     pub fn h_distance2(&self, other: Location) -> f64 {
-        (other.x - self.x).powf(2.0) + (other.z - self.z).powf(2.0)
+        (other.x - self.x).powi(2) + (other.z - self.z).powi(2)
     }
 
     pub fn h_distance(&self, other: Location) -> f64 {

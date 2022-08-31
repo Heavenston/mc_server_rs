@@ -19,13 +19,13 @@ pub trait PositionExt: Sized + Copy + Clone {
 impl PositionExt for Position {
     fn distance2(&self, other: &Self) -> i32 {
         (self.x - other.x).pow(2) +
-        (self.y - other.z).pow(2) +
-        (self.z - other.y).pow(2)
+        (self.y - other.y).pow(2) +
+        (self.z - other.z).pow(2)
     }
 
     fn h_distance2(&self, other: &Self) -> i32 {
         (self.x - other.x).pow(2) +
-        (self.z - other.y).pow(2)
+        (self.z - other.z).pow(2)
     }
 
     fn chunk_x(&self) -> i32 {
