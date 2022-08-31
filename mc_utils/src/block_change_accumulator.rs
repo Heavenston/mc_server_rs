@@ -2,17 +2,35 @@ use crate::{ BlockState, FlooringDiv, WorldSection };
 use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
 use mc_networking::data_types::Position;
 
-use std::collections::HashMap;
+use std::collections::hash_map::{ HashMap, Entry };
 use std::convert::TryInto;
 
 const MINI_SECTIONS_SIDES: u16 = 8;
 
+pub trait BlockChangeMetadataTrait {
+    fn is_important(&self) -> bool { false }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct BlockChangeMetadata {
+    /// Important block changes can only be overwritten by another important block change
+    pub important: bool,
+}
+impl BlockChangeMetadataTrait for BlockChangeMetadata {
+    fn is_important(&self) -> bool { self.important }
+}
+
 #[derive(Clone, Debug, Default)]
-pub struct BlockChangeAccumulator {
+pub struct BlockChangeAccumulator<M = BlockChangeMetadata>
+    where M: BlockChangeMetadataTrait
+{
+    change_metadatas: HashMap<Position, M>,
     mini_sections: HashMap<(i32, i32, i32), [Option<BlockState>; MINI_SECTIONS_SIDES.pow(3) as _]>,
 }
 
-impl BlockChangeAccumulator {
+impl<M> BlockChangeAccumulator<M>
+    where M: BlockChangeMetadataTrait
+{
     fn get_mini_section_block_index(x: usize, y: usize, z: usize) -> usize {
         x +
         y * MINI_SECTIONS_SIDES as usize +
@@ -52,7 +70,9 @@ impl BlockChangeAccumulator {
         )
     }
 
-    pub fn new() -> Self {
+    pub fn new() -> Self
+        where M: Default
+    {
         Self::default()
     }
     /*pub fn from_difference(from: &WorldSection, to: &WorldSection) -> Self {
@@ -90,8 +110,25 @@ impl BlockChangeAccumulator {
     }
 
     pub fn set_block(&mut self, pos: Position, block_id: BlockState) {
-        let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
+        if self.change_metadatas.get(&pos).map(|a| a.is_important()).unwrap_or(false) 
+        { return; }
 
+        let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
+        let a = self.mini_sections.entry(mini_section_pos)
+            .or_insert_with(|| [None; MINI_SECTIONS_SIDES.pow(3) as _]);
+        a[block_index] = Some(block_id);
+    }
+
+    pub fn set_block_with_metadata(
+        &mut self, pos: Position, block_id: BlockState, metadata: M
+    ) {
+        match self.change_metadatas.entry(pos) {
+            Entry::Occupied(o) if o.get().is_important() && !metadata.is_important() => return,
+            Entry::Occupied(mut o) => { o.insert(metadata); },
+            Entry::Vacant(o) => { o.insert(metadata); },
+        }
+
+        let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
         let a = self.mini_sections.entry(mini_section_pos)
             .or_insert_with(|| [None; MINI_SECTIONS_SIDES.pow(3) as _]);
         a[block_index] = Some(block_id);
@@ -101,6 +138,14 @@ impl BlockChangeAccumulator {
         let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
 
         self.mini_sections.get(&mini_section_pos).and_then(|a| a[block_index])
+    }
+
+    pub fn get_block_with_metadata(&self, pos: Position) -> Option<(BlockState, Option<&M>)> {
+        let (mini_section_pos, block_index) = Self::get_block_coordinates(pos);
+
+        self.mini_sections.get(&mini_section_pos)
+            .and_then(|a| a[block_index])
+            .map(|a| (a, self.change_metadatas.get(&pos)))
     }
 
     pub fn apply_to_accumulator(&self, other: &mut BlockChangeAccumulator) {
@@ -140,6 +185,10 @@ impl BlockChangeAccumulator {
                 }
             }
         }
+    }
+
+    pub fn metadatas(&self) -> impl Iterator<Item = (Position, &M)> {
+        self.change_metadatas.iter().map(|(a, b)| (*a, b))
     }
 
     pub fn to_packets(&self, ignore_if_equal: Option<&WorldSection>)
