@@ -3,12 +3,14 @@ mod chunk_data;
 mod world_section;
 mod block_change_accumulator;
 mod location;
+mod position_ext;
 pub mod tick_scheduler;
 
 pub use chunk_data::*;
 pub use location::*;
 pub use world_section::*;
 pub use block_change_accumulator::*;
+pub use position_ext::*;
 
 pub trait FlooringDiv {
     fn one() -> Self;
