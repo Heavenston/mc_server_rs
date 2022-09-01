@@ -109,6 +109,13 @@ impl<M> BlockChangeAccumulator<M>
         self.mini_sections.clear();
     }
 
+    pub fn filter_sections(&mut self, mut f: impl FnMut(i32, i32) -> bool) {
+        self.mini_sections.retain(|&mini_pos, _| {
+            let (_, pos) = Self::mini_to_full_section(mini_pos);
+            f(pos.0, pos.2)
+        });
+    }
+
     pub fn set_block(&mut self, pos: Position, block_id: BlockState) {
         if self.change_metadatas.get(&pos).map(|a| a.is_important()).unwrap_or(false) 
         { return; }
