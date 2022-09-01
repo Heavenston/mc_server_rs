@@ -66,6 +66,13 @@ impl WorldSection {
         }
     }
 
+    pub fn remove_chunk(&mut self, x: i32, z: i32) -> Option<ChunkData> {
+        self.chunks.remove(&(x, z))
+    }
+    pub fn filter_chunks(&mut self, mut f: impl FnMut((i32, i32), &mut ChunkData) -> bool) {
+        self.chunks.retain(|&(x, z), data| f((x, z), data));
+    }
+
     pub fn set_block(&mut self, position: Position, block: BlockState) {
         self
             .get_chunk_mut(position.x.flooring_div(16), position.z.flooring_div(16))
