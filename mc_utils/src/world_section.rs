@@ -4,7 +4,7 @@ use mc_networking::data_types::Position;
 use std::convert::TryInto;
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct WorldSection {
     world_height: usize,
 

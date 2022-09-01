@@ -206,8 +206,8 @@ impl<M> BlockChangeAccumulator<M>
             let block_change_list =
                 sections.entry(section_pos).or_insert(vec![]);
             let original_section = ignore_if_equal.map(|w| {
-                w.get_chunk_or_default(section_pos.0, section_pos.1)
-                 .get_section(mini_section_pos.1.try_into().unwrap())
+                w.get_chunk_or_default(section_pos.0, section_pos.2)
+                 .get_section(section_pos.1.try_into().unwrap())
             });
 
             for dz in 0..(MINI_SECTIONS_SIDES as usize) {
@@ -248,10 +248,100 @@ impl<M> BlockChangeAccumulator<M>
 
 #[cfg(test)]
 mod tests {
-    use crate::{ WorldSection, ChunkData };
+    use crate::{ WorldSection, ChunkData, PositionExt };
     use super::*;
 
     use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
+
+    #[test]
+    pub fn test_to_packets_ignore_if_equal() {
+        let mut bca = BlockChangeAccumulator::<BlockChangeMetadata>::new();
+        let mut world = WorldSection::new(256);
+        world.set_default_chunk(Some(ChunkData::new(256 / 16)));
+
+        let b1 = Position { x: -320, y: 10, z: -2 };
+        let b2 = b1.add_x(17);
+        let b3 = Position { x: 12, y: 120, z: 2 };
+        let b4 = Position { x: -12, y: 120, z: -2 };
+
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 0);
+
+        world.set_block(b1, 2);
+        bca.set_block(b1, 2);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 1);
+
+        bca.set_block(b1, 3);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 1);
+        assert_eq!(bca.to_packets(None).count(), 1);
+
+        bca.set_block(b2, 3);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 2);
+        assert_eq!(bca.to_packets(None).count(), 2);
+
+        world.set_block(b2, 3);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 1);
+        assert_eq!(bca.to_packets(None).count(), 2);
+
+        bca.set_block(b1, 2);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 2);
+
+        bca.set_block(b3, 3);
+        bca.set_block(b4, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 2);
+        assert_eq!(bca.to_packets(None).count(), 4);
+
+        world.set_block(b4, 3);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 2);
+        assert_eq!(bca.to_packets(None).count(), 4);
+
+        world.set_block(b3, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 2);
+        assert_eq!(bca.to_packets(None).count(), 4);
+
+        bca.set_block(b3, 0);
+        bca.set_block(b4, 0);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 2);
+        assert_eq!(bca.to_packets(None).count(), 4);
+
+        bca.clear();
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 0);
+
+        world = WorldSection::new(256);
+        world.set_default_chunk(Some(ChunkData::new(256 / 16)));
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 0);
+
+        bca.set_block(b1, 0);
+        bca.set_block(b1.add_y(1), 0);
+        bca.set_block(b2, 0);
+        bca.set_block(b3, 0);
+        bca.set_block(b4, 0);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 4);
+
+        bca.clear();
+
+        bca.set_block(b4, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 1);
+        assert_eq!(bca.to_packets(None).count(), 1);
+
+        world.set_block(b3, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 1);
+        assert_eq!(bca.to_packets(None).count(), 1);
+
+        bca.set_block(b3, 4);
+        world.set_block(b3, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 1);
+        assert_eq!(bca.to_packets(None).count(), 2);
+
+        world.set_block(b4, 4);
+        assert_eq!(bca.to_packets(Some(&world)).count(), 0);
+        assert_eq!(bca.to_packets(None).count(), 2);
+    }
 
     #[test]
     pub fn test_apply_to_world_bca() {
