@@ -14,6 +14,20 @@ pub trait PositionExt: Sized + Copy + Clone {
 
     fn chunk_x(&self) -> i32;
     fn chunk_z(&self) -> i32;
+
+    fn with_x(&self, x: i32) -> Self;
+    fn with_y(&self, y: i32) -> Self;
+    fn with_z(&self, z: i32) -> Self;
+
+    fn add(&self, other: &Self) -> Self;
+    fn add_x(&self, x: i32) -> Self;
+    fn add_y(&self, y: i32) -> Self;
+    fn add_z(&self, z: i32) -> Self;
+
+    fn sub(&self, other: &Self) -> Self;
+    fn sub_x(&self, x: i32) -> Self;
+    fn sub_y(&self, y: i32) -> Self;
+    fn sub_z(&self, z: i32) -> Self;
 }
 
 impl PositionExt for Position {
@@ -33,5 +47,67 @@ impl PositionExt for Position {
     }
     fn chunk_z(&self) -> i32 {
         self.z.flooring_div(16)
+    }
+
+    fn with_x(&self, x: i32) -> Self {
+        Self { x, ..*self }
+    }
+    fn with_y(&self, y: i32) -> Self {
+        Self { y, ..*self }
+    }
+    fn with_z(&self, z: i32) -> Self {
+        Self { z, ..*self }
+    }
+
+    fn add(&self, other: &Self) -> Self {
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            z: self.z + other.z,
+        }
+    }
+    fn add_x(&self, x: i32) -> Self {
+        Self {
+            x: self.x + x,
+            ..*self
+        }
+    }
+    fn add_y(&self, y: i32) -> Self {
+        Self {
+            y: self.y + y,
+            ..*self
+        }
+    }
+    fn add_z(&self, z: i32) -> Self {
+        Self {
+            z: self.z + z,
+            ..*self
+        }
+    }
+
+    fn sub(&self, other: &Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            z: self.z - other.z,
+        }
+    }
+    fn sub_x(&self, x: i32) -> Self {
+        Self {
+            x: self.x - x,
+            ..*self
+        }
+    }
+    fn sub_y(&self, y: i32) -> Self {
+        Self {
+            y: self.y - y,
+            ..*self
+        }
+    }
+    fn sub_z(&self, z: i32) -> Self {
+        Self {
+            z: self.z - z,
+            ..*self
+        }
     }
 }
