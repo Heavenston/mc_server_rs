@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     pub fn test_apply_to_world_bca() {
-        let mut bca = BlockChangeAccumulator::new();
+        let mut bca = BlockChangeAccumulator::<BlockChangeMetadata>::new();
         let mut world = WorldSection::new(256);
         let empty_chunk = ChunkData::new(256 / 16);
         
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     pub fn test_bca() {
-        let mut bca = BlockChangeAccumulator::new();
+        let mut bca = BlockChangeAccumulator::<BlockChangeMetadata>::new();
         assert_eq!(bca.to_packets(None).count(), 0);
         assert_eq!(bca.get_block(Position { x: 120, y: 32, z: 7 }), None);
         assert_eq!(bca.get_block(Position { x: 120, y: 83, z: -1 }), None);
