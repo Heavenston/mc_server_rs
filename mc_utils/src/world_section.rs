@@ -23,6 +23,10 @@ impl WorldSection {
         }
     }
 
+    pub fn height(&self) -> usize {
+        self.world_height
+    }
+
     pub fn set_default_chunk(&mut self, data: Option<ChunkData>) {
         assert_eq!(
             data.as_ref().map(|a| a.block_height()).unwrap_or(self.world_height),

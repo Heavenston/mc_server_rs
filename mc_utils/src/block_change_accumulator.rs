@@ -20,7 +20,7 @@ impl BlockChangeMetadataTrait for BlockChangeMetadata {
     fn is_important(&self) -> bool { self.important }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct BlockChangeAccumulator<M = BlockChangeMetadata>
     where M: BlockChangeMetadataTrait
 {
@@ -70,18 +70,18 @@ impl<M> BlockChangeAccumulator<M>
         )
     }
 
-    pub fn new() -> Self
-        where M: Default
-    {
+    pub fn new() -> Self {
         Self::default()
     }
-    /*pub fn from_difference(from: &WorldSection, to: &WorldSection) -> Self {
+    pub fn from_difference(from: &WorldSection, to: &WorldSection) -> Self {
         let bca = Self::new();
+
+        if from.height() != to.height() {
+            return bca;
+        }
 
         for ((chunk_x, chunk_z), chunk) in from.chunks.iter() {
             if let Some(second_chunk) = to.get_chunk(*chunk_x, *chunk_z) {
-                if chunk.sections_height() != second_chunk.sections_height() { continue }
-
                 for section_index in 0..(chunk.sections_height() as u16) {
                     let first_section = chunk.get_section(section_index);
                     let second_section = second_chunk.get_section(section_index);
@@ -92,8 +92,16 @@ impl<M> BlockChangeAccumulator<M>
                     for dx in 0..16 {
                         for dy in 0..16 {
                             for dz in 0..16 {
-                                if first_section.get_block(dx, dy, dz) != second_section.get_block(dx, dy, dz) {
-
+                                let (a, b) = (
+                                    first_section.get_block(dx, dy, dz),
+                                    second_section.get_block(dx, dy, dz),
+                                );
+                                if a != b {
+                                    bca.set_block(Position {
+                                        x: chunk_x*16 + i32::from(dx),
+                                        y: i32::from(section_index)*16 + i32::from(dy),
+                                        z: chunk_z*16 + i32::from(dz)
+                                    }, b);
                                 }
                             }
                         }
@@ -103,7 +111,7 @@ impl<M> BlockChangeAccumulator<M>
         }
 
         bca
-    }*/
+    }
 
     pub fn clear(&mut self) {
         self.mini_sections.clear();
@@ -250,6 +258,15 @@ impl<M> BlockChangeAccumulator<M>
             inverted_trust_edges: false,
             blocks,
         })
+    }
+}
+
+impl<M: BlockChangeMetadataTrait> Default for BlockChangeAccumulator<M> {
+    fn default() -> Self {
+        Self {
+            change_metadatas: HashMap::new(),
+            mini_sections: HashMap::new(),
+        }
     }
 }
 
