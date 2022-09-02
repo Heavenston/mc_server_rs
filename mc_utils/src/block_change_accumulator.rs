@@ -177,10 +177,10 @@ impl<M> BlockChangeAccumulator<M>
         }
     }
     pub fn apply_to_accumulator(&self, other: &mut BlockChangeAccumulator) {
-        self.apply_to_accumulator_inner(other, false);
+        self.apply_to_accumulator_inner(other, true);
     }
     pub fn apply_to_accumulator_without_overwrite(&self, other: &mut BlockChangeAccumulator) {
-        self.apply_to_accumulator_inner(other, true);
+        self.apply_to_accumulator_inner(other, false);
     }
 
     pub fn apply_to_world(&self, world_section: &mut WorldSection) {
