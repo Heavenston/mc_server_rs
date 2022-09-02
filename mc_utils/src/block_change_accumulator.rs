@@ -1,5 +1,5 @@
 use crate::{ BlockState, FlooringDiv, WorldSection };
-use mc_networking::packets::client_bound::C3DBlockChange;
+use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
 use mc_networking::data_types::Position;
 
 use std::collections::hash_map::{ HashMap, Entry };
