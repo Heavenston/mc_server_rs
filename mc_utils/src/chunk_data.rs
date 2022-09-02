@@ -203,6 +203,12 @@ impl ChunkData {
             .get_block(x, y.rem_euclid(16) as u8, z)
     }
 
+    pub fn fill_with(&mut self, block: BlockState) {
+        for sec in &mut self.sections {
+            sec.fill_with(block);
+        }
+    }
+
     pub fn encode_full(
         &self, chunk_x: i32, chunk_z: i32
     ) -> C1FChunkDataAndUpdateLight {
