@@ -1,5 +1,5 @@
 use crate::{ BlockState, FlooringDiv, WorldSection };
-use mc_networking::packets::client_bound::{ C3DBlockChange, C3DUpdateSectionBlocks };
+use mc_networking::packets::client_bound::C3DBlockChange;
 use mc_networking::data_types::Position;
 
 use std::collections::hash_map::{ HashMap, Entry };
@@ -74,7 +74,7 @@ impl<M> BlockChangeAccumulator<M>
         Self::default()
     }
     pub fn from_difference(from: &WorldSection, to: &WorldSection) -> Self {
-        let bca = Self::new();
+        let mut bca = Self::new();
 
         if from.height() != to.height() {
             return bca;
