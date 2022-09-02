@@ -163,17 +163,26 @@ impl<M> BlockChangeAccumulator<M>
             .map(|a| (a, self.change_metadatas.get(&pos)))
     }
 
-    pub fn apply_to_accumulator(&self, other: &mut BlockChangeAccumulator) {
+    fn apply_to_accumulator_inner(&self, other: &mut BlockChangeAccumulator, allow_overwrites: bool) {
         for (mini_section_pos, blocks) in self.mini_sections.iter() {
             other.mini_sections.entry(*mini_section_pos)
                 .and_modify(|other_blocks| {
                     (0..blocks.len())
                         .filter_map(|i| blocks[i].map(|b| (i, b)))
-                        .for_each(|(i, b)| other_blocks[i] = Some(b))
+                        .for_each(|(i, b)| if allow_overwrites || other_blocks[i].is_none() {
+                            other_blocks[i] = Some(b)
+                        })
                 })
                 .or_insert_with(|| blocks.clone());
         }
     }
+    pub fn apply_to_accumulator(&self, other: &mut BlockChangeAccumulator) {
+        self.apply_to_accumulator_inner(other, false);
+    }
+    pub fn apply_to_accumulator_without_overwrite(&self, other: &mut BlockChangeAccumulator) {
+        self.apply_to_accumulator_inner(other, true);
+    }
+
     pub fn apply_to_world(&self, world_section: &mut WorldSection) {
         for (mini_section_pos, blocks) in self.mini_sections.iter() {
             let (mini_offset, section_pos) = Self::mini_to_full_section(*mini_section_pos);
