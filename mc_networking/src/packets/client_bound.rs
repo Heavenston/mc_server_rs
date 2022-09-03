@@ -451,11 +451,11 @@ mod play {
     }
 
     pub struct C15PluginMessageBuilder {
-        pub channel: Identifier,
+        pub channel: String,
         pub encoder: PacketEncoder,
     }
     impl C15PluginMessageBuilder {
-        pub fn new(channel: Identifier) -> Self {
+        pub fn new(channel: String) -> Self {
             Self {
                 channel,
                 encoder: PacketEncoder::default(),
@@ -478,7 +478,7 @@ mod play {
     /// <https://wiki.vg/Protocol#Plugin_Message_.28clientbound.29>
     #[derive(Clone, Debug)]
     pub struct C15PluginMessage {
-        pub channel: Identifier,
+        pub channel: String,
         pub data: Bytes,
     }
     impl ClientBoundPacket for C15PluginMessage {
