@@ -450,11 +450,11 @@ mod play {
         }
     }
 
-    pub struct C15PluginMessageBuilder {
+    pub struct C16PluginMessageBuilder {
         pub channel: String,
         pub encoder: PacketEncoder,
     }
-    impl C15PluginMessageBuilder {
+    impl C16PluginMessageBuilder {
         pub fn new(channel: String) -> Self {
             Self {
                 channel,
@@ -462,8 +462,8 @@ mod play {
             }
         }
 
-        pub fn build(self) -> C15PluginMessage {
-            C15PluginMessage {
+        pub fn build(self) -> C16PluginMessage {
+            C16PluginMessage {
                 channel: self.channel,
                 data: self.encoder.into_inner().freeze(),
             }
@@ -477,12 +477,12 @@ mod play {
     ///
     /// <https://wiki.vg/Protocol#Plugin_Message_.28clientbound.29>
     #[derive(Clone, Debug)]
-    pub struct C15PluginMessage {
+    pub struct C16PluginMessage {
         pub channel: String,
         pub data: Bytes,
     }
-    impl ClientBoundPacket for C15PluginMessage {
-        const PACKET_ID: i32 = 0x15;
+    impl ClientBoundPacket for C16PluginMessage {
+        const PACKET_ID: i32 = 0x16;
 
         fn encode<D: BufMut>(&self, encoder: &mut PacketEncoder<D>) {
             encoder.write_string(&self.channel);

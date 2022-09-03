@@ -120,7 +120,7 @@ fn handle_client_event(
             });
 
             client_component.0.send_packet_sync(&{
-                let mut bldr = C15PluginMessageBuilder::new("minecraft:brand".into());
+                let mut bldr = C16PluginMessageBuilder::new("minecraft:brand".into());
                 bldr.encoder.write_string(&username_component.map(|a| a.0.clone()).unwrap());
                 bldr.build()
             });
