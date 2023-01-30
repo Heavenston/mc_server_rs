@@ -90,6 +90,9 @@ impl RawPacket<Bytes> {
     /// Decodes the content part of a Packet (packet_id + data)
     fn decode_content(stream: &mut BytesMut, size: usize) -> DecodingResult<Self> {
         let packet_id = varint::decode_buf(stream)?;
+        if size == 0 {
+            return Err(DecodingError::ZeroSize { packet_id });
+        }
         Ok(Self {
             packet_id,
             data: stream.split_to(size - 1).freeze(),

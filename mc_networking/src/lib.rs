@@ -3,6 +3,8 @@ pub mod data_types;
 pub mod nbt_map;
 pub mod packets;
 
+use crate::data_types::VarInt;
+
 use thiserror::Error;
 use tokio::io;
 
@@ -10,6 +12,10 @@ use tokio::io;
 pub enum DecodingError {
     #[error("io error {0}")]
     IoError(io::Error),
+    #[error("zero sized packet with id {packet_id:20X}")]
+    ZeroSize {
+        packet_id: VarInt,
+    },
     #[error("not enough bytes")]
     NotEnoughBytes,
     #[error("could not parse {data_type}: {message}")]

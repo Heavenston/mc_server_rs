@@ -89,6 +89,10 @@ pub(super) async fn listen_ingoing_packets(
                 match RawPacket::decode(&mut read_bytes, packet_compression) {
                     Ok(raw_packet) => break raw_packet,
                     Err(DecodingError::NotEnoughBytes) => (),
+                    Err(DecodingError::ZeroSize { packet_id }) => {
+                        warn!("Zero size packet with id {:02x}, ignoring...", packet_id);
+                        read_bytes.clear();
+                    },
                     Err(e) => return Err(e.into()),
                 }
                 let received = read.read(&mut new_bytes).await?;
